@@ -1,0 +1,29 @@
+---
+BasedOnStyle: Google
+
+IndentWidth: 4 # 每个缩进级别使用的空格数。
+UseTab: Never # 总是使用空格，而不是使用 Tab。
+TabWidth: 4 # Tab 键等价于多少个空格。
+
+ColumnLimit: 110 # 每行的最大字符数
+
+AlignTrailingComments: true # 对齐连续的尾随的注释
+
+# 对齐连续语句
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveBitFields: true
+AlignConsecutiveMacros: AcrossEmptyLinesAndComments
+
+BreakBeforeTernaryOperators: true # 在三元运算符之前换行
+
+AllowShortBlocksOnASingleLine: true # 允许短的块放在同一行
+
+SortIncludes: true # 允许排序#include
+
+AlignEscapedNewlines: Left # 允许转义换行符左对齐
+
+IndentPPDirectives: BeforeHash # 预处理指令缩进到#符号之前
+
+BreakBeforeBraces: Attach # 大括号附加在语句的末尾
+AlignAfterOpenBracket: DontAlign # 不对齐打开括号后的内容
