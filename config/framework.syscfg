@@ -20,8 +20,8 @@ const SYSTICK = scripting.addModule("/ti/driverlib/SYSTICK");
 GPIO1.$name                         = "GPIO_LEDS";
 GPIO1.port                          = "PORTA";
 GPIO1.associatedPins[0].$name       = "USER_LED";
-GPIO1.associatedPins[0].assignedPin = "14";
-GPIO1.associatedPins[0].pin.$assign = "PA14";
+GPIO1.associatedPins[0].assignedPin = "15";
+GPIO1.associatedPins[0].pin.$assign = "PA15";
 
 const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 

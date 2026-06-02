@@ -82,9 +82,9 @@ extern "C" {
 /* Port definition for Pin Group GPIO_LEDS */
 #define GPIO_LEDS_PORT                                                   (GPIOA)
 
-/* Defines for USER_LED: GPIOA.14 with pinCMx 36 on package pin 7 */
-#define GPIO_LEDS_USER_LED_PIN                                  (DL_GPIO_PIN_14)
-#define GPIO_LEDS_USER_LED_IOMUX                                 (IOMUX_PINCM36)
+/* Defines for USER_LED: GPIOA.15 with pinCMx 37 on package pin 8 */
+#define GPIO_LEDS_USER_LED_PIN                                  (DL_GPIO_PIN_15)
+#define GPIO_LEDS_USER_LED_IOMUX                                 (IOMUX_PINCM37)
 
 
 

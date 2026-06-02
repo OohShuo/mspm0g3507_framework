@@ -14,8 +14,6 @@ else()
     error("Unsupported BOARD_TYPE: ${BOARD_TYPE}.")
 endif()
 
-set(PRODUCT_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/product.json" CACHE INTERNAL "Path to the product.json file")
-
 set(FREERTOS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/freertos")
 
 set(FREERTOS_SOURCES

@@ -3,7 +3,7 @@
 PROJECT_NAME="$(basename "$(pwd)")"
 
 SYSCFG_GUI_SH="./tools/sysconfig/sysconfig_gui.sh"
-PRODUCT_JSON="./device/product.json"
+PRODUCT_JSON="./tools/product.json"
 SYSCFG_FILE="./config/${PROJECT_NAME}.syscfg"
 
 if [ ! -f "$SYSCFG_GUI_SH" ]; then

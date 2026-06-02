@@ -10,6 +10,8 @@ set(SYSCFG_INSTALL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/sysconfig" CACHE PATH "Direc
 set(SYSCFG_CLI "${SYSCFG_INSTALL_DIR}/sysconfig_cli.sh" CACHE FILEPATH "Path to sysconfig_cli.sh")
 set(SYSCFG_GUI "${SYSCFG_INSTALL_DIR}/sysconfig_gui.sh" CACHE FILEPATH "Path to sysconfig_gui.sh")
 
+set(PRODUCT_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/product.json" CACHE INTERNAL "Path to the product.json file")
+
 print_blankline()
 
 print_item(${TAG} "SysConfig install directory: ${SYSCFG_INSTALL_DIR}")

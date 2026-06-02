@@ -71,6 +71,7 @@ extern void TIMG8_IRQHandler    (void) __attribute__((weak, alias("Default_Handl
 extern void UART3_IRQHandler    (void) __attribute__((weak, alias("Default_Handler")));
 extern void ADC0_IRQHandler     (void) __attribute__((weak, alias("Default_Handler")));
 extern void ADC1_IRQHandler     (void) __attribute__((weak, alias("Default_Handler")));
+extern void CANFD0_IRQHandler   (void) __attribute__((weak, alias("Default_Handler")));
 extern void DAC0_IRQHandler     (void) __attribute__((weak, alias("Default_Handler")));
 extern void SPI0_IRQHandler     (void) __attribute__((weak, alias("Default_Handler")));
 extern void SPI1_IRQHandler     (void) __attribute__((weak, alias("Default_Handler")));
@@ -117,7 +118,7 @@ void (* const interruptVectors[])(void) __attribute__ ((used)) __attribute__ ((s
     UART3_IRQHandler,                      /* UART3 interrupt handler   */
     ADC0_IRQHandler,                       /* ADC0 interrupt handler    */
     ADC1_IRQHandler,                       /* ADC1 interrupt handler    */
-    0,                                     /* Reserved                  */
+    CANFD0_IRQHandler,                     /* CANFD0 interrupt handler  */
     DAC0_IRQHandler,                       /* DAC0 interrupt handler    */
     0,                                     /* Reserved                  */
     SPI0_IRQHandler,                       /* SPI0 interrupt handler    */
