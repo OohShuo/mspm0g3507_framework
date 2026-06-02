@@ -4,20 +4,13 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain.cmake" CACHE FILEPATH "ARM Toolchain")
 endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build" FORCE)
-endif()
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 project(framework LANGUAGES C ASM)
 
-set(BOARD_TYPE "MSPM0G3507" CACHE STRING "Target board type")
-set(SYSCFG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/${PROJECT_NAME}.syscfg")
-set(SYSCFG_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg")
+include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)
 
-add_subdirectory(device)
-add_subdirectory(tools)
+set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build" FORCE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -29,41 +22,33 @@ set(CPU_FLAGS
 add_compile_options(
     ${CPU_FLAGS}
     -fdiagnostics-color=always
-    -D__MSPM0G3507__
     -std=c99 -Wall
     -ffunction-sections
     -fdata-sections
 )
 
-syscfg_gen(${SYSCFG_FILE} ${SYSCFG_GEN_DIR})
+add_subdirectory(ti_device) 
 
-file(GLOB_RECURSE APP_SRC "src/app/*.c")
-file(GLOB_RECURSE BSP_SRC "src/bsp/*.c")
+syscfg_gen()
+
+file(GLOB_RECURSE APP_SRC "src/*.c")
+file(GLOB_RECURSE BSP_SRC "src/*.c")
 
 add_executable(${PROJECT_NAME}.elf
     ${APP_SRC}
     ${BSP_SRC}
-    "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
-    "${STARTUP_FILE}"
-    "${FREERTOS_SOURCES}"
 )
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${SYSCFG_GEN_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/device"
-    "${CMAKE_CURRENT_SOURCE_DIR}/device/cmsis/Core/Include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib"
-    "${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib/m0p"
-    "${FREERTOS_INCLUDE_DIRS}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/config"
 )
 
-target_compile_options(${PROJECT_NAME}.elf PUBLIC "@${SYSCFG_GEN_DIR}/device.opt")
+target_compile_options(${PROJECT_NAME}.elf PRIVATE "@${SYSCFG_GEN_DIR}/device.opt")
 
 target_link_options(${PROJECT_NAME}.elf PRIVATE
     ${CPU_FLAGS}
-    "-T${DEVICE_LINKER_SCRIPT}"
+    "-T${TI_LINKER_SCRIPTS}"
     "-Wl,-Map,${PROJECT_NAME}.map"
     "--specs=nano.specs"
     "--specs=nosys.specs"
@@ -71,8 +56,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     "-nostartfiles"
 )
 
-target_link_libraries(${PROJECT_NAME}.elf PRIVATE m c gcc nosys
-    "${TI_DRIVERLIB_A}")
+target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti_device)
 
 add_custom_command(
     TARGET ${PROJECT_NAME}.elf POST_BUILD
