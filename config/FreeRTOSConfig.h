@@ -29,6 +29,8 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
+#define configENABLE_MPU                             0U
+
 /******************************************************************************/
 /* Hardware description related definitions. **********************************/
 /******************************************************************************/
@@ -86,7 +88,6 @@
 #define configKERNEL_INTERRUPT_PRIORITY              (configLIBRARY_LOWEST_INTERRUPT_PRIORITY << (8 - 2))
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY         (configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - 2))
 #define configMAX_API_CALL_INTERRUPT_PRIORITY        0U
-#define configENABLE_MPU                             0U
 
 /******************************************************************************/
 /* Hook and callback function related definitions. ****************************/

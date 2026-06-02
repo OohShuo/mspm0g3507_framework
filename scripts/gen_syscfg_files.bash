@@ -26,8 +26,8 @@ if [ $? -ne 0 ]; then
 fi
 
 for FILE in "${WHITELIST[@]}"; do
-    if [ -f "$TEMP_DIR/excluded/$FILE" ]; then
-        cp "$TEMP_DIR/excluded/$FILE" "$FINAL_DIR/"
+    if [ -f "$TEMP_DIR/$FILE" ]; then
+        cp "$TEMP_DIR/$FILE" "$FINAL_DIR/"
         echo "$FILE generated and copied to $FINAL_DIR/"
     else
         echo "$FILE not found. Please check the SysConfig output."
