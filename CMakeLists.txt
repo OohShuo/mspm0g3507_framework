@@ -9,7 +9,6 @@ project(framework LANGUAGES C ASM)
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)
 
-set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build" FORCE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CPU_FLAGS
@@ -31,17 +30,28 @@ add_subdirectory(ti_device)
 
 syscfg_gen()
 
-file(GLOB_RECURSE APP_SRC "src/*.c")
-file(GLOB_RECURSE BSP_SRC "src/*.c")
+set(APP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/app")
+set(HAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/hal")
+set(BSP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/bsp")
+
+file(GLOB_RECURSE APP_SRC "${APP_DIR}/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg/*.c")
+file(GLOB_RECURSE HAL_SRC "${HAL_DIR}/*.c")
+file(GLOB_RECURSE BSP_SRC "${BSP_DIR}/*.c")
+
+set(APP_INC ${APP_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg)
+set(HAL_INC ${HAL_DIR})
+set(BSP_INC ${BSP_DIR})
 
 add_executable(${PROJECT_NAME}.elf
     ${APP_SRC}
+    ${HAL_SRC}
     ${BSP_SRC}
 )
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${SYSCFG_GEN_DIR}"
+    ${APP_INC}
+    ${HAL_INC}
+    ${BSP_INC}
 )
 
 target_compile_options(${PROJECT_NAME}.elf PRIVATE "@${SYSCFG_GEN_DIR}/device.opt")
