@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
-project(device_support LANGUAGES C ASM)
+
+project(device LANGUAGES C ASM)
+
+include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
+
+set(TAG "Device")
 
 if(${BOARD_TYPE} STREQUAL "MSPM0G3507")
     set(STARTUP_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ti/devices/msp/m0p/startup_system_files/gcc/startup_mspm0g350x_gcc.c" CACHE INTERNAL "Startup file for MSPM0G3507")
@@ -9,3 +14,15 @@ if(${BOARD_TYPE} STREQUAL "MSPM0G3507")
 else()
     error("Unsupported BOARD_TYPE: ${BOARD_TYPE}.")
 endif()
+
+set(PRODUCT_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/product.json" CACHE INTERNAL "Path to the product.json file")
+
+print_blankline()
+
+print_item(${TAG} "Using board type: ${BOARD_TYPE}")
+
+print_item(${TAG} "Product JSON file: ${PRODUCT_JSON_FILE}")
+print_item(${TAG} "Startup file: ${STARTUP_FILE}")
+print_item(${TAG} "Linker script: ${DEVICE_LINKER_SCRIPT}")
+print_item(${TAG} "TI DriverLib: ${TI_DRIVERLIB_A}")
+print_item(${TAG} "Sysctl Source: ${DL_SYSCTL_SOURCE}")

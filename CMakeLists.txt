@@ -4,13 +4,20 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain.cmake" CACHE FILEPATH "ARM Toolchain")
 endif()
 
-project(framework LANGUAGES C ASM)
-
-message(STATUS "Using toolchain file: ${CMAKE_TOOLCHAIN_FILE}")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build" FORCE)
+endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+project(framework LANGUAGES C ASM)
+
 set(BOARD_TYPE "MSPM0G3507" CACHE STRING "Target board type")
+set(SYSCFG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.syscfg)
+set(SYSCFG_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg")
+
+add_subdirectory(device)
+add_subdirectory(tools/sysconfig)
 
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -23,14 +30,12 @@ add_compile_options(
     ${CPU_FLAGS}
     -fdiagnostics-color=always
     -D__MSPM0G3507__
-    -O2 -g -std=c99 -Wall
+    -std=c99 -Wall
     -ffunction-sections
     -fdata-sections
 )
 
-set(SYSCFG_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg")
-
-add_subdirectory(device)
+syscfg_gen(${SYSCFG_FILE} ${SYSCFG_GEN_DIR})
 
 add_executable(${PROJECT_NAME}.elf
     "src/app/gpio_toggle_output.c"
@@ -42,10 +47,10 @@ add_executable(${PROJECT_NAME}.elf
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/app"
     "${SYSCFG_GEN_DIR}"
-    ${CMAKE_CURRENT_SOURCE_DIR}/device
-    ${CMAKE_CURRENT_SOURCE_DIR}/device/cmsis/Core/Include
-    ${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib
-    ${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib/m0p
+    "${CMAKE_CURRENT_SOURCE_DIR}/device"
+    "${CMAKE_CURRENT_SOURCE_DIR}/device/cmsis/Core/Include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib"
+    "${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib/m0p"
 )
 
 target_compile_options(${PROJECT_NAME}.elf PUBLIC "@${SYSCFG_GEN_DIR}/device.opt")
