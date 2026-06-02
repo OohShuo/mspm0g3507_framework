@@ -2,3 +2,4 @@
 build/
 jdebug/
 tools/sysconfig/
+*.run
