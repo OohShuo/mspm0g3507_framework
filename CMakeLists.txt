@@ -17,7 +17,7 @@ set(SYSCFG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.syscfg)
 set(SYSCFG_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg")
 
 add_subdirectory(device)
-add_subdirectory(tools/sysconfig)
+add_subdirectory(tools)
 
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -79,3 +79,5 @@ add_custom_command(
     COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${PROJECT_NAME}.elf>
     COMMENT "Generating hex/bin files and checking size for ${PROJECT_NAME}.elf"
 )
+
+print_blankline()
