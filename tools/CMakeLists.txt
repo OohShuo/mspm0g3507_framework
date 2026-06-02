@@ -33,10 +33,9 @@ function(syscfg_gen syscfg_file output_dir)
             --quiet
             "${syscfg_file}"
         
-        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/excluded/ti_msp_dl_config.c" "${output_dir}/"
-        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/excluded/ti_msp_dl_config.h" "${output_dir}/"
-        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/excluded/device.opt" "${output_dir}/"
-        
+        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.c" "${output_dir}/"
+        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.h" "${output_dir}/"
+        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/device.opt" "${output_dir}/"
         
         DEPENDS "${syscfg_file}"
         COMMENT "Generating and cleaning SysConfig files..."

@@ -5,14 +5,6 @@
  * @v2CliArgs --device "MSPM0G3507" --package "LQFP-64(PM)" --product "mspm0_sdk@2.10.00.04"
  * @versions {"tool":"1.27.1+4634"}
  */
-scripting.excludeFromBuild("device_linker.cmd");
-scripting.excludeFromBuild("device_linker.lds");
-scripting.excludeFromBuild("device.opt");
-scripting.excludeFromBuild("device.cmd.genlibs");
-scripting.excludeFromBuild("device.lds.genlibs");
-scripting.excludeFromBuild("ti_msp_dl_config.c");
-scripting.excludeFromBuild("ti_msp_dl_config.h");
-scripting.excludeFromBuild("Event.dot");
 
 /**
  * Import the modules used in this configuration.
