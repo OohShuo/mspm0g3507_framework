@@ -45,7 +45,6 @@ add_executable(${PROJECT_NAME}.elf
     ${BSP_SRC}
     "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
     "${STARTUP_FILE}"
-    "${DL_SYSCTL_SOURCE}"
     "${FREERTOS_SOURCES}"
 )
 
