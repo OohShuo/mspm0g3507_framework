@@ -94,10 +94,8 @@ SYSCONFIG_WEAK void SYSCFG_DL_SYSCTL_init(void)
 
 SYSCONFIG_WEAK void SYSCFG_DL_SYSTICK_init(void)
 {
-    /*
-     * Initializes the SysTick period to 1.00 ms,
-     * enables the interrupt, and starts the SysTick Timer
-     */
-    DL_SYSTICK_config(32000);
+    /* Initialize the period to 1.00 ms */
+    DL_SYSTICK_init(32000);
+    DL_SYSTICK_enableInterrupt();
 }
 

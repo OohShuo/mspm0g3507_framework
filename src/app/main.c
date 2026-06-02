@@ -1,22 +1,27 @@
 #include "ti_msp_dl_config.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
-/* This results in approximately 0.5s of delay assuming 32MHz CPU_CLK */
-#define DELAY (16000000)
+int tt = 0;
+
+void vTaskLED(void *pvParameters) {
+    while(1) {
+        // 翻转 LED (请根据你的 SysConfig 命名修改)
+        DL_GPIO_togglePins(GPIO_LEDS_PORT, GPIO_LEDS_USER_LED_PIN);
+        tt++;
+        vTaskDelay(pdMS_TO_TICKS(500)); // 延时 500ms
+    }
+}
 
 int main(void) {
-    /* Power on GPIO, initialize pins as digital outputs */
-    SYSCFG_DL_init();
-
-    /* Default: LED1 and LED3 ON, LED2 OFF */
-    DL_GPIO_clearPins(GPIO_LEDS_PORT, GPIO_LEDS_USER_LED_PIN);
-
-    while (1) {
-        /*
-         * Call togglePins API to flip the current value of LEDs 1-3. This
-         * API causes the corresponding HW bits to be flipped by the GPIO HW
-         * without need for additional R-M-W cycles by the processor.
-         */
-        delay_cycles(DELAY);
-        DL_GPIO_togglePins(GPIO_LEDS_PORT, GPIO_LEDS_USER_LED_PIN);
-    }
+    SYSCFG_DL_init(); // 初始化 TI 硬件
+    
+    // 清除 SysTick 配置，FreeRTOS 会自己接管
+    // 如果你在 SysConfig 里配置了定时器，请确保不要与 FreeRTOS 冲突
+    
+    xTaskCreate(vTaskLED, "LED_Task", 128, NULL, 1, NULL);
+    
+    vTaskStartScheduler();
+    
+    while(1);
 }
