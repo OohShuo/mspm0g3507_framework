@@ -17,9 +17,10 @@ scripting.excludeFromBuild("Event.dot");
 /**
  * Import the modules used in this configuration.
  */
-const GPIO   = scripting.addModule("/ti/driverlib/GPIO", {}, false);
-const GPIO1  = GPIO.addInstance();
-const SYSCTL = scripting.addModule("/ti/driverlib/SYSCTL");
+const GPIO    = scripting.addModule("/ti/driverlib/GPIO", {}, false);
+const GPIO1   = GPIO.addInstance();
+const SYSCTL  = scripting.addModule("/ti/driverlib/SYSCTL");
+const SYSTICK = scripting.addModule("/ti/driverlib/SYSTICK");
 
 /**
  * Write custom configuration values to the imported modules.
@@ -34,6 +35,11 @@ const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 
 SYSCTL.forceDefaultClkConfig = true;
 SYSCTL.clockTreeEn           = true;
+
+SYSTICK.periodEnable    = true;
+SYSTICK.period          = 32000;
+SYSTICK.interruptEnable = true;
+SYSTICK.systickEnable   = true;
 
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
