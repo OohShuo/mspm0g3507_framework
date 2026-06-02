@@ -2,7 +2,7 @@
 
 PROJECT_NAME="$(basename "$(pwd)")"
 
-SYSCFG_GUI_SH="./sysconfig/sysconfig_gui.sh"
+SYSCFG_GUI_SH="./tools/sysconfig/sysconfig_gui.sh"
 PRODUCT_JSON="./device/product.json"
 SYSCFG_FILE="./${PROJECT_NAME}.syscfg"
 

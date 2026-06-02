@@ -1,14 +1,14 @@
 #!/bin/bash
 
 PROJECT_NAME="$(basename "$(pwd)")"
-SYSCFG_CLI="./sysconfig/sysconfig_cli.sh"
+SYSCFG_CLI="./tools/sysconfig/sysconfig_cli.sh"
 PRODUCT_JSON="./device/product.json"
 SYSCFG_FILE="./${PROJECT_NAME}.syscfg"
 
 TEMP_DIR="./build/syscfg_temp"
 FINAL_DIR="./src/syscfg"
 
-WHITELIST=("ti_msp_dl_config.c" "ti_msp_dl_config.h" "device.opt")
+WHITELIST=("ti_msp_dl_config.c" "ti_msp_dl_config.h" "device.opt" "device_linker.lds" "device.lds.genlibs")
 
 rm -rf "$TEMP_DIR"
 mkdir -p "$TEMP_DIR"

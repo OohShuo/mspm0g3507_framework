@@ -1,8 +1,8 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR arm)
 
-set(TOOLCHAIN_BIN_DIR "/home/shuo/envs/gcc-arm-none-eabi-10.3-2021.10/bin")
-set(LINKER_LIBS_PATH "/home/shuo/envs/gcc-arm-none-eabi-10.3-2021.10/arm-none-eabi/lib/thumb/v6-m/nofp")
+set(TOOLCHAIN_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tools/gcc-arm-none-eabi/bin")
+set(LINKER_LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/gcc-arm-none-eabi/arm-none-eabi/lib/thumb/v6-m/nofp")
 
 set(CMAKE_C_COMPILER   "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc")
 set(CMAKE_ASM_COMPILER "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc")

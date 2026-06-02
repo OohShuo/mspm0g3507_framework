@@ -6,14 +6,16 @@ endif()
 
 project(framework LANGUAGES C ASM)
 
+message(STATUS "Using toolchain file: ${CMAKE_TOOLCHAIN_FILE}")
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(BOARD_TYPE "MSPM0G3507" CACHE STRING "Target board type")
 
-set(CPU_FLAGS 
-    -mcpu=cortex-m0plus 
-    -march=armv6-m 
-    -mthumb 
+set(CPU_FLAGS
+    -mcpu=cortex-m0plus
+    -march=armv6-m
+    -mthumb
     -mfloat-abi=soft
 )
 
@@ -22,7 +24,7 @@ add_compile_options(
     -fdiagnostics-color=always
     -D__MSPM0G3507__
     -O2 -g -std=c99 -Wall
-    -ffunction-sections 
+    -ffunction-sections
     -fdata-sections
 )
 
@@ -33,11 +35,17 @@ add_subdirectory(device)
 add_executable(${PROJECT_NAME}.elf
     "src/app/gpio_toggle_output.c"
     "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
+    "${STARTUP_FILE}"
+    "${DL_SYSCTL_SOURCE}"
 )
 
-target_include_directories(${PROJECT_NAME}.elf PRIVATE 
+target_include_directories(${PROJECT_NAME}.elf PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/app"
     "${SYSCFG_GEN_DIR}"
+    ${CMAKE_CURRENT_SOURCE_DIR}/device
+    ${CMAKE_CURRENT_SOURCE_DIR}/device/cmsis/Core/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib
+    ${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib/m0p
 )
 
 target_compile_options(${PROJECT_NAME}.elf PUBLIC "@${SYSCFG_GEN_DIR}/device.opt")
@@ -49,6 +57,16 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     "--specs=nano.specs"
     "--specs=nosys.specs"
     "-Wl,--gc-sections"
+    "-nostartfiles"
 )
 
-target_link_libraries(${PROJECT_NAME}.elf PRIVATE device m c gcc nosys)
+target_link_libraries(${PROJECT_NAME}.elf PRIVATE m c gcc nosys
+    "${TI_DRIVERLIB_A}")
+
+add_custom_command(
+    TARGET ${PROJECT_NAME}.elf POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex
+    COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin
+    COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${PROJECT_NAME}.elf>
+    COMMENT "Generating hex/bin files and checking size for ${PROJECT_NAME}.elf"
+)

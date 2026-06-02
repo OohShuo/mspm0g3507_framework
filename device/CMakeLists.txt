@@ -10,18 +10,18 @@ else()
     error("Unsupported BOARD_TYPE: ${BOARD_TYPE}.")
 endif()
 
-add_library(device STATIC
-    ${STARTUP_FILE}
-    ${DL_SYSCTL_SOURCE}
-)
+# add_library(device STATIC
+#     ${STARTUP_FILE}
+#     ${DL_SYSCTL_SOURCE}
+# )
 
-target_include_directories(device PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmsis/Core/Include
-    ${CMAKE_CURRENT_SOURCE_DIR}/ti/driverlib
-    ${CMAKE_CURRENT_SOURCE_DIR}/ti/driverlib/m0p
-)
+# target_include_directories(device PUBLIC
+#     ${CMAKE_CURRENT_SOURCE_DIR}
+#     ${CMAKE_CURRENT_SOURCE_DIR}/cmsis/Core/Include
+#     ${CMAKE_CURRENT_SOURCE_DIR}/ti/driverlib
+#     ${CMAKE_CURRENT_SOURCE_DIR}/ti/driverlib/m0p
+# )
 
-target_link_libraries(device PUBLIC
-    ${TI_DRIVERLIB_A}
-)
+# target_link_libraries(device PUBLIC
+#     ${TI_DRIVERLIB_A}
+# )
