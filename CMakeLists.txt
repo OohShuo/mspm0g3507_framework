@@ -37,15 +37,19 @@ add_compile_options(
 
 syscfg_gen(${SYSCFG_FILE} ${SYSCFG_GEN_DIR})
 
+file(GLOB_RECURSE APP_SRC "src/app/*.c")
+file(GLOB_RECURSE BSP_SRC "src/bsp/*.c")
+
 add_executable(${PROJECT_NAME}.elf
-    "src/app/gpio_toggle_output.c"
+    ${APP_SRC}
+    ${BSP_SRC}
     "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
     "${STARTUP_FILE}"
     "${DL_SYSCTL_SOURCE}"
 )
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/app"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${SYSCFG_GEN_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/device"
     "${CMAKE_CURRENT_SOURCE_DIR}/device/cmsis/Core/Include"
