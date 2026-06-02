@@ -3,7 +3,7 @@
 PROJECT_NAME="$(basename "$(pwd)")"
 SYSCFG_CLI="./tools/sysconfig/sysconfig_cli.sh"
 PRODUCT_JSON="./device/product.json"
-SYSCFG_FILE="./${PROJECT_NAME}.syscfg"
+SYSCFG_FILE="./config/${PROJECT_NAME}.syscfg"
 
 TEMP_DIR="./build/syscfg_temp"
 FINAL_DIR="./src/syscfg"

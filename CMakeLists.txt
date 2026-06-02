@@ -13,7 +13,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(framework LANGUAGES C ASM)
 
 set(BOARD_TYPE "MSPM0G3507" CACHE STRING "Target board type")
-set(SYSCFG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.syscfg)
+set(SYSCFG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/${PROJECT_NAME}.syscfg")
 set(SYSCFG_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg")
 
 add_subdirectory(device)
@@ -46,6 +46,7 @@ add_executable(${PROJECT_NAME}.elf
     "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
     "${STARTUP_FILE}"
     "${DL_SYSCTL_SOURCE}"
+    "${FREERTOS_SOURCES}"
 )
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
@@ -55,6 +56,8 @@ target_include_directories(${PROJECT_NAME}.elf PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/device/cmsis/Core/Include"
     "${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib"
     "${CMAKE_CURRENT_SOURCE_DIR}/device/ti/driverlib/m0p"
+    "${FREERTOS_INCLUDE_DIRS}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/config"
 )
 
 target_compile_options(${PROJECT_NAME}.elf PUBLIC "@${SYSCFG_GEN_DIR}/device.opt")
