@@ -8,7 +8,7 @@ SYSCFG_FILE="./${PROJECT_NAME}.syscfg"
 TEMP_DIR="./build/syscfg_temp"
 FINAL_DIR="./src/syscfg"
 
-WHITELIST=("ti_msp_dl_config.c" "ti_msp_dl_config.h" "device.opt" "device_linker.lds" "device.lds.genlibs")
+WHITELIST=("ti_msp_dl_config.c" "ti_msp_dl_config.h" "device.opt")
 
 rm -rf "$TEMP_DIR"
 mkdir -p "$TEMP_DIR"
