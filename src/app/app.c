@@ -4,14 +4,19 @@
 #include <stdlib.h>
 
 #include "bsp_time.h"
+#include "led_breath.h"
 #include "led_simple.h"
 
 Led_simple* led_indicator;
+Led_breath* led_breath;
 
 void App_Init(void) {
     Led_simple_config led_cfg = {
         .gpio_idx = 0, .use_as_indicator = 1, .blink_freq_hz = 2, .gpio_state_when_on = bsp_gpio_state_set};
     led_indicator = Led_Simple_Create(&led_cfg);
+
+    Led_breath_config led_breath_cfg = {.pwm_idx = 0, .max_brightness = 100, .breath_freq_hz = 1.0f};
+    led_breath = Led_Breath_Create(&led_breath_cfg);
 }
 
 void App_Loop(void) {
@@ -24,8 +29,10 @@ void App_Loop(void) {
 
             if (flag) {
                 Led_Simple_Set_Blink_Freq(led_indicator, 2);  // 2 Hz
+                Led_Breath_Set_Freq(led_breath, 1.0f);
             } else {
                 Led_Simple_Set_Blink_Freq(led_indicator, 10);  // 10 Hz
+                Led_Breath_Set_Freq(led_breath, 2.5f);
             }
 
             flag = !flag;
