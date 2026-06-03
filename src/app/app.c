@@ -4,11 +4,13 @@
 #include <stdlib.h>
 
 #include "bsp_time.h"
+#include "button.h"
 #include "led_breath.h"
 #include "led_simple.h"
 
 Led_simple* led_indicator;
 Led_breath* led_breath;
+Button* button1;
 
 void App_Init(void) {
     Led_simple_config led_cfg = {
@@ -17,25 +19,15 @@ void App_Init(void) {
 
     Led_breath_config led_breath_cfg = {.pwm_idx = 0, .max_brightness = 100, .breath_freq_hz = 1.0f};
     led_breath = Led_Breath_Create(&led_breath_cfg);
+
+    Button_config btn_cfg = {.gpio_idx = 1, .gpio_state_when_pressed = bsp_gpio_state_set};
+    button1 = Button_Create(&btn_cfg);
 }
 
 void App_Loop(void) {
-    static uint32_t last_time_ms = 0;
-    static uint8_t flag = 0;
-    if (led_indicator != NULL) {
-        uint32_t current_time_ms = Bsp_Get_Tick_Ms();
-        if (current_time_ms - last_time_ms >= 5000) {
-            last_time_ms = current_time_ms;
-
-            if (flag) {
-                Led_Simple_Set_Blink_Freq(led_indicator, 2);  // 2 Hz
-                Led_Breath_Set_Freq(led_breath, 1.0f);
-            } else {
-                Led_Simple_Set_Blink_Freq(led_indicator, 10);  // 10 Hz
-                Led_Breath_Set_Freq(led_breath, 2.5f);
-            }
-
-            flag = !flag;
-        }
+    if (Button_Get_State(button1) == button_state_down) {
+        Led_Breath_Set_Freq(led_breath, 2.5f);
+    } else {
+        Led_Breath_Set_Freq(led_breath, 0.5f);
     }
 }
