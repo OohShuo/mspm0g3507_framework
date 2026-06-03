@@ -48,13 +48,13 @@ void Bsp_Gpio_Toggle(uint32_t idx) {
     DL_GPIO_togglePins(bsp_gpio_instances[idx].port, bsp_gpio_instances[idx].pin);
 }
 
-void Bsp_Gpio_Read(uint32_t idx, Bsp_gpio_state* state) {
-    if (idx >= GPIO_NUM) return;
+Bsp_gpio_state Bsp_Gpio_Read(uint32_t idx) {
+    if (idx >= GPIO_NUM) return bsp_gpio_state_reset;
 
-    if (bsp_gpio_instances[idx].mode == bsp_gpio_mode_output) { return; }
+    if (bsp_gpio_instances[idx].mode == bsp_gpio_mode_output) { return bsp_gpio_state_err; }
 
     uint32_t res = DL_GPIO_readPins(bsp_gpio_instances[idx].port, bsp_gpio_instances[idx].pin);
-    *state = (res != 0) ? bsp_gpio_state_set : bsp_gpio_state_reset;
+    return (res != 0) ? bsp_gpio_state_set : bsp_gpio_state_reset;
 }
 
 #else
@@ -68,9 +68,9 @@ void Bsp_Gpio_Write(uint32_t idx, Bsp_gpio_state state) {
 
 void Bsp_Gpio_Toggle(uint32_t idx) { (void)idx; }
 
-void Bsp_Gpio_Read(uint32_t idx, Bsp_gpio_state* state) {
+Bsp_gpio_state Bsp_Gpio_Read(uint32_t idx) {
     (void)idx;
-    (void)state;
+    return bsp_gpio_state_reset;
 }
 
 #endif

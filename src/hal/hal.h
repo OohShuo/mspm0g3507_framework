@@ -2,4 +2,4 @@
 
 void Hal_Init(void);
 
-void Hal_Led_Loop(void);
+void Hal_Gpio_Loop(void);
