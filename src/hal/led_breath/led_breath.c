@@ -26,6 +26,7 @@ Led_breath* Led_Breath_Create(const Led_breath_config* config) {
     obj->last_update_time_ms = 0;
     Led_Breath_Set_Freq(obj, config->breath_freq_hz);
 
+    Bsp_Pwm_Set_Freq(obj->config.pwm_idx, 1000);
     Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0);
     Bsp_Pwm_Start(obj->config.pwm_idx);
 
