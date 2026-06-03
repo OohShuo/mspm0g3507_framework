@@ -11,6 +11,11 @@ include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(APP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/app")
+set(HAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/hal")
+set(BSP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/bsp")
+set(CFG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
+
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
     -march=armv6-m
@@ -29,10 +34,6 @@ add_compile_options(
 add_subdirectory(ti_device) 
 
 syscfg_gen()
-
-set(APP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/app")
-set(HAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/hal")
-set(BSP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/bsp")
 
 file(GLOB_RECURSE APP_SRC "${APP_DIR}/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg/*.c")
 file(GLOB_RECURSE HAL_SRC "${HAL_DIR}/*.c")

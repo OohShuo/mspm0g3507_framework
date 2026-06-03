@@ -6,7 +6,7 @@ add_library(${PROJECT_NAME} STATIC)
 
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
-set(TAG "Device")
+set(TAG "TiDevice")
 
 set(TI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ti")
 set(CMSIS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmsis")
@@ -36,9 +36,9 @@ file(GLOB_RECURSE FREERTOS_SOURCES
 list(REMOVE_ITEM FREERTOS_SOURCES
     "${FREERTOS_DIR}/croutine.c"
 )
-set(FREERTOS_SOURCES "${FREERTOS_SOURCES}")
 
 set(FREERTOS_INCLUDES
+    "${CFG_DIR}"
     "${FREERTOS_DIR}"
     "${FREERTOS_DIR}/include"
     "${FREERTOS_DIR}/portable/GCC/ARM_CM0"
@@ -59,7 +59,6 @@ set(DEVICE_INCLUDES
 target_include_directories(${PROJECT_NAME} PUBLIC ${DEVICE_INCLUDES})
 target_sources(${PROJECT_NAME} PUBLIC ${DEVICE_SOURCES})
 target_link_libraries(${PROJECT_NAME} PUBLIC m c gcc nosys "${TI_DRIVERLIB_A}")
-
 
 print_blankline()
 
