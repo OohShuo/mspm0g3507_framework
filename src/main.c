@@ -7,6 +7,7 @@
 
 TaskHandle_t main_task_handle = NULL;
 TaskHandle_t app_task_handle = NULL;
+TaskHandle_t buzzer_task_handle = NULL;
 
 static void main_task(void* arg) {
     uint32_t tick = xTaskGetTickCount();
@@ -28,6 +29,16 @@ static void task_app(void* arg) {
     }
 }
 
+static void task_buzzer(void* arg) {
+    uint32_t tick = xTaskGetTickCount();
+
+    while (1) {
+        Hal_Buzzer_Loop();
+
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(5));
+    }
+}
+
 int main(void) {
     SYSCFG_DL_init();
 
@@ -37,6 +48,7 @@ int main(void) {
 
     xTaskCreate(main_task, "Main_Task", 128, NULL, 1, &main_task_handle);
     xTaskCreate(task_app, "APP_Task", 128, NULL, 1, &app_task_handle);
+    xTaskCreate(task_buzzer, "Buzzer_Task", 128, NULL, 1, &buzzer_task_handle);
 
     vTaskStartScheduler();
 

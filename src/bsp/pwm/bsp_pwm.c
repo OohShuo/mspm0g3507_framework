@@ -6,6 +6,8 @@
 #include "dl_timera.h"
 #include "dl_timerg.h"
 
+#define PWM_CLOCK_FREQ 4000000
+
 #if PWM_NUM
 
 struct Bsp_pwm_instances_t {
@@ -32,6 +34,18 @@ void Bsp_Pwm_Set_Duty(uint32_t idx, float duty) {
     DL_Timer_setCaptureCompareValue(bsp_pwm_instances[idx].timer, ccr_value, bsp_pwm_instances[idx].channel);
 }
 
+void Bsp_Pwm_Set_Freq(uint32_t idx, uint32_t freq) {
+    if (idx >= PWM_NUM) return;
+
+    if (freq == 0) {
+        DL_Timer_setLoadValue(bsp_pwm_instances[idx].timer, 0xFFFFFFFF);
+    } else {
+        uint32_t load_value = PWM_CLOCK_FREQ / freq;
+        if (load_value > 0xFFFFFFFF) load_value = 0xFFFFFFFF;
+        DL_Timer_setLoadValue(bsp_pwm_instances[idx].timer, load_value);
+    }
+}
+
 void Bsp_Pwm_Start(uint32_t idx) {
     if (idx >= PWM_NUM) return;
 
@@ -51,6 +65,11 @@ void Bsp_Pwm_Init(void) {}
 void Bsp_Pwm_Set_Duty(uint32_t idx, float duty) {
     (void)idx;
     (void)duty;
+}
+
+void Bsp_Pwm_Set_Freq(uint32_t idx, uint32_t freq) {
+    (void)idx;
+    (void)freq;
 }
 
 void Bsp_Pwm_Start(uint32_t idx) { (void)idx; }
