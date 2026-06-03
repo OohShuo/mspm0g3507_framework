@@ -58,3 +58,22 @@ endmacro()
 macro(print_item tag msg)
     message(STATUS "${ColorBlue}[${tag}]${ColorReset} ${msg}")
 endmacro()
+
+function(get_subdirs base_dir out_list)
+    file(GLOB SUBDIRS_LIST "${base_dir}/*")
+    
+    set(RESULT "")
+    foreach(ITEM ${SUBDIRS_LIST})
+        if(IS_DIRECTORY ${ITEM})
+            list(APPEND RESULT ${ITEM})
+        endif()
+    endforeach()
+
+    set(${out_list} ${RESULT} PARENT_SCOPE)
+endfunction()
+
+function(get_subdirs_and_self base_dir out_list)
+    get_subdirs(${base_dir} ${out_list})
+    list(APPEND ${out_list} ${base_dir})
+    set(${out_list} ${${out_list}} PARENT_SCOPE)
+endfunction()

@@ -11,9 +11,11 @@ include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(APP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/app")
-set(HAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/hal")
-set(BSP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/bsp")
+set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(APP_DIR "${SRC_DIR}/app")
+set(HAL_DIR "${SRC_DIR}/hal")
+set(BSP_DIR "${SRC_DIR}/bsp")
+set(LIB_DIR "${SRC_DIR}/lib")
 set(CFG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
 
 set(CPU_FLAGS
@@ -26,7 +28,7 @@ set(CPU_FLAGS
 add_compile_options(
     ${CPU_FLAGS}
     -fdiagnostics-color=always
-    -std=c99 -Wall
+    -g -O0 -std=c99 -Wall
     -ffunction-sections
     -fdata-sections
 )
@@ -35,24 +37,32 @@ add_subdirectory(ti_device)
 
 syscfg_gen()
 
+file(GLOB ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
 file(GLOB_RECURSE APP_SRC "${APP_DIR}/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg/*.c")
 file(GLOB_RECURSE HAL_SRC "${HAL_DIR}/*.c")
 file(GLOB_RECURSE BSP_SRC "${BSP_DIR}/*.c")
+file(GLOB_RECURSE LIB_SRC "${LIB_DIR}/*.c")
 
-set(APP_INC ${APP_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg)
-set(HAL_INC ${HAL_DIR})
-set(BSP_INC ${BSP_DIR})
+get_subdirs_and_self(${APP_DIR} APP_INC)
+list(APPEND APP_INC "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg")
+
+get_subdirs_and_self(${HAL_DIR} HAL_INC)
+get_subdirs_and_self(${BSP_DIR} BSP_INC)
+get_subdirs_and_self(${LIB_DIR} LIB_INC)
 
 add_executable(${PROJECT_NAME}.elf
+    ${ENTRANCE_MAIN_C}
     ${APP_SRC}
     ${HAL_SRC}
     ${BSP_SRC}
+    ${LIB_SRC}
 )
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     ${APP_INC}
     ${HAL_INC}
     ${BSP_INC}
+    ${LIB_INC}
 )
 
 target_compile_options(${PROJECT_NAME}.elf PRIVATE "@${SYSCFG_GEN_DIR}/device.opt")
