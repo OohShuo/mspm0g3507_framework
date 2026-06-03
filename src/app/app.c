@@ -9,10 +9,10 @@
 #include "led_breath.h"
 #include "led_simple.h"
 
-Led_simple* led_indicator;
-Led_breath* led_breath;
-Button* button1;
-Buzzer* buzzer;
+Led_simple* led_indicator = NULL;
+Led_breath* led_breath = NULL;
+Button* button1 = NULL;
+Buzzer* buzzer = NULL;
 
 void App_Init(void) {
     Led_simple_config led_cfg = {
