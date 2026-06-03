@@ -22,6 +22,11 @@ Led_simple* Led_Simple_Create(const Led_simple_config* config) {
 
     obj->config = *config;
 
+    if (obj->blink_freq_hz > 10)
+        obj->blink_freq_hz = 10;
+    else
+        obj->blink_freq_hz = config->blink_freq_hz;
+
     obj->state = led_simple_state_off;
     if (obj->config.gpio_state_when_on == bsp_gpio_state_set) {
         obj->gpio_states_map[led_simple_state_off] = bsp_gpio_state_reset;
@@ -30,6 +35,8 @@ Led_simple* Led_Simple_Create(const Led_simple_config* config) {
         obj->gpio_states_map[led_simple_state_off] = bsp_gpio_state_set;
         obj->gpio_states_map[led_simple_state_on] = bsp_gpio_state_reset;
     }
+
+    Bsp_Gpio_Write(obj->config.gpio_idx, obj->gpio_states_map[obj->state]);
 
     Vector_Push_Back(led_simple_instances, (void*)&obj);
 
@@ -52,6 +59,14 @@ void Led_Simple_Toggle(Led_simple* obj) {
     Bsp_Gpio_Write(obj->config.gpio_idx, obj->gpio_states_map[obj->state]);
 }
 
+void Led_Simple_Set_Blink_Freq(Led_simple* obj, uint8_t freq_hz) {
+    if (obj == NULL) return;
+
+    if (freq_hz > 10) freq_hz = 10;
+
+    obj->blink_freq_hz = freq_hz;
+}
+
 void Led_Simple_Update_All(void) {
     if (led_simple_instances == NULL) return;
 
@@ -59,6 +74,18 @@ void Led_Simple_Update_All(void) {
         Led_simple* obj = *(Led_simple**)Vector_Get_At(led_simple_instances, i);
         if (obj == NULL) continue;
 
-        if (obj->config.use_as_indicator) { Led_Simple_Toggle(obj); }
+        if (obj->config.use_as_indicator) {
+            if (obj->blink_freq_hz > 0) {
+                uint32_t now_ms = Bsp_Get_Tick_Ms();
+
+                uint32_t interval_ms = 1000 / obj->blink_freq_hz / 2;
+                if (now_ms - obj->last_toggle_time_ms >= interval_ms) {
+                    Led_Simple_Toggle(obj);
+                    obj->last_toggle_time_ms = now_ms;
+                }
+            } else {
+                Led_Simple_Set_State(obj, led_simple_state_on);
+            }
+        }
     }
 }
