@@ -31,6 +31,8 @@ static void task_app(void* arg) {
 int main(void) {
     SYSCFG_DL_init();
 
+    // DL_TimerA_setCaptureCompareValue
+
     Bsp_Init();
     Hal_Init();
     App_Init();

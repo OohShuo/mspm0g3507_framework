@@ -11,6 +11,8 @@
  */
 const GPIO    = scripting.addModule("/ti/driverlib/GPIO", {}, false);
 const GPIO1   = GPIO.addInstance();
+const PWM     = scripting.addModule("/ti/driverlib/PWM", {}, false);
+const PWM1    = PWM.addInstance();
 const SYSCTL  = scripting.addModule("/ti/driverlib/SYSCTL");
 const SYSTICK = scripting.addModule("/ti/driverlib/SYSTICK");
 
@@ -20,10 +22,21 @@ const SYSTICK = scripting.addModule("/ti/driverlib/SYSTICK");
 GPIO1.$name                         = "GPIO_LEDS";
 GPIO1.port                          = "PORTA";
 GPIO1.associatedPins[0].$name       = "USER_LED";
-GPIO1.associatedPins[0].assignedPin = "14";
-GPIO1.associatedPins[0].pin.$assign = "PA14";
+GPIO1.associatedPins[0].assignedPin = "15";
+GPIO1.associatedPins[0].pin.$assign = "PA15";
 
 const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
+
+PWM1.$name                      = "PWM_0";
+PWM1.clockDivider               = 8;
+PWM1.pwmMode                    = "EDGE_ALIGN_UP";
+PWM1.ccIndex                    = [0];
+PWM1.timerCount                 = 4000;
+PWM1.PWM_CHANNEL_0.$name        = "ti_driverlib_pwm_PWMTimerCC0";
+PWM1.PWM_CHANNEL_0.dutyCycle    = 50;
+PWM1.ccp0PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric0";
+PWM1.peripheral.$assign         = "TIMG12";
+PWM1.peripheral.ccp0Pin.$assign = "PA14";
 
 SYSCTL.forceDefaultClkConfig = true;
 SYSCTL.clockTreeEn           = true;

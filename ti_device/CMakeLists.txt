@@ -54,8 +54,8 @@ set(DEVICE_INCLUDES
     CACHE INTERNAL "List of device include directories"
 )
 
-target_include_directories(ti_device PUBLIC ${DEVICE_INCLUDES})
-target_sources(ti_device PUBLIC ${DEVICE_SOURCES})
+target_include_directories(ti_device PUBLIC "${DEVICE_INCLUDES}")
+target_sources(ti_device PUBLIC "${DEVICE_SOURCES}")
 target_link_libraries(ti_device PUBLIC m c gcc nosys "${TI_DRIVERLIB_A}")
 
 target_compile_options(ti_device INTERFACE 
