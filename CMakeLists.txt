@@ -12,11 +12,10 @@ include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(APP_DIR "${SRC_DIR}/app")
-set(HAL_DIR "${SRC_DIR}/hal")
-set(BSP_DIR "${SRC_DIR}/bsp")
-set(LIB_DIR "${SRC_DIR}/lib")
 set(CFG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
+
+file(GLOB ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
+file(GLOB SYSCFG_GEN_C "${SYSCFG_GEN_DIR}/*.c")
 
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -33,39 +32,15 @@ add_compile_options(
     -fdata-sections
 )
 
-add_subdirectory(ti_device) 
-
 syscfg_gen()
 
-file(GLOB ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
-file(GLOB_RECURSE APP_SRC "${APP_DIR}/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg/*.c")
-file(GLOB_RECURSE HAL_SRC "${HAL_DIR}/*.c")
-file(GLOB_RECURSE BSP_SRC "${BSP_DIR}/*.c")
-file(GLOB_RECURSE LIB_SRC "${LIB_DIR}/*.c")
+add_executable(${PROJECT_NAME}.elf ${ENTRANCE_MAIN_C})
 
-get_subdirs_and_self(${APP_DIR} APP_INC)
-list(APPEND APP_INC "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg")
-
-get_subdirs_and_self(${HAL_DIR} HAL_INC)
-get_subdirs_and_self(${BSP_DIR} BSP_INC)
-get_subdirs_and_self(${LIB_DIR} LIB_INC)
-
-add_executable(${PROJECT_NAME}.elf
-    ${ENTRANCE_MAIN_C}
-    ${APP_SRC}
-    ${HAL_SRC}
-    ${BSP_SRC}
-    ${LIB_SRC}
-)
-
-target_include_directories(${PROJECT_NAME}.elf PRIVATE
-    ${APP_INC}
-    ${HAL_INC}
-    ${BSP_INC}
-    ${LIB_INC}
-)
-
-target_compile_options(${PROJECT_NAME}.elf PRIVATE "@${SYSCFG_GEN_DIR}/device.opt")
+add_subdirectory(ti_device)
+add_subdirectory(src/lib)
+add_subdirectory(src/bsp)
+add_subdirectory(src/hal)
+add_subdirectory(src/app)
 
 target_link_options(${PROJECT_NAME}.elf PRIVATE
     ${CPU_FLAGS}
@@ -77,7 +52,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     "-nostartfiles"
 )
 
-target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti_device)
+target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti_device app hal bsp lib)
 
 add_custom_command(
     TARGET ${PROJECT_NAME}.elf POST_BUILD

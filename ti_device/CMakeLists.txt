@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(ti_device LANGUAGES C ASM)
-
-add_library(${PROJECT_NAME} STATIC)
+add_library(ti_device STATIC)
 
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
@@ -56,9 +54,13 @@ set(DEVICE_INCLUDES
     CACHE INTERNAL "List of device include directories"
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${DEVICE_INCLUDES})
-target_sources(${PROJECT_NAME} PUBLIC ${DEVICE_SOURCES})
-target_link_libraries(${PROJECT_NAME} PUBLIC m c gcc nosys "${TI_DRIVERLIB_A}")
+target_include_directories(ti_device PUBLIC ${DEVICE_INCLUDES})
+target_sources(ti_device PUBLIC ${DEVICE_SOURCES})
+target_link_libraries(ti_device PUBLIC m c gcc nosys "${TI_DRIVERLIB_A}")
+
+target_compile_options(ti_device INTERFACE 
+    "SHELL:@${SYSCFG_GEN_DIR}/device.opt"
+)
 
 print_blankline()
 
