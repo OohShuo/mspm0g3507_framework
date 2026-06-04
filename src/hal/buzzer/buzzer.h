@@ -18,6 +18,8 @@ typedef struct {
     uint8_t is_playing;
     uint16_t note_index;
     uint32_t last_note_time;
+    uint16_t note_now;
+    uint16_t note_last;
 } Buzzer;
 
 extern const uint16_t music1[];

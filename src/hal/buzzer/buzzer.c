@@ -63,14 +63,22 @@ void Buzzer_Update_All(void) {
                 continue;
             }
 
-            uint16_t note = obj->config.music_score[obj->note_index];
-            if (note == 0) {
+            obj->note_now = obj->config.music_score[obj->note_index];
+
+            if (obj->note_now == 0) {
                 Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0);
             } else {
-                Bsp_Pwm_Set_Freq(obj->config.pwm_idx, 1000000 / note);
+                Bsp_Pwm_Set_Freq(obj->config.pwm_idx, 1000000 / obj->note_now);
                 Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0.5);
             }
 
+            if (obj->note_last != obj->note_now) {
+                // 改变频率时重启，否则有概率寄掉
+                Bsp_Pwm_Stop(obj->config.pwm_idx);
+                Bsp_Pwm_Start(obj->config.pwm_idx);
+            }
+
+            obj->note_last = obj->note_now;
             obj->note_index++;
         }
     }
