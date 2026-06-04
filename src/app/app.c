@@ -33,7 +33,7 @@ void App_Init(void) {
     button2=Button_Create(&btn_cfg);
 
     Buzzer_config buzzer_cfg = {
-        .pwm_idx = 0, .music_score = music1, .score_length = music1_len, .speed_npm = 60 * 8};
+        .pwm_idx = 0, .music_score = music1, .score_length = music1_len, .speed_npm = 60 * 10};
     buzzer = Buzzer_Create(&buzzer_cfg);
 
     Joystick_config joystick_cfg = {
