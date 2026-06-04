@@ -36,7 +36,7 @@ add_compile_options(
 add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}")
 
 add_subdirectory(ti_device)
-add_subdirectory(src/lib)
+add_subdirectory(lib)
 add_subdirectory(src/bsp)
 add_subdirectory(src/hal)
 add_subdirectory(src/app)
@@ -51,7 +51,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     "-nostartfiles"
 )
 
-target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti_device app hal bsp lib)
+target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti freertos app hal bsp lib)
 
 add_custom_command(
     TARGET ${PROJECT_NAME}.elf POST_BUILD

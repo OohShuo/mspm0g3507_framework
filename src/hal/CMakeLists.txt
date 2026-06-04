@@ -9,4 +9,4 @@ add_library(hal STATIC "${HAL_SRC}")
 
 target_include_directories(hal PUBLIC "${HAL_INC}" "${CFG_DIR}")
 
-target_link_libraries(hal PUBLIC bsp lib)
+target_link_libraries(hal PRIVATE bsp lib)
