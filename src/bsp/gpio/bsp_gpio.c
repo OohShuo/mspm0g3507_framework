@@ -13,8 +13,6 @@ struct Bsp_gpio_instances_t {
     enum {
         bsp_gpio_mode_input,
         bsp_gpio_mode_output,
-        bsp_gpio_mode_input_pullup,
-        bsp_gpio_mode_input_pulldown
     } mode;
 };
 

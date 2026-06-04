@@ -33,8 +33,6 @@ add_compile_options(
     -fdata-sections
 )
 
-syscfg_gen()
-
 add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}")
 
 add_subdirectory(ti_device)
@@ -62,5 +60,7 @@ add_custom_command(
     COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${PROJECT_NAME}.elf>
     COMMENT "Generating hex/bin files and checking size for ${PROJECT_NAME}.elf"
 )
+
+syscfg_gen()
 
 print_blankline()
