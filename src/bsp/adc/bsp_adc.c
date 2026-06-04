@@ -8,9 +8,7 @@
 #include "dl_dma.h"
 #include "vector.h"
 
-#define ADC_REF_VOLTAGE     3.3f
-#define ADC_RESOLUTION      (1u << 12)  // 12-bit ADC
-#define ADC_DMA_BUFFER_SIZE 16
+#define ADC_DMA_BUFFER_SIZE 32
 
 #if ADC_NUM
 
@@ -60,6 +58,14 @@ void Bsp_Adc_Stop(uint32_t idx) {
     if (idx >= ADC_NUM) return;
 
     DL_ADC12_stopConversion(bsp_adc_instances[idx].inst);
+}
+
+float Bsp_Adc_Read_Voltage(uint32_t idx, uint32_t channel) {
+    if (idx >= ADC_NUM) return 0.0f;
+
+    if (channel >= bsp_adc_instances[idx].channel_num) return 0.0f;
+
+    return bsp_adc_instances[idx].adc_voltage[channel];
 }
 
 void Bsp_Adc_Register_Cb_Dma_Done(uint32_t idx, Bsp_adc_cb_t cb, void* cb_arg) {

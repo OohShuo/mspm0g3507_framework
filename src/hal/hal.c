@@ -2,6 +2,7 @@
 
 #include "button.h"
 #include "buzzer.h"
+#include "joystick.h"
 #include "led_breath.h"
 #include "led_simple.h"
 
@@ -9,6 +10,7 @@ void Hal_Init(void) {
     Led_Simple_Init();
     Led_Breath_Init();
     Button_Init();
+    Joystick_Init();
     Buzzer_Init();
 }
 
