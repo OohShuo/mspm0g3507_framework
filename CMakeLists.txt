@@ -15,6 +15,7 @@ set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(CFG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
 
 file(GLOB ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
+file(GLOB IT_C "${SRC_DIR}/it.c")
 file(GLOB SYSCFG_GEN_C "${SYSCFG_GEN_DIR}/*.c")
 
 set(CPU_FLAGS
@@ -34,7 +35,7 @@ add_compile_options(
 
 syscfg_gen()
 
-add_executable(${PROJECT_NAME}.elf ${ENTRANCE_MAIN_C})
+add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}")
 
 add_subdirectory(ti_device)
 add_subdirectory(src/lib)
