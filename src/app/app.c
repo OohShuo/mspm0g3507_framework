@@ -3,16 +3,19 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "board_config.h"
 #include "bsp_time.h"
 #include "button.h"
 #include "buzzer.h"
+#include "joystick.h"
 #include "led_breath.h"
 #include "led_simple.h"
 
 Led_simple* led_indicator = NULL;
 Led_breath* led_breath = NULL;
-Button* button1 = NULL;
+Button* button = NULL;
 Buzzer* buzzer = NULL;
+Joystick* joystick = NULL;
 
 void App_Init(void) {
     Led_simple_config led_cfg = {
@@ -23,18 +26,27 @@ void App_Init(void) {
     // led_breath = Led_Breath_Create(&led_breath_cfg);
 
     Button_config btn_cfg = {.gpio_idx = 1, .gpio_state_when_pressed = bsp_gpio_state_set};
-    button1 = Button_Create(&btn_cfg);
+    button = Button_Create(&btn_cfg);
 
     Buzzer_config buzzer_cfg = {
         .pwm_idx = 0, .music_score = music1, .score_length = music1_len, .speed_npm = 60 * 8};
     buzzer = Buzzer_Create(&buzzer_cfg);
+
+    Joystick_config joystick_cfg = {
+        .adc_idx = ADC_JOYSTICK_IDX,
+        .adc_channel_x = ADC_JOYSTICK_X_CHANNEL,
+        .adc_channel_y = ADC_JOYSTICK_Y_CHANNEL,
+        .x_offset = -0.0178018045,
+        .y_offset = -0.0148155261,
+    };
+    joystick = Joystick_Create(&joystick_cfg);
 }
 
 void App_Loop(void) {
     static Button_state last_button_state = button_state_up;
 
-    if (Button_Get_State(button1) != last_button_state) {
-        last_button_state = Button_Get_State(button1);
+    if (Button_Get_State(button) != last_button_state) {
+        last_button_state = Button_Get_State(button);
         if (last_button_state == button_state_down) { Buzzer_Play(buzzer); }
     }
 }
