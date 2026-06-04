@@ -28,5 +28,5 @@ const uint16_t music1[] = {NOTE_H_DO, NOTE_H_DO, NOTE_H_DO, 0, NOTE_H_DO, 0, NOT
     0, NOTE_H_RE, 0, NOTE_H_MI, 0, NOTE_H_FA, 0, NOTE_H_MI, NOTE_H_MI, 0, NOTE_H_MI, NOTE_H_MI, 0, NOTE_M_XI,
     0, NOTE_M_XI, NOTE_M_XI, NOTE_M_XI, 0, 0, NOTE_M_LA, NOTE_M_LA, NOTE_M_LA, 0, NOTE_M_LA, 0, NOTE_M_SO,
     NOTE_M_LA, NOTE_M_LA, 0, NOTE_H_FA, 0, NOTE_H_MI, 0, NOTE_H_RE, 0, NOTE_H_RE, NOTE_H_RE, 0, NOTE_H_DO,
-    NOTE_H_DO, 0, NOTE_H_RE, 0, NOTE_H_MI, NOTE_H_MI, NOTE_H_MI};
+    NOTE_H_DO, 0, NOTE_H_RE, 0, NOTE_H_MI, NOTE_H_MI, NOTE_H_MI, 0, 0, 0, 0, 0};
 const uint8_t music1_len = sizeof(music1) / sizeof(music1[0]);

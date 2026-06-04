@@ -19,23 +19,24 @@ Buzzer* Buzzer_Create(const Buzzer_config* config) {
     if (obj == NULL) return NULL;
 
     memset(obj, 0, sizeof(Buzzer));
-
     obj->config = *config;
 
-    obj->is_playing = 0;
-    obj->note_index = 0;
-    obj->last_note_time = 0;
-
     Vector_Push_Back(buzzer_instances, (void*)&obj);
-
     return obj;
 }
 
-void Buzzer_Play(Buzzer* obj) {
-    if (obj == NULL) return;
+void Buzzer_Play(Buzzer* obj, const uint16_t* score, uint16_t length, uint16_t speed_npm, uint8_t loop) {
+    if (obj == NULL || score == NULL) return;
+
+    obj->music_score = score;
+    obj->score_length = length;
+    obj->speed_npm = speed_npm;
+    obj->is_looping = loop;
+
     obj->is_playing = 1;
     obj->note_index = 0;
     obj->last_note_time = 0;
+
     Bsp_Pwm_Start(obj->config.pwm_idx);
 }
 
@@ -53,17 +54,21 @@ void Buzzer_Update_All(void) {
         if (obj == NULL || !obj->is_playing) continue;
 
         uint32_t now = Bsp_Get_Tick_Ms();
-        uint32_t note_duration = 60000 / obj->config.speed_npm;
+        uint32_t note_duration = 60000 / obj->speed_npm;
 
         if (now - obj->last_note_time >= note_duration) {
             obj->last_note_time = now;
 
-            if (obj->note_index >= obj->config.score_length) {
-                Buzzer_Stop(obj);
-                continue;
+            if (obj->note_index >= obj->score_length) {
+                if (obj->is_looping) {
+                    obj->note_index = 0;
+                } else {
+                    Buzzer_Stop(obj);
+                    continue;
+                }
             }
 
-            obj->note_now = obj->config.music_score[obj->note_index];
+            obj->note_now = obj->music_score[obj->note_index];
 
             if (obj->note_now == 0) {
                 Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0);
