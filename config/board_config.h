@@ -35,3 +35,21 @@
 #define PWM_CHANNELS             {PWM_0_CHANNEL}
 
 #define PWM_LED_IDX              0
+
+/* adc */
+
+#define ADC_NUM                  1
+
+#define ADC_0_INSTANCE           ADC0
+#define ADC_0_CHANNEL_NUM        2
+#define ADC_0_INT_IRQN           ADC0_INT_IRQn
+#define ADC_0_DMA_CHANNEL        0
+#define ADC_0_DMA_TX_SIZE        2
+
+#define ADC_PORTS                {ADC_0_INSTANCE}
+#define ADC_CHANNEL_NUMS         {ADC_0_CHANNEL_NUM}
+#define ADC_INT_IRQNS            {ADC_0_INT_IRQN}
+#define ADC_DMA_CHANNELS         {ADC_0_DMA_CHANNEL}
+#define ADC_DMA_TX_SIZES         {ADC_0_DMA_TX_SIZE}
+
+#define ADC_JOYSTICK_IDX         0

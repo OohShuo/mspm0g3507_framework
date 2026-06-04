@@ -9,6 +9,8 @@
 /**
  * Import the modules used in this configuration.
  */
+const ADC12   = scripting.addModule("/ti/driverlib/ADC12", {}, false);
+const ADC121  = ADC12.addInstance();
 const GPIO    = scripting.addModule("/ti/driverlib/GPIO", {}, false);
 const GPIO1   = GPIO.addInstance();
 const PWM     = scripting.addModule("/ti/driverlib/PWM", {}, false);
@@ -19,6 +21,33 @@ const SYSTICK = scripting.addModule("/ti/driverlib/SYSTICK");
 /**
  * Write custom configuration values to the imported modules.
  */
+ADC121.$name                             = "ADC12_0";
+ADC121.sampClkDiv                        = "DL_ADC12_CLOCK_DIVIDE_8";
+ADC121.configureDMA                      = true;
+ADC121.samplingOperationMode             = "sequence";
+ADC121.repeatMode                        = true;
+ADC121.enableFIFO                        = true;
+ADC121.adcMem1chansel                    = "DL_ADC12_INPUT_CHAN_1";
+ADC121.endAdd                            = 1;
+ADC121.sampleTime0                       = "5 ms";
+ADC121.powerDownMode                     = "DL_ADC12_POWER_DOWN_MODE_MANUAL";
+ADC121.sampCnt                           = 2;
+ADC121.enabledDMATriggers                = ["DL_ADC12_DMA_MEM0_RESULT_LOADED"];
+ADC121.enabledInterrupts                 = ["DL_ADC12_INTERRUPT_DMA_DONE"];
+ADC121.adcPin0Config.$name               = "ti_driverlib_gpio_GPIOPinGeneric1";
+ADC121.DMA_CHANNEL.$name                 = "DMA_CH0";
+ADC121.DMA_CHANNEL.addressMode           = "f2b";
+ADC121.DMA_CHANNEL.configureTransferSize = true;
+ADC121.DMA_CHANNEL.transferMode          = "FULL_CH_REPEAT_BLOCK";
+ADC121.DMA_CHANNEL.transferSize          = 2;
+ADC121.DMA_CHANNEL.peripheral.$assign    = "DMA_CH0";
+ADC121.peripheral.$assign                = "ADC0";
+ADC121.peripheral.adcPin0.$assign        = "PA27";
+ADC121.peripheral.adcPin1.$assign        = "PA26";
+ADC121.adcPin1Config.$name               = "ti_driverlib_gpio_GPIOPinGeneric2";
+
+const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
+
 GPIO1.$name                         = "GPIO_GRP_0";
 GPIO1.port                          = "PORTA";
 GPIO1.associatedPins.create(2);
@@ -28,8 +57,6 @@ GPIO1.associatedPins[0].pin.$assign = "PA15";
 GPIO1.associatedPins[1].$name       = "PIN_1";
 GPIO1.associatedPins[1].direction   = "INPUT";
 GPIO1.associatedPins[1].assignedPin = "18";
-
-const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 
 PWM1.$name                      = "PWM_0";
 PWM1.clockDivider               = 8;
@@ -54,7 +81,7 @@ SYSTICK.interruptEnable = true;
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
  * re-solve from scratch.
  */
-GPIO1.associatedPins[1].pin.$suggestSolution = "PA18";
 Board.peripheral.$suggestSolution            = "DEBUGSS";
 Board.peripheral.swclkPin.$suggestSolution   = "PA20";
 Board.peripheral.swdioPin.$suggestSolution   = "PA19";
+GPIO1.associatedPins[1].pin.$suggestSolution = "PA18";
