@@ -134,6 +134,17 @@
 #define INCLUDE_xTaskGetHandle                       1
 #define INCLUDE_xTaskResumeFromISR                   1
 
+/******************************************************************************/
+/* Set for LVGL support. ******************************************************/
+/******************************************************************************/
+
+#define traceTASK_SWITCHED_IN()                      lv_freertos_task_switch_in(pxCurrentTCB->pcTaskName)
+#define traceTASK_SWITCHED_OUT()                     lv_freertos_task_switch_out()
+
+/******************************************************************************/
+/* Set assertion macro. *******************************************************/
+/******************************************************************************/
+
 #define configASSERT(x)           \
     if ((x) == 0) {               \
         taskDISABLE_INTERRUPTS(); \
