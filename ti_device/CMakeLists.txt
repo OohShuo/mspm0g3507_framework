@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.15)
 
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
-set(TAG "TiDevice")
-
 set(TI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ti")
 set(CMSIS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmsis")
 
@@ -22,18 +20,6 @@ set(TI_INCLUDES
     "${TI_DIR}/driverlib/m0p"
 )
 
-# set(DEVICE_SOURCES
-#     "${TI_STARTUP_C}"
-#     "${FREERTOS_SOURCES}"
-#     CACHE INTERNAL "List of device source files"
-# )
-
-# set(DEVICE_INCLUDES
-#     "${TI_INCLUDES}"
-#     "${FREERTOS_INCLUDES}"
-#     CACHE INTERNAL "List of device include directories"
-# )
-
 add_library(ti STATIC)
 target_include_directories(ti PUBLIC "${TI_INCLUDES}")
 target_sources(ti PUBLIC "${TI_STARTUP_C}")
@@ -43,7 +29,6 @@ target_compile_options(ti INTERFACE
     "SHELL:@${SYSCFG_GEN_DIR}/device.opt"
 )
 
-print_blankline()
-
-print_item(${TAG} "TI Linker scripts: ${TI_LINKER_SCRIPTS}")
-print_item(${TAG} "TI DriverLib: ${TI_DRIVERLIB_A}")
+print_item("TI" "TI Linker scripts: ${TI_LINKER_SCRIPTS}")
+print_item("TI" "TI DriverLib: ${TI_DRIVERLIB_A}")
+print_item("TI" "library ${ColorBold}ti${ColorReset} built")

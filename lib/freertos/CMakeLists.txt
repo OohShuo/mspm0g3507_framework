@@ -24,3 +24,5 @@ set(FREERTOS_INCLUDES
 add_library(freertos STATIC)
 target_include_directories(freertos PUBLIC "${FREERTOS_INCLUDES}")
 target_sources(freertos PUBLIC "${FREERTOS_SOURCES}")
+
+print_item("FreeRTOS" "library ${ColorBold}freertos${ColorReset} built")

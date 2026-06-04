@@ -61,7 +61,7 @@ endmacro()
 
 function(get_subdirs base_dir out_list)
     file(GLOB SUBDIRS_LIST "${base_dir}/*")
-    
+
     set(RESULT "")
     foreach(ITEM ${SUBDIRS_LIST})
         if(IS_DIRECTORY ${ITEM})
