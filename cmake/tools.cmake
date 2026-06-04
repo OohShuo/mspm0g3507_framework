@@ -40,10 +40,13 @@ function(syscfg_gen)
         COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/device.opt" "${SYSCFG_GEN_DIR}/"
 
         DEPENDS "${SYSCFG_FILE}"
+
         COMMENT "Generating and cleaning SysConfig files..."
+
         VERBATIM
     )
 
     print_blankline()
+
     message(STATUS "${ColorGreen}[SysConfig]${ColorReset} Configuration file setup for ${SYSCFG_GEN_DIR}")
 endfunction()

@@ -4,14 +4,12 @@
 
 #define GPIO_MODE_INPUT          0
 #define GPIO_MODE_OUTPUT         1
-#define GPIO_MODE_INPUT_PULLUP   2
-#define GPIO_MODE_INPUT_PULLDOWN 3
 
 #define GPIO_NUM                 2
 
 #define GPIO_0_PORT              GPIOA
 #define GPIO_0_PIN               DL_GPIO_PIN_15
-#define GPIO_0_MODE              GPIO_MODE_OUTPUT
+#define GPIO_0_MODE              GPIO_MODE_INPUT
 
 #define GPIO_1_PORT              GPIOA
 #define GPIO_1_PIN               DL_GPIO_PIN_18
