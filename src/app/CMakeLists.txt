@@ -10,3 +10,5 @@ add_library(app STATIC "${APP_SRC}")
 target_include_directories(app PUBLIC "${APP_INC}" "${CFG_DIR}")
 
 target_link_libraries(app PRIVATE hal bsp lib)
+
+print_item("App" "library ${ColorBold}app${ColorReset} built")

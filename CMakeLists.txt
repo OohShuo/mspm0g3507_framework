@@ -44,11 +44,14 @@ add_subdirectory(src/app)
 target_link_options(${PROJECT_NAME}.elf PRIVATE
     ${CPU_FLAGS}
     "-T${TI_LINKER_SCRIPTS}"
+    "-Wl,--cref"
     "-Wl,-Map,${PROJECT_NAME}.map"
     "--specs=nano.specs"
     "--specs=nosys.specs"
     "-Wl,--gc-sections"
     "-nostartfiles"
+    "-Wl,--print-memory-usage"
+    # "-Wl,--print-gc-sections"
 )
 
 target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti freertos app hal bsp lib)
@@ -57,6 +60,7 @@ add_custom_command(
     TARGET ${PROJECT_NAME}.elf POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex
     COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin
+    COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${PROJECT_NAME}.elf>
     COMMENT "Generating hex/bin files and checking size for ${PROJECT_NAME}.elf"
 )

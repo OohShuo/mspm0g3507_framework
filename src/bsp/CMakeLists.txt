@@ -11,3 +11,7 @@ target_include_directories(bsp PUBLIC "${BSP_INC}" "${CFG_DIR}" "${SYSCFG_GEN_DI
 
 target_link_libraries(bsp PRIVATE lib)
 target_link_libraries(bsp PUBLIC ti freertos)
+
+add_dependencies(bsp syscfg_gen_target)
+
+print_item("BSP" "library ${ColorBold}bsp${ColorReset} built")
