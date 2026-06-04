@@ -51,8 +51,8 @@ void App_Init(void) {
 void App_Loop(void) {
     static Button_state last_button_state = button_state_up;
 
-    if (Button_Get_State(button2) != last_button_state) {
-        last_button_state = Button_Get_State(button2);
+    if (Button_Get_State(button1) != last_button_state) {
+        last_button_state = Button_Get_State(button1);
         if (last_button_state == button_state_down) { Buzzer_Play(buzzer, music1, music1_len, 60 * 10, 0); }
     }
 }
