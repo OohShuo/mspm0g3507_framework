@@ -2,7 +2,13 @@
 
 PROJECT_NAME="$(basename "$(pwd)")"
 
-SYSCFG_GUI_SH="./tools/sysconfig/sysconfig_gui.sh"
+if (WINDOWS=true) then
+    SUFFIX=".bat"
+else
+    SUFFIX=".sh"
+fi
+
+SYSCFG_GUI_SH="./tools/sysconfig/sysconfig_gui${SUFFIX}"
 PRODUCT_JSON="./tools/product.json"
 SYSCFG_FILE="./config/${PROJECT_NAME}.syscfg"
 
