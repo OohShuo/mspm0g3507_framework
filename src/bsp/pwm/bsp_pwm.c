@@ -6,13 +6,12 @@
 #include "dl_timera.h"
 #include "dl_timerg.h"
 
-#define PWM_CLOCK_FREQ 4000000
-
 #if PWM_NUM
 
 struct Bsp_pwm_instances_t {
     GPTIMER_Regs* timer;
     DL_TIMER_CC_INDEX channel;
+    uint32_t clk_freq;
 };
 
 static struct Bsp_pwm_instances_t bsp_pwm_instances[PWM_NUM] = {0};
@@ -21,6 +20,7 @@ void Bsp_Pwm_Init(void) {
     for (uint32_t i = 0; i < PWM_NUM; i++) {
         bsp_pwm_instances[i].timer = ((GPTIMER_Regs*[])PWM_PORTS)[i];
         bsp_pwm_instances[i].channel = ((DL_TIMER_CC_INDEX[])PWM_CHANNELS)[i];
+        bsp_pwm_instances[i].clk_freq = ((uint32_t[])PWM_CLK_FREQS)[i];
     }
 }
 
@@ -40,7 +40,7 @@ void Bsp_Pwm_Set_Freq(uint32_t idx, uint32_t freq) {
     if (freq == 0) {
         DL_Timer_setLoadValue(bsp_pwm_instances[idx].timer, 0xFFFFFFFF);
     } else {
-        uint32_t load_value = PWM_CLOCK_FREQ / freq;
+        uint32_t load_value = bsp_pwm_instances[idx].clk_freq / freq;
         if (load_value > 0xFFFFFFFF) load_value = 0xFFFFFFFF;
         DL_Timer_setLoadValue(bsp_pwm_instances[idx].timer, load_value);
     }
