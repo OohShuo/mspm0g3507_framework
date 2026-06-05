@@ -35,7 +35,7 @@ static void task_buzzer(void* arg) {
     while (1) {
         Hal_Buzzer_Loop();
 
-        vTaskDelayUntil(&tick, pdMS_TO_TICKS(50));
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
     }
 }
 
