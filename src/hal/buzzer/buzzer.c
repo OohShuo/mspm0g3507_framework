@@ -6,6 +6,9 @@
 #include "bsp_time.h"
 #include "vector.h"
 
+// 滑音标记：最高位置 1 表示该音符需要滑音到下一个音
+#define NOTE_FLAG_GLISSANDO 0x8000
+
 static Vector* buzzer_instances = NULL;
 
 void Buzzer_Init(void) {
@@ -25,13 +28,13 @@ Buzzer* Buzzer_Create(const Buzzer_config* config) {
     return obj;
 }
 
-void Buzzer_Play(Buzzer* obj, const uint16_t* score, uint16_t length, uint16_t speed_npm, uint8_t loop) {
-    if (obj == NULL || score == NULL) return;
+void Buzzer_Play(Buzzer* obj, const Music* music, uint8_t is_loop) {
+    if (obj == NULL || music == NULL) return;
 
-    obj->music_score = score;
-    obj->score_length = length;
-    obj->speed_npm = speed_npm;
-    obj->is_looping = loop;
+    obj->music_score = music->score;
+    obj->score_length = music->length;
+    obj->speed_npm = music->speed_npm;
+    obj->is_looping = is_loop;
 
     obj->is_playing = 1;
     obj->note_index = 0;
@@ -118,8 +121,9 @@ void Buzzer_Update_All(void) {
         if (obj->glissando_src_freq != 0) {
             uint32_t elapsed = now - obj->glissando_start_time;
             if (elapsed < obj->glissando_duration && obj->glissando_duration > 0) {
-                uint16_t freq = obj->glissando_src_freq +
-                    (int32_t)(obj->glissando_dst_freq - obj->glissando_src_freq) * elapsed / obj->glissando_duration;
+                uint16_t freq =
+                    obj->glissando_src_freq + (int32_t)(obj->glissando_dst_freq - obj->glissando_src_freq) *
+                                                  elapsed / obj->glissando_duration;
                 Bsp_Pwm_Set_Freq(obj->config.pwm_idx, freq);
             } else {
                 obj->glissando_src_freq = 0;
