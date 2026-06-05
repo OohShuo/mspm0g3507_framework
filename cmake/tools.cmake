@@ -2,14 +2,24 @@
 
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
+if(CMAKE_HOST_WIN32)
+    set(SCRIPTS_SUFFIX ".bat" CACHE STRING "Script suffix for Windows")
+    set(REDIRECT_OUTPUT "" CACHE STRING "Redirect output for Windows")
+    set(REDIRECT_ERROR "" CACHE STRING "Redirect error for Windows")
+else()
+    set(SCRIPTS_SUFFIX ".sh" CACHE STRING "Script suffix for Unix-like systems")
+    set(REDIRECT_OUTPUT " > /dev/null" CACHE STRING "Redirect output for Unix-like systems")
+    set(REDIRECT_ERROR " 2> /dev/null" CACHE STRING "Redirect error for Unix-like systems")
+endif()
+
 set(TAG "Tools")
 
 set(SYSCFG_INSTALL_DIR "${CMAKE_SOURCE_DIR}/tools/sysconfig" CACHE PATH "Directory for installing syscfg tool")
 set(SYSCFG_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg" CACHE PATH "Directory for generated syscfg files")
 
 set(SYSCFG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/${PROJECT_NAME}.syscfg")
-set(SYSCFG_CLI "${SYSCFG_INSTALL_DIR}/sysconfig_cli.sh")
-set(SYSCFG_GUI "${SYSCFG_INSTALL_DIR}/sysconfig_gui.sh")
+set(SYSCFG_CLI "${SYSCFG_INSTALL_DIR}/sysconfig_cli${SCRIPTS_SUFFIX}")
+set(SYSCFG_GUI "${SYSCFG_INSTALL_DIR}/sysconfig_gui${SCRIPTS_SUFFIX}")
 set(PRODUCT_JSON_FILE "${CMAKE_SOURCE_DIR}/tools/product.json")
 set(SYSCFG_GEN_FILES
     "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
@@ -37,7 +47,7 @@ function(syscfg_gen)
         --product "${PRODUCT_JSON_FILE}"
         --output "${TEMP_GEN_DIR}"
         --quiet
-        "${SYSCFG_FILE}" > /dev/null 2>&1
+        "${SYSCFG_FILE}" "${REDIRECT_OUTPUT}"
 
         COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.c" "${SYSCFG_GEN_DIR}/"
         COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.h" "${SYSCFG_GEN_DIR}/"
