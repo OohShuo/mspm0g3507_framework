@@ -2,7 +2,7 @@
 
 PROJECT_NAME="$(basename "$(pwd)")"
 
-if (WINDOWS=true) then
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     SUFFIX=".bat"
 else
     SUFFIX=".sh"
