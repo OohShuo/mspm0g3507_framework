@@ -29,6 +29,18 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
+/* 在 FreeRTOSConfig.h 的开头 */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void lv_freertos_task_switch_in(const char * name);
+void lv_freertos_task_switch_out(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #define configENABLE_MPU                             0U
 
 /******************************************************************************/
