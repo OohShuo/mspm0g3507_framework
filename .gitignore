@@ -4,3 +4,4 @@ jdebug/
 tools/sysconfig/*
 *.run
 tools/gcc-arm-none-eabi/*
+.cache/
