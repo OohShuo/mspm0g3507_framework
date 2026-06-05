@@ -1,7 +1,14 @@
 #!/bin/bash
 
 PROJECT_NAME="$(basename "$(pwd)")"
-SYSCFG_CLI="./tools/sysconfig/sysconfig_cli.sh"
+
+if (WINDOWS=true) then
+    SUFFIX=".bat"
+else
+    SUFFIX=".sh"
+fi
+
+SYSCFG_CLI="./tools/sysconfig/sysconfig_cli${SUFFIX}"
 PRODUCT_JSON="./tools/product.json"
 SYSCFG_FILE="./config/${PROJECT_NAME}.syscfg"
 
