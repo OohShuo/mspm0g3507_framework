@@ -41,6 +41,7 @@
 #include "ti_msp_dl_config.h"
 
 DL_TimerA_backupConfig gPWM_0Backup;
+DL_SPI_backupConfig gSPI_0Backup;
 
 /*
  *  ======== SYSCFG_DL_init ========
@@ -54,11 +55,13 @@ SYSCONFIG_WEAK void SYSCFG_DL_init(void)
     SYSCFG_DL_SYSCTL_init();
     SYSCFG_DL_PWM_0_init();
     SYSCFG_DL_PWM_1_init();
+    SYSCFG_DL_SPI_0_init();
     SYSCFG_DL_ADC12_0_init();
     SYSCFG_DL_DMA_init();
     SYSCFG_DL_SYSTICK_init();
     /* Ensure backup structures have no valid state */
 	gPWM_0Backup.backupRdy 	= false;
+	gSPI_0Backup.backupRdy 	= false;
 
 }
 /*
@@ -70,6 +73,7 @@ SYSCONFIG_WEAK bool SYSCFG_DL_saveConfiguration(void)
     bool retStatus = true;
 
 	retStatus &= DL_TimerA_saveConfiguration(PWM_0_INST, &gPWM_0Backup);
+	retStatus &= DL_SPI_saveConfiguration(SPI_0_INST, &gSPI_0Backup);
 
     return retStatus;
 }
@@ -80,6 +84,7 @@ SYSCONFIG_WEAK bool SYSCFG_DL_restoreConfiguration(void)
     bool retStatus = true;
 
 	retStatus &= DL_TimerA_restoreConfiguration(PWM_0_INST, &gPWM_0Backup, false);
+	retStatus &= DL_SPI_restoreConfiguration(SPI_0_INST, &gSPI_0Backup);
 
     return retStatus;
 }
@@ -90,6 +95,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_initPower(void)
     DL_GPIO_reset(GPIOB);
     DL_TimerA_reset(PWM_0_INST);
     DL_TimerG_reset(PWM_1_INST);
+    DL_SPI_reset(SPI_0_INST);
     DL_ADC12_reset(ADC12_0_INST);
 
 
@@ -98,6 +104,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_initPower(void)
     DL_GPIO_enablePower(GPIOB);
     DL_TimerA_enablePower(PWM_0_INST);
     DL_TimerG_enablePower(PWM_1_INST);
+    DL_SPI_enablePower(SPI_0_INST);
     DL_ADC12_enablePower(ADC12_0_INST);
 
 
@@ -111,6 +118,15 @@ SYSCONFIG_WEAK void SYSCFG_DL_GPIO_init(void)
     DL_GPIO_enableOutput(GPIO_PWM_0_C3_PORT, GPIO_PWM_0_C3_PIN);
     DL_GPIO_initPeripheralOutputFunction(GPIO_PWM_1_C1_IOMUX,GPIO_PWM_1_C1_IOMUX_FUNC);
     DL_GPIO_enableOutput(GPIO_PWM_1_C1_PORT, GPIO_PWM_1_C1_PIN);
+
+    DL_GPIO_initPeripheralOutputFunction(
+        GPIO_SPI_0_IOMUX_SCLK, GPIO_SPI_0_IOMUX_SCLK_FUNC);
+    DL_GPIO_initPeripheralOutputFunction(
+        GPIO_SPI_0_IOMUX_PICO, GPIO_SPI_0_IOMUX_PICO_FUNC);
+    DL_GPIO_initPeripheralInputFunction(
+        GPIO_SPI_0_IOMUX_POCI, GPIO_SPI_0_IOMUX_POCI_FUNC);
+    DL_GPIO_initPeripheralOutputFunction(
+        GPIO_SPI_0_IOMUX_CS0, GPIO_SPI_0_IOMUX_CS0_FUNC);
 
     DL_GPIO_initDigitalInputFeatures(GPIO_GRP_0_PIN_0_IOMUX,
 		 DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP,
@@ -258,6 +274,48 @@ SYSCONFIG_WEAK void SYSCFG_DL_PWM_1_init(void) {
 }
 
 
+static const DL_SPI_Config gSPI_0_config = {
+    .mode        = DL_SPI_MODE_CONTROLLER,
+    .frameFormat = DL_SPI_FRAME_FORMAT_MOTO4_POL0_PHA0,
+    .parity      = DL_SPI_PARITY_NONE,
+    .dataSize    = DL_SPI_DATA_SIZE_8,
+    .bitOrder    = DL_SPI_BIT_ORDER_MSB_FIRST,
+    .chipSelectPin = DL_SPI_CHIP_SELECT_0,
+};
+
+static const DL_SPI_ClockConfig gSPI_0_clockConfig = {
+    .clockSel    = DL_SPI_CLOCK_BUSCLK,
+    .divideRatio = DL_SPI_CLOCK_DIVIDE_RATIO_1
+};
+
+SYSCONFIG_WEAK void SYSCFG_DL_SPI_0_init(void) {
+    DL_SPI_setClockConfig(SPI_0_INST, (DL_SPI_ClockConfig *) &gSPI_0_clockConfig);
+
+    DL_SPI_init(SPI_0_INST, (DL_SPI_Config *) &gSPI_0_config);
+
+    /* Configure Controller mode */
+    /*
+     * Set the bit rate clock divider to generate the serial output clock
+     *     outputBitRate = (spiInputClock) / ((1 + SCR) * 2)
+     *     16000000 = (32000000)/((1 + 0) * 2)
+     */
+    DL_SPI_setBitRateSerialClockDivider(SPI_0_INST, 0);
+
+    /* Enable SPI TX interrupt as a trigger for DMA */
+    DL_SPI_enableDMATransmitEvent(SPI_0_INST);
+
+    /* Enable SPI RX interrupt as a trigger for DMA */
+    DL_SPI_enableDMAReceiveEvent(SPI_0_INST, DL_SPI_DMA_INTERRUPT_RX);
+    /* Set RX and TX FIFO threshold levels */
+    DL_SPI_setFIFOThreshold(SPI_0_INST, DL_SPI_RX_FIFO_LEVEL_ONE_FRAME, DL_SPI_TX_FIFO_LEVEL_ONE_FRAME);
+    DL_SPI_enableInterrupt(SPI_0_INST, (DL_SPI_INTERRUPT_DMA_DONE_RX |
+		DL_SPI_INTERRUPT_DMA_DONE_TX |
+		DL_SPI_INTERRUPT_TX_EMPTY));
+
+    /* Enable module */
+    DL_SPI_enable(SPI_0_INST);
+}
+
 /* ADC12_0 Initialization */
 static const DL_ADC12_ClockConfig gADC12_0ClockConfig = {
     .clockSel       = DL_ADC12_CLOCK_SYSOSC,
@@ -306,8 +364,40 @@ SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH0_init(void)
     DL_DMA_setTransferSize(DMA, DMA_CH0_CHAN_ID, 10);
     DL_DMA_initChannel(DMA, DMA_CH0_CHAN_ID , (DL_DMA_Config *) &gDMA_CH0Config);
 }
+static const DL_DMA_Config gDMA_CH1Config = {
+    .transferMode   = DL_DMA_SINGLE_TRANSFER_MODE,
+    .extendedMode   = DL_DMA_NORMAL_MODE,
+    .destIncrement  = DL_DMA_ADDR_UNCHANGED,
+    .srcIncrement   = DL_DMA_ADDR_INCREMENT,
+    .destWidth      = DL_DMA_WIDTH_BYTE,
+    .srcWidth       = DL_DMA_WIDTH_BYTE,
+    .trigger        = SPI_0_INST_DMA_TRIGGER_0,
+    .triggerType    = DL_DMA_TRIGGER_TYPE_EXTERNAL,
+};
+
+SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH1_init(void)
+{
+    DL_DMA_initChannel(DMA, DMA_CH1_CHAN_ID , (DL_DMA_Config *) &gDMA_CH1Config);
+}
+static const DL_DMA_Config gDMA_CH2Config = {
+    .transferMode   = DL_DMA_SINGLE_TRANSFER_MODE,
+    .extendedMode   = DL_DMA_NORMAL_MODE,
+    .destIncrement  = DL_DMA_ADDR_INCREMENT,
+    .srcIncrement   = DL_DMA_ADDR_UNCHANGED,
+    .destWidth      = DL_DMA_WIDTH_BYTE,
+    .srcWidth       = DL_DMA_WIDTH_BYTE,
+    .trigger        = SPI_0_INST_DMA_TRIGGER_1,
+    .triggerType    = DL_DMA_TRIGGER_TYPE_EXTERNAL,
+};
+
+SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH2_init(void)
+{
+    DL_DMA_initChannel(DMA, DMA_CH2_CHAN_ID , (DL_DMA_Config *) &gDMA_CH2Config);
+}
 SYSCONFIG_WEAK void SYSCFG_DL_DMA_init(void){
     SYSCFG_DL_DMA_CH0_init();
+    SYSCFG_DL_DMA_CH1_init();
+    SYSCFG_DL_DMA_CH2_init();
 }
 
 

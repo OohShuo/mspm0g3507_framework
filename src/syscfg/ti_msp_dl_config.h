@@ -104,6 +104,29 @@ extern "C" {
 
 
 
+/* Defines for SPI_0 */
+#define SPI_0_INST                                                         SPI1
+#define SPI_0_INST_IRQHandler                                   SPI1_IRQHandler
+#define SPI_0_INST_INT_IRQN                                       SPI1_INT_IRQn
+#define GPIO_SPI_0_PICO_PORT                                              GPIOA
+#define GPIO_SPI_0_PICO_PIN                                      DL_GPIO_PIN_18
+#define GPIO_SPI_0_IOMUX_PICO                                   (IOMUX_PINCM40)
+#define GPIO_SPI_0_IOMUX_PICO_FUNC                   IOMUX_PINCM40_PF_SPI1_PICO
+#define GPIO_SPI_0_POCI_PORT                                              GPIOB
+#define GPIO_SPI_0_POCI_PIN                                       DL_GPIO_PIN_7
+#define GPIO_SPI_0_IOMUX_POCI                                   (IOMUX_PINCM24)
+#define GPIO_SPI_0_IOMUX_POCI_FUNC                   IOMUX_PINCM24_PF_SPI1_POCI
+/* GPIO configuration for SPI_0 */
+#define GPIO_SPI_0_SCLK_PORT                                              GPIOA
+#define GPIO_SPI_0_SCLK_PIN                                      DL_GPIO_PIN_17
+#define GPIO_SPI_0_IOMUX_SCLK                                   (IOMUX_PINCM39)
+#define GPIO_SPI_0_IOMUX_SCLK_FUNC                   IOMUX_PINCM39_PF_SPI1_SCLK
+#define GPIO_SPI_0_CS0_PORT                                               GPIOA
+#define GPIO_SPI_0_CS0_PIN                                        DL_GPIO_PIN_2
+#define GPIO_SPI_0_IOMUX_CS0                                     (IOMUX_PINCM7)
+#define GPIO_SPI_0_IOMUX_CS0_FUNC                      IOMUX_PINCM7_PF_SPI1_CS0
+
+
 
 /* Defines for ADC12_0 */
 #define ADC12_0_INST                                                        ADC0
@@ -129,6 +152,12 @@ extern "C" {
 /* Defines for DMA_CH0 */
 #define DMA_CH0_CHAN_ID                                                      (0)
 #define ADC12_0_INST_DMA_TRIGGER                      (DMA_ADC0_EVT_GEN_BD_TRIG)
+/* Defines for DMA_CH1 */
+#define DMA_CH1_CHAN_ID                                                      (1)
+#define SPI_0_INST_DMA_TRIGGER_0                              (DMA_SPI1_TX_TRIG)
+/* Defines for DMA_CH2 */
+#define DMA_CH2_CHAN_ID                                                      (2)
+#define SPI_0_INST_DMA_TRIGGER_1                              (DMA_SPI1_RX_TRIG)
 
 
 /* Port definition for Pin Group GPIO_GRP_0 */
@@ -176,6 +205,7 @@ void SYSCFG_DL_GPIO_init(void);
 void SYSCFG_DL_SYSCTL_init(void);
 void SYSCFG_DL_PWM_0_init(void);
 void SYSCFG_DL_PWM_1_init(void);
+void SYSCFG_DL_SPI_0_init(void);
 void SYSCFG_DL_ADC12_0_init(void);
 void SYSCFG_DL_DMA_init(void);
 
