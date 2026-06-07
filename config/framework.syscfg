@@ -124,10 +124,10 @@ PWM2.PWM_CHANNEL_1.dutyCycle    = 50;
 
 SPI1.$name                                 = "SPI_0";
 SPI1.enabledDMAEvent2Triggers              = "DL_SPI_DMA_INTERRUPT_TX";
-SPI1.enabledInterrupts                     = ["DMA_DONE_RX","DMA_DONE_TX","TX_EMPTY"];
 SPI1.enabledDMAEvent1Triggers              = "DL_SPI_DMA_INTERRUPT_RX";
 SPI1.rxFifoThreshold                       = "DL_SPI_RX_FIFO_LEVEL_ONE_FRAME";
 SPI1.txFifoThreshold                       = "DL_SPI_TX_FIFO_LEVEL_ONE_FRAME";
+SPI1.enabledInterrupts                     = ["DMA_DONE_RX","DMA_DONE_TX","IDLE","TX_EMPTY"];
 SPI1.peripheral.$assign                    = "SPI1";
 SPI1.peripheral.sclkPin.$assign            = "PB16";
 SPI1.peripheral.mosiPin.$assign            = "PB15";
