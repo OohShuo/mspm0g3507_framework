@@ -5,7 +5,7 @@
 #define GPIO_MODE_INPUT  0
 #define GPIO_MODE_OUTPUT 1
 
-#define GPIO_NUM         9
+#define GPIO_NUM         10
 
 #define GPIO_0_PORT      GPIOA
 #define GPIO_0_PIN       DL_GPIO_PIN_25
@@ -43,15 +43,19 @@
 #define GPIO_8_PIN       DL_GPIO_PIN_24
 #define GPIO_8_MODE      GPIO_MODE_INPUT
 
+#define GPIO_9_PORT      GPIOB
+#define GPIO_9_PIN       DL_GPIO_PIN_17
+#define GPIO_9_MODE      GPIO_MODE_OUTPUT
+
 #define GPIO_PORTS                                                                                           \
     {GPIO_0_PORT, GPIO_1_PORT, GPIO_2_PORT, GPIO_3_PORT, GPIO_4_PORT, GPIO_5_PORT, GPIO_6_PORT, GPIO_7_PORT, \
-        GPIO_8_PORT}
+        GPIO_8_PORT, GPIO_9_PORT}
 #define GPIO_PINS                                                                                    \
     {GPIO_0_PIN, GPIO_1_PIN, GPIO_2_PIN, GPIO_3_PIN, GPIO_4_PIN, GPIO_5_PIN, GPIO_6_PIN, GPIO_7_PIN, \
-        GPIO_8_PIN}
+        GPIO_8_PIN, GPIO_9_PIN}
 #define GPIO_MODES                                                                                           \
     {GPIO_0_MODE, GPIO_1_MODE, GPIO_2_MODE, GPIO_3_MODE, GPIO_4_MODE, GPIO_5_MODE, GPIO_6_MODE, GPIO_7_MODE, \
-        GPIO_8_MODE}
+        GPIO_8_MODE, GPIO_9_MODE}
 
 #define GPIO_SW_BTN_IDX        0
 #define GPIO_TFT_RST_IDX       1
@@ -62,6 +66,7 @@
 #define GPIO_BNT_LEFT_IDX      6
 #define GPIO_BNT_DOWN_IDX      7
 #define GPIO_BNT_RIGHT_IDX     8
+#define GPIO_SPI_CS_IDX        9
 
 /* pwm */
 

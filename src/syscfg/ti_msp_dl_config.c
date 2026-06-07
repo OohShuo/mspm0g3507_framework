@@ -156,14 +156,18 @@ SYSCONFIG_WEAK void SYSCFG_DL_GPIO_init(void)
 		 DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP,
 		 DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
 
+    DL_GPIO_initDigitalOutput(GPIO_GRP_1_PIN_9_IOMUX);
+
     DL_GPIO_clearPins(GPIO_GRP_0_PORT, GPIO_GRP_0_PIN_1_PIN |
 		GPIO_GRP_0_PIN_2_PIN |
 		GPIO_GRP_0_PIN_3_PIN);
     DL_GPIO_enableOutput(GPIO_GRP_0_PORT, GPIO_GRP_0_PIN_1_PIN |
 		GPIO_GRP_0_PIN_2_PIN |
 		GPIO_GRP_0_PIN_3_PIN);
-    DL_GPIO_clearPins(GPIO_GRP_1_PORT, GPIO_GRP_1_PIN_4_PIN);
-    DL_GPIO_enableOutput(GPIO_GRP_1_PORT, GPIO_GRP_1_PIN_4_PIN);
+    DL_GPIO_clearPins(GPIO_GRP_1_PORT, GPIO_GRP_1_PIN_4_PIN |
+		GPIO_GRP_1_PIN_9_PIN);
+    DL_GPIO_enableOutput(GPIO_GRP_1_PORT, GPIO_GRP_1_PIN_4_PIN |
+		GPIO_GRP_1_PIN_9_PIN);
 
 }
 
@@ -297,9 +301,9 @@ SYSCONFIG_WEAK void SYSCFG_DL_SPI_0_init(void) {
     /*
      * Set the bit rate clock divider to generate the serial output clock
      *     outputBitRate = (spiInputClock) / ((1 + SCR) * 2)
-     *     16000000 = (32000000)/((1 + 0) * 2)
+     *     8000000 = (32000000)/((1 + 1) * 2)
      */
-    DL_SPI_setBitRateSerialClockDivider(SPI_0_INST, 0);
+    DL_SPI_setBitRateSerialClockDivider(SPI_0_INST, 1);
 
     /* Enable SPI TX interrupt as a trigger for DMA */
     DL_SPI_enableDMATransmitEvent(SPI_0_INST);
