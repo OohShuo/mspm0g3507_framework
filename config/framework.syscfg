@@ -73,7 +73,7 @@ GPIO1.associatedPins[3].pin.$assign      = "PA14";
 
 GPIO2.$name                              = "GPIO_GRP_1";
 GPIO2.port                               = "PORTB";
-GPIO2.associatedPins.create(5);
+GPIO2.associatedPins.create(6);
 GPIO2.associatedPins[0].$name            = "PIN_4";
 GPIO2.associatedPins[0].assignedPin      = "2";
 GPIO2.associatedPins[0].pin.$assign      = "PB2";
@@ -97,6 +97,9 @@ GPIO2.associatedPins[4].assignedPin      = "24";
 GPIO2.associatedPins[4].direction        = "INPUT";
 GPIO2.associatedPins[4].internalResistor = "PULL_UP";
 GPIO2.associatedPins[4].pin.$assign      = "PB24";
+GPIO2.associatedPins[5].$name            = "PIN_9";
+GPIO2.associatedPins[5].assignedPin      = "17";
+GPIO2.associatedPins[5].pin.$assign      = "PB17";
 
 PWM1.$name                      = "PWM_0";
 PWM1.clockDivider               = 8;
@@ -121,15 +124,14 @@ PWM2.PWM_CHANNEL_1.dutyCycle    = 50;
 
 SPI1.$name                                 = "SPI_0";
 SPI1.enabledDMAEvent2Triggers              = "DL_SPI_DMA_INTERRUPT_TX";
-SPI1.enabledInterrupts                     = ["DMA_DONE_RX","DMA_DONE_TX","TX_EMPTY"];
 SPI1.enabledDMAEvent1Triggers              = "DL_SPI_DMA_INTERRUPT_RX";
 SPI1.rxFifoThreshold                       = "DL_SPI_RX_FIFO_LEVEL_ONE_FRAME";
 SPI1.txFifoThreshold                       = "DL_SPI_TX_FIFO_LEVEL_ONE_FRAME";
-SPI1.targetBitRate                         = 16000000;
+SPI1.enabledInterrupts                     = ["DMA_DONE_RX","DMA_DONE_TX","IDLE","TX_EMPTY"];
 SPI1.peripheral.$assign                    = "SPI1";
-SPI1.peripheral.sclkPin.$assign            = "PA17";
-SPI1.peripheral.mosiPin.$assign            = "PA18";
-SPI1.peripheral.misoPin.$assign            = "PB7";
+SPI1.peripheral.sclkPin.$assign            = "PB16";
+SPI1.peripheral.mosiPin.$assign            = "PB15";
+SPI1.peripheral.misoPin.$assign            = "PB14";
 SPI1.sclkPinConfig.$name                   = "ti_driverlib_gpio_GPIOPinGeneric3";
 SPI1.mosiPinConfig.$name                   = "ti_driverlib_gpio_GPIOPinGeneric4";
 SPI1.misoPinConfig.$name                   = "ti_driverlib_gpio_GPIOPinGeneric5";
