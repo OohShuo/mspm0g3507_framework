@@ -16,6 +16,13 @@
 // or the SPI will stall mid-transfer.
 #define SPI_RX_SCRATCH_SIZE 512
 
+// Dummy bytes for full-duplex reads. SPI flash expects 0xFF while the
+// slave shifts out data; for other slaves, 0x00 may be needed but 0xFF
+// works for the common case.
+static const uint8_t s_spi_dummy_tx[SPI_RX_SCRATCH_SIZE] = {
+    [0 ... SPI_RX_SCRATCH_SIZE - 1] = 0xFF,
+};
+
 struct Bsp_spi_instance_t {
     SPI_Regs* inst;
     uint32_t dma_tx_channel;
@@ -77,12 +84,47 @@ void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
 void Bsp_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
     if (idx >= SPI_NUM) return;
 
+    if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
+
+    // Full-duplex read: the SPI peripheral must shift out dummy bytes
+    // (0xFF) on MOSI while the slave shifts in real data on MISO. The
+    // TX DMA has to be active for the shift register to advance.
+
+    // TX DMA: source = dummy 0xFF, dest = TXDATA
+    DL_DMA_setSrcAddr(DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)s_spi_dummy_tx);
+    DL_DMA_setDestAddr(
+        DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->TXDATA));
+    DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_tx_channel, len);
+
+    // RX DMA: source = RXDATA, dest = user buffer
     DL_DMA_setSrcAddr(
         DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->RXDATA));
     DL_DMA_setDestAddr(DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)data);
     DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_rx_channel, len);
 
+    // Enable RX first, then TX (TX enable triggers the first byte shift).
     DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_rx_channel);
+    DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_tx_channel);
+}
+
+// Pure CPU spin on SPI STAT — no FreeRTOS dependency. Safe pre-scheduler.
+void Bsp_Spi_Wait_For_Complete(uint32_t idx) {
+    if (idx >= SPI_NUM) { return; }
+    SPI_Regs* inst = bsp_spi_instances[idx].inst;
+    // Wait for TX FIFO to drain into the shift register.
+    while (!DL_SPI_isTXFIFOEmpty(inst)) { __NOP(); }
+    // Wait for the shift register to finish clocking out the last bit.
+    while (DL_SPI_isBusy(inst)) { __NOP(); }
+}
+
+void Bsp_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
+    Bsp_Spi_Write(idx, data, len);
+    Bsp_Spi_Wait_For_Complete(idx);
+}
+
+void Bsp_Spi_Read_Blocking(uint32_t idx, uint8_t* data, uint32_t len) {
+    Bsp_Spi_Read(idx, data, len);
+    Bsp_Spi_Wait_For_Complete(idx);
 }
 
 void Bsp_Spi_Register_Tx_Dma_Done_Cb(uint32_t idx, Bsp_spi_tx_dma_done_cb_t cb, void* cb_arg) {
