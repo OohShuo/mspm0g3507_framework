@@ -31,7 +31,7 @@ struct Bsp_spi_instance_t {
     struct {
         Vector* cb_vec;
         Vector* cb_arg_vec;
-    } tx_dma_done, tx_done, rx_dma_done;
+    } tx_dma_done, tx_done, rx_dma_done, idle;
     uint8_t rx_scratch[SPI_RX_SCRATCH_SIZE];
 };
 
@@ -49,6 +49,8 @@ void Bsp_Spi_Init(void) {
         bsp_spi_instances[i].tx_done.cb_arg_vec = Vector_Init(sizeof(void*), 1);
         bsp_spi_instances[i].rx_dma_done.cb_vec = Vector_Init(sizeof(Bsp_spi_rx_dma_done_cb_t), 1);
         bsp_spi_instances[i].rx_dma_done.cb_arg_vec = Vector_Init(sizeof(void*), 1);
+        bsp_spi_instances[i].idle.cb_vec = Vector_Init(sizeof(Bsp_spi_idle_cb_t), 1);
+        bsp_spi_instances[i].idle.cb_arg_vec = Vector_Init(sizeof(void*), 1);
 
         DL_DMA_enableChannel(DMA, bsp_spi_instances[i].dma_tx_channel);
         DL_DMA_enableChannel(DMA, bsp_spi_instances[i].dma_rx_channel);
@@ -108,13 +110,24 @@ void Bsp_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
 }
 
 // Pure CPU spin on SPI STAT — no FreeRTOS dependency. Safe pre-scheduler.
-void Bsp_Spi_Wait_For_Complete(uint32_t idx) {
+static void busy_wait_for_complete(uint32_t idx) {
     if (idx >= SPI_NUM) { return; }
     SPI_Regs* inst = bsp_spi_instances[idx].inst;
-    // Wait for TX FIFO to drain into the shift register.
     while (!DL_SPI_isTXFIFOEmpty(inst)) { __NOP(); }
-    // Wait for the shift register to finish clocking out the last bit.
     while (DL_SPI_isBusy(inst)) { __NOP(); }
+}
+
+void Bsp_Spi_Wait_For_Complete(uint32_t idx) {
+    // Pure CPU busy-wait on SPI STAT. Safe pre- and post-scheduler.
+    // The blocking variants Bsp_Spi_Write_Blocking / Bsp_Spi_Read_Blocking
+    // call this to serialize back-to-back transfers.
+    //
+    // OS-based blocking (FreeRTOS semaphore / task notification) was tried
+    // and reverted: it can't disambiguate "this consumer's give" from
+    // "another module's give" when multiple consumers share the SPI bus,
+    // so a stale give from a previous transfer can let the next call's
+    // wait return early. The busy-wait is unambiguously correct.
+    busy_wait_for_complete(idx);
 }
 
 void Bsp_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
@@ -175,6 +188,13 @@ void Bsp_Spi_Irq_Handler(SPI_Regs* spi_inst) {
                     Bsp_spi_rx_dma_done_cb_t cb =
                         *(Bsp_spi_rx_dma_done_cb_t*)Vector_Get_At(spi->rx_dma_done.cb_vec, j);
                     void* cb_arg = *(void**)Vector_Get_At(spi->rx_dma_done.cb_arg_vec, j);
+                    cb(cb_arg);
+                }
+                break;
+            case DL_SPI_IIDX_IDLE:
+                for (uint32_t j = 0; j < Vector_Get_Size(spi->idle.cb_vec); j++) {
+                    Bsp_spi_idle_cb_t cb = *(Bsp_spi_idle_cb_t*)Vector_Get_At(spi->idle.cb_vec, j);
+                    void* cb_arg = *(void**)Vector_Get_At(spi->idle.cb_arg_vec, j);
                     cb(cb_arg);
                 }
                 break;
