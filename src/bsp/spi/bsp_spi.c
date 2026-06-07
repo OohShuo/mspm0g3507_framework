@@ -10,6 +10,12 @@
 
 #if SPI_NUM
 
+// Scratch buffer for the RX DMA. We don't care about the received bytes
+// (the LCD is a write-only device), but the SPI peripheral still shifts
+// in one byte per shifted-out byte. The RX DMA must drain the RX FIFO
+// or the SPI will stall mid-transfer.
+#define SPI_RX_SCRATCH_SIZE 512
+
 struct Bsp_spi_instance_t {
     SPI_Regs* inst;
     uint32_t dma_tx_channel;
@@ -19,6 +25,7 @@ struct Bsp_spi_instance_t {
         Vector* cb_vec;
         Vector* cb_arg_vec;
     } tx_dma_done, tx_done, rx_dma_done;
+    uint8_t rx_scratch[SPI_RX_SCRATCH_SIZE];
 };
 
 static struct Bsp_spi_instance_t bsp_spi_instances[SPI_NUM] = {0};
@@ -45,11 +52,25 @@ void Bsp_Spi_Init(void) {
 void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
     if (idx >= SPI_NUM) return;
 
+    if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
+
+    // RX DMA must be configured for the same size as the TX DMA. The SPI
+    // peripheral shifts in one byte per byte shifted out — without the
+    // RX DMA draining the RX FIFO, the SPI stalls after the first byte.
+    DL_DMA_setSrcAddr(
+        DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->RXDATA));
+    DL_DMA_setDestAddr(DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)bsp_spi_instances[idx].rx_scratch);
+    DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_rx_channel, len);
+
+    // TX DMA: source = user buffer, dest = TXDATA register.
     DL_DMA_setSrcAddr(DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)data);
     DL_DMA_setDestAddr(
         DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->TXDATA));
     DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_tx_channel, len);
 
+    // Enable RX first (so it's armed when TX triggers the first byte shift),
+    // then TX (which kicks off the actual transfer).
+    DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_rx_channel);
     DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_tx_channel);
 }
 
