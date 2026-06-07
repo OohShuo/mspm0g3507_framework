@@ -40,8 +40,6 @@ static void w25q32_record_raw(const char* name, bool passed, uint8_t raw) {
 // === Public API ===
 
 void App_W25q32_Test_Init(void) {
-    // spi_idx: same SPI bus as the LCD (SPI1 on this board).
-    // cs_gpio_idx: PB17 (GPIO_9) on this board, dedicated to the flash CS.
     const W25q32_config cfg = {
         .spi_idx = SPI_LCD_IDX,
         .cs_gpio_idx = GPIO_SPI_CS_IDX,
@@ -49,9 +47,7 @@ void App_W25q32_Test_Init(void) {
     g_w25q32 = W25q32_Create(&cfg);
     g_w25q32_jedec_ok = W25q32_Init(g_w25q32);
 
-    // Quick visual feedback: LED on if JEDEC ID responded, off otherwise.
-    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX,
-                   g_w25q32_jedec_ok ? bsp_gpio_state_set : bsp_gpio_state_reset);
+    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_w25q32_jedec_ok ? bsp_gpio_state_set : bsp_gpio_state_reset);
 }
 
 // Comprehensive SPI flash test battery.
@@ -96,14 +92,15 @@ void App_W25q32_Test_Loop(void) {
     W25q32_Read(g_w25q32, 0x000000, g_w25q32_test_buf, W25Q32_TEST_BUF_SIZE);
     bool all_ff = true;
     for (uint32_t i = 0; i < W25Q32_TEST_BUF_SIZE; i++) {
-        if (g_w25q32_test_buf[i] != 0xFF) { all_ff = false; break; }
+        if (g_w25q32_test_buf[i] != 0xFF) {
+            all_ff = false;
+            break;
+        }
     }
     w25q32_record("Erased=0xFF x256", all_ff);
 
     // Test 6: Page program incrementing pattern
-    for (uint32_t i = 0; i < W25Q32_TEST_BUF_SIZE; i++) {
-        g_w25q32_test_buf[i] = (uint8_t)i;
-    }
+    for (uint32_t i = 0; i < W25Q32_TEST_BUF_SIZE; i++) { g_w25q32_test_buf[i] = (uint8_t)i; }
     W25q32_Page_Program(g_w25q32, 0x000000, g_w25q32_test_buf, W25Q32_TEST_BUF_SIZE);
     w25q32_record("Page Program 256B", true);
 
@@ -112,7 +109,10 @@ void App_W25q32_Test_Loop(void) {
     W25q32_Read(g_w25q32, 0x000000, g_w25q32_test_buf, W25Q32_TEST_BUF_SIZE);
     bool match = true;
     for (uint32_t i = 0; i < W25Q32_TEST_BUF_SIZE; i++) {
-        if (g_w25q32_test_buf[i] != (uint8_t)i) { match = false; break; }
+        if (g_w25q32_test_buf[i] != (uint8_t)i) {
+            match = false;
+            break;
+        }
     }
     w25q32_record("Readback match 256B", match);
 
@@ -122,18 +122,23 @@ void App_W25q32_Test_Loop(void) {
     W25q32_Read(g_w25q32, 0x000000, g_w25q32_test_buf, W25Q32_TEST_BUF_SIZE);
     all_ff = true;
     for (uint32_t i = 0; i < W25Q32_TEST_BUF_SIZE; i++) {
-        if (g_w25q32_test_buf[i] != 0xFF) { all_ff = false; break; }
+        if (g_w25q32_test_buf[i] != 0xFF) {
+            all_ff = false;
+            break;
+        }
     }
     w25q32_record("Re-erase=0xFF", all_ff);
 
     // Aggregate
     g_w25q32_all_passed = true;
     for (uint8_t i = 0; i < g_w25q32_result_count; i++) {
-        if (!g_w25q32_results[i].passed) { g_w25q32_all_passed = false; break; }
+        if (!g_w25q32_results[i].passed) {
+            g_w25q32_all_passed = false;
+            break;
+        }
     }
 
-    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX,
-                   g_w25q32_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
+    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_w25q32_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
 }
 
 const W25q32_test_result* App_W25q32_Test_Get_Results(void) { return g_w25q32_results; }

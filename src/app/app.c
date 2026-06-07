@@ -8,10 +8,9 @@
 #include "button.h"
 #include "buzzer.h"
 #include "joystick.h"
+#include "lcd_test.h"
 #include "led_breath.h"
 #include "led_simple.h"
-
-#include "lcd_test.h"
 #include "w25q32_test.h"
 
 static Led_simple* led_indicator = NULL;

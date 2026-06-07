@@ -50,9 +50,7 @@ static void task_lcd_test(void* arg) {
     (void)arg;
     // LCD test is currently disabled — see task_w25q32_test for the active
     // bsp_spi verification.
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
+    while (1) { vTaskDelay(pdMS_TO_TICKS(100)); }
 }
 
 static void task_w25q32_test(void* arg) {

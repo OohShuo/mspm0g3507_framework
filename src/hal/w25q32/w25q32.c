@@ -6,29 +6,15 @@
 #include "bsp_gpio.h"
 #include "bsp_spi.h"
 
-// W25Q32 protocol: every command-then-data transaction is strictly
-// sequential. The non-blocking Bsp_Spi_Write/Read would let the next call
-// re-arm the DMA before the previous transfer finished, corrupting both
-// transfers. Alias to the blocking variants so every Bsp_Spi_* call below
-// is implicitly serialized.
-#define Bsp_Spi_Write  Bsp_Spi_Write_Blocking
-#define Bsp_Spi_Read   Bsp_Spi_Read_Blocking
+#define Bsp_Spi_Write Bsp_Spi_Write_Blocking
+#define Bsp_Spi_Read  Bsp_Spi_Read_Blocking
 
-// CPU busy-wait in microseconds. Used for the post-BUSY settle so the
-// chip has time to wrap up internal housekeeping. At 32MHz, 1us ≈ 32
-// loop iterations. The volatile read of the counter also prevents the
-// compiler from optimizing the loop away.
-//
-// This is preferred over vTaskDelay because vTaskDelay is unsafe to call
-// before the FreeRTOS scheduler starts, and W25q32_Init runs pre-scheduler.
 static void busy_wait_us(uint32_t us) {
     volatile uint32_t cycles = us * 32;
-    while (cycles--) {
-        (void)cycles;
-    }
+    while (cycles--) { (void)cycles; }
 }
 
-// === Low-level helpers ===
+// Low-level helpers
 
 static void cs_low(W25q32* obj) {
     if (obj->config.cs_gpio_idx != (uint32_t)-1) {
@@ -42,15 +28,12 @@ static void cs_high(W25q32* obj) {
     }
 }
 
-// Send a single command byte. No address, no data.
 static void send_cmd(W25q32* obj, uint8_t cmd) {
     cs_low(obj);
     Bsp_Spi_Write(obj->config.spi_idx, &cmd, 1);
     cs_high(obj);
 }
 
-// Send cmd + 3-byte big-endian address. Leaves CS low so the caller can
-// immediately follow with Bsp_Spi_Read or Bsp_Spi_Write for the data phase.
 static void send_cmd_addr(W25q32* obj, uint8_t cmd, uint32_t addr) {
     const uint8_t buf[4] = {
         cmd,
@@ -62,7 +45,7 @@ static void send_cmd_addr(W25q32* obj, uint8_t cmd, uint32_t addr) {
     Bsp_Spi_Write(obj->config.spi_idx, buf, sizeof(buf));
 }
 
-// === Public API ===
+// Public API
 
 W25q32* W25q32_Create(const W25q32_config* config) {
     W25q32* obj = (W25q32*)malloc(sizeof(W25q32));
@@ -75,21 +58,12 @@ W25q32* W25q32_Create(const W25q32_config* config) {
 }
 
 bool W25q32_Init(W25q32* obj) {
-    // If the chip is in power-down (e.g. from a previous run on a board
-    // with no power-cycle between boots), wake it up first.
     W25q32_Release_Power_Down(obj);
 
-    // Software reset makes the state deterministic regardless of what
-    // the chip was doing before.
     W25q32_Reset(obj);
 
-    // The reset takes tRST (~30us) to converge. Without this wait, the
-    // first SR1 read in the test loop can see BUSY=1 (initially flaky).
     W25q32_Wait_Busy(obj);
 
-    // Force-clear block protect bits in SR1. Some factory-fresh or
-    // pre-owned flash chips have BP0/BP1/BP2 set, which silently
-    // disables erase/program on the protected region (top of array).
     W25q32_Write_Status_Reg_1(obj, 0x00);
     W25q32_Wait_Busy(obj);
 
@@ -119,9 +93,7 @@ uint8_t W25q32_Read_Status_Reg_1(W25q32* obj) {
     return sr;
 }
 
-void W25q32_Write_Enable(W25q32* obj) {
-    send_cmd(obj, W25Q32_CMD_WRITE_ENABLE);
-}
+void W25q32_Write_Enable(W25q32* obj) { send_cmd(obj, W25Q32_CMD_WRITE_ENABLE); }
 
 void W25q32_Write_Status_Reg_1(W25q32* obj, uint8_t sr1_value) {
     W25q32_Write_Enable(obj);
@@ -133,16 +105,8 @@ void W25q32_Write_Status_Reg_1(W25q32* obj, uint8_t sr1_value) {
 }
 
 void W25q32_Wait_Busy(W25q32* obj) {
-    // Typical sector erase: 30-200 ms. Page program: 0.5-3 ms. Chip erase: 15-60 s.
-    // Polling at this rate (~10 kHz of SR reads) is fine for these timescales.
-    while (W25q32_Read_Status_Reg_1(obj) & W25Q32_SR1_BUSY) {
-        // spin
-    }
-    // ~1 ms settle: even after BUSY clears, the chip needs a beat for
-    // internal housekeeping. Skipping this and starting the next op
-    // immediately can cause the next op to silently fail.
-    // Use a CPU busy-wait (not vTaskDelay) so this is safe to call from
-    // W25q32_Init before the FreeRTOS scheduler starts.
+    while (W25q32_Read_Status_Reg_1(obj) & W25Q32_SR1_BUSY) { ; }
+
     busy_wait_us(1000);
 }
 
@@ -189,13 +153,9 @@ void W25q32_Chip_Erase(W25q32* obj) {
     W25q32_Wait_Busy(obj);
 }
 
-void W25q32_Power_Down(W25q32* obj) {
-    send_cmd(obj, W25Q32_CMD_POWER_DOWN);
-}
+void W25q32_Power_Down(W25q32* obj) { send_cmd(obj, W25Q32_CMD_POWER_DOWN); }
 
-void W25q32_Release_Power_Down(W25q32* obj) {
-    send_cmd(obj, W25Q32_CMD_RELEASE_POWER_DOWN);
-}
+void W25q32_Release_Power_Down(W25q32* obj) { send_cmd(obj, W25Q32_CMD_RELEASE_POWER_DOWN); }
 
 void W25q32_Reset(W25q32* obj) {
     send_cmd(obj, W25Q32_CMD_ENABLE_RESET);

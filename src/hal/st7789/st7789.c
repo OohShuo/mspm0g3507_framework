@@ -11,31 +11,31 @@
 
 // === ST7789 command set (internal) ===
 
-#define ST7789_NOP      0x00
-#define ST7789_SWRESET  0x01
-#define ST7789_SLPIN    0x10
-#define ST7789_SLPOUT   0x11
-#define ST7789_NORON    0x13
-#define ST7789_INVOFF   0x20
-#define ST7789_INVON    0x21
-#define ST7789_DISPOFF  0x28
-#define ST7789_DISPON   0x29
-#define ST7789_CASET    0x2A
-#define ST7789_RASET    0x2B
-#define ST7789_RAMWR    0x2C
-#define ST7789_MADCTL   0x36
-#define ST7789_COLMOD   0x3A
-#define ST7789_PORCTRL  0xB2  // Front/back porch
-#define ST7789_GCTRL    0xB7  // Gate timing
-#define ST7789_VCOMS    0xBB  // VCOM voltage
-#define ST7789_LCMCTRL  0xC0  // LCM control
-#define ST7789_VDVVRHEN 0xC2  // VDV/VRH enable
-#define ST7789_VRHS     0xC3  // VRH set
-#define ST7789_VDVS     0xC4  // VDV set
-#define ST7789_FRCTRL2  0xC6  // Frame rate ctrl 2
-#define ST7789_PWCTRL1  0xD0  // Power ctrl 1
-#define ST7789_PVGAMCTRL 0xE0 // Positive gamma
-#define ST7789_NVGAMCTRL 0xE1 // Negative gamma
+#define ST7789_NOP       0x00
+#define ST7789_SWRESET   0x01
+#define ST7789_SLPIN     0x10
+#define ST7789_SLPOUT    0x11
+#define ST7789_NORON     0x13
+#define ST7789_INVOFF    0x20
+#define ST7789_INVON     0x21
+#define ST7789_DISPOFF   0x28
+#define ST7789_DISPON    0x29
+#define ST7789_CASET     0x2A
+#define ST7789_RASET     0x2B
+#define ST7789_RAMWR     0x2C
+#define ST7789_MADCTL    0x36
+#define ST7789_COLMOD    0x3A
+#define ST7789_PORCTRL   0xB2  // Front/back porch
+#define ST7789_GCTRL     0xB7  // Gate timing
+#define ST7789_VCOMS     0xBB  // VCOM voltage
+#define ST7789_LCMCTRL   0xC0  // LCM control
+#define ST7789_VDVVRHEN  0xC2  // VDV/VRH enable
+#define ST7789_VRHS      0xC3  // VRH set
+#define ST7789_VDVS      0xC4  // VDV set
+#define ST7789_FRCTRL2   0xC6  // Frame rate ctrl 2
+#define ST7789_PWCTRL1   0xD0  // Power ctrl 1
+#define ST7789_PVGAMCTRL 0xE0  // Positive gamma
+#define ST7789_NVGAMCTRL 0xE1  // Negative gamma
 
 // === Init sequence ===
 // Ported from the 地猛星 1.3" 240x240 reference project. The ST7789 needs
@@ -51,27 +51,29 @@ typedef struct {
 } St7789_init_cmd;
 
 static St7789_init_cmd st7789_default_init_seq[] = {
-    {ST7789_SLPIN,   10,  0, {0}},  // sleep in (prep for SWRESET)
+    {ST7789_SLPIN, 10, 0, {0}},     // sleep in (prep for SWRESET)
     {ST7789_SWRESET, 200, 0, {0}},  // software reset
-    {ST7789_SLPOUT,  300, 0, {0}},  // sleep out
+    {ST7789_SLPOUT, 300, 0, {0}},   // sleep out
 
-    {ST7789_MADCTL,  0,   1, {0x00}},  // overwritten per config.flags
-    {ST7789_COLMOD,  10,  1, {0x05}},  // 16 bit/pixel (RGB565)
+    {ST7789_MADCTL, 0, 1, {0x00}},   // overwritten per config.flags
+    {ST7789_COLMOD, 10, 1, {0x05}},  // 16 bit/pixel (RGB565)
 
-    {ST7789_PORCTRL, 0,   5, {0x0C, 0x0C, 0x00, 0x33, 0x33}},
-    {ST7789_GCTRL,   0,   1, {0x35}},
-    {ST7789_VCOMS,   0,   1, {0x37}},
-    {ST7789_LCMCTRL, 0,   1, {0x2C}},
-    {ST7789_VDVVRHEN, 0,  1, {0x01}},
-    {ST7789_VRHS,    0,   1, {0x12}},
-    {ST7789_VDVS,    0,   1, {0x20}},
-    {ST7789_FRCTRL2, 0,   1, {0x0F}},
-    {ST7789_PWCTRL1, 0,   2, {0xA4, 0xA1}},
-    {ST7789_PVGAMCTRL, 0, 14, {0xD0, 0x04, 0x0D, 0x11, 0x13, 0x2B, 0x3F, 0x54, 0x4C, 0x18, 0x0D, 0x0B, 0x1F, 0x23}},
-    {ST7789_NVGAMCTRL, 0, 14, {0xD0, 0x04, 0x0C, 0x11, 0x13, 0x2C, 0x3F, 0x44, 0x51, 0x2F, 0x1F, 0x1F, 0x20, 0x23}},
+    {ST7789_PORCTRL, 0, 5, {0x0C, 0x0C, 0x00, 0x33, 0x33}},
+    {ST7789_GCTRL, 0, 1, {0x35}},
+    {ST7789_VCOMS, 0, 1, {0x37}},
+    {ST7789_LCMCTRL, 0, 1, {0x2C}},
+    {ST7789_VDVVRHEN, 0, 1, {0x01}},
+    {ST7789_VRHS, 0, 1, {0x12}},
+    {ST7789_VDVS, 0, 1, {0x20}},
+    {ST7789_FRCTRL2, 0, 1, {0x0F}},
+    {ST7789_PWCTRL1, 0, 2, {0xA4, 0xA1}},
+    {ST7789_PVGAMCTRL, 0, 14,
+        {0xD0, 0x04, 0x0D, 0x11, 0x13, 0x2B, 0x3F, 0x54, 0x4C, 0x18, 0x0D, 0x0B, 0x1F, 0x23}},
+    {ST7789_NVGAMCTRL, 0, 14,
+        {0xD0, 0x04, 0x0C, 0x11, 0x13, 0x2C, 0x3F, 0x44, 0x51, 0x2F, 0x1F, 0x1F, 0x20, 0x23}},
 
-    {ST7789_INVON,   0,   0, {0}},    // display inversion on (required for 1.3" panel)
-    {ST7789_DISPON,  200, 0, {0}},    // display on
+    {ST7789_INVON, 0, 0, {0}},     // display inversion on (required for 1.3" panel)
+    {ST7789_DISPON, 200, 0, {0}},  // display on
 };
 
 #define ST7789_INIT_SEQ_LEN (sizeof(st7789_default_init_seq) / sizeof(st7789_default_init_seq[0]))
@@ -118,9 +120,7 @@ static void blocking_write(St7789* obj, const uint8_t* data, uint32_t len) {
 static void bswap16_inplace(uint8_t* data, size_t byte_count) {
     uint16_t* px = (uint16_t*)data;
     const size_t n = byte_count / 2;
-    for (size_t i = 0; i < n; i++) {
-        px[i] = (uint16_t)((px[i] << 8) | (px[i] >> 8));
-    }
+    for (size_t i = 0; i < n; i++) { px[i] = (uint16_t)((px[i] << 8) | (px[i] >> 8)); }
 }
 
 // === BSP tx_done callback (ISR context) ===
@@ -196,7 +196,8 @@ void St7789_Send_Init_Seq(St7789* obj) {
     }
 }
 
-void St7789_Send_Cmd(St7789* obj, const uint8_t* cmd, size_t cmd_size, const uint8_t* param, size_t param_size) {
+void St7789_Send_Cmd(
+    St7789* obj, const uint8_t* cmd, size_t cmd_size, const uint8_t* param, size_t param_size) {
     cs_low(obj);
 
     obj->set_cmd_mode(obj, 0);  // DC = cmd
@@ -235,18 +236,23 @@ void St7789_Register_Flush_Done_Cb(St7789* obj, St7789_flush_done_cb cb, void* a
 
 // High-level wrapper for non-LVGL use. Sets the drawing window and starts
 // the pixel DMA. CS and DC transitions are handled by Send_Cmd / Send_Color.
-void St7789_Flush(St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t* px_map, size_t px_size) {
+void St7789_Flush(
+    St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t* px_map, size_t px_size) {
     const uint8_t caset_cmd = 0x2A;
     const uint8_t caset_args[4] = {
-        (uint8_t)(x1 >> 8), (uint8_t)(x1 & 0xFF),
-        (uint8_t)(x2 >> 8), (uint8_t)(x2 & 0xFF),
+        (uint8_t)(x1 >> 8),
+        (uint8_t)(x1 & 0xFF),
+        (uint8_t)(x2 >> 8),
+        (uint8_t)(x2 & 0xFF),
     };
     St7789_Send_Cmd(obj, &caset_cmd, 1, caset_args, 4);
 
     const uint8_t raset_cmd = 0x2B;
     const uint8_t raset_args[4] = {
-        (uint8_t)(y1 >> 8), (uint8_t)(y1 & 0xFF),
-        (uint8_t)(y2 >> 8), (uint8_t)(y2 & 0xFF),
+        (uint8_t)(y1 >> 8),
+        (uint8_t)(y1 & 0xFF),
+        (uint8_t)(y2 >> 8),
+        (uint8_t)(y2 & 0xFF),
     };
     St7789_Send_Cmd(obj, &raset_cmd, 1, raset_args, 4);
 

@@ -8,17 +8,10 @@
 #include "dl_spi.h"
 #include "vector.h"
 
-#if SPI_NUM
-
-// Scratch buffer for the RX DMA. We don't care about the received bytes
-// (the LCD is a write-only device), but the SPI peripheral still shifts
-// in one byte per shifted-out byte. The RX DMA must drain the RX FIFO
-// or the SPI will stall mid-transfer.
 #define SPI_RX_SCRATCH_SIZE 512
 
-// Dummy bytes for full-duplex reads. SPI flash expects 0xFF while the
-// slave shifts out data; for other slaves, 0x00 may be needed but 0xFF
-// works for the common case.
+#if SPI_NUM
+
 static const uint8_t s_spi_dummy_tx[SPI_RX_SCRATCH_SIZE] = {
     [0 ... SPI_RX_SCRATCH_SIZE - 1] = 0xFF,
 };
@@ -63,22 +56,17 @@ void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
 
     if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
 
-    // RX DMA must be configured for the same size as the TX DMA. The SPI
-    // peripheral shifts in one byte per byte shifted out — without the
-    // RX DMA draining the RX FIFO, the SPI stalls after the first byte.
     DL_DMA_setSrcAddr(
         DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->RXDATA));
-    DL_DMA_setDestAddr(DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)bsp_spi_instances[idx].rx_scratch);
+    DL_DMA_setDestAddr(
+        DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)bsp_spi_instances[idx].rx_scratch);
     DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_rx_channel, len);
 
-    // TX DMA: source = user buffer, dest = TXDATA register.
     DL_DMA_setSrcAddr(DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)data);
     DL_DMA_setDestAddr(
         DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->TXDATA));
     DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_tx_channel, len);
 
-    // Enable RX first (so it's armed when TX triggers the first byte shift),
-    // then TX (which kicks off the actual transfer).
     DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_rx_channel);
     DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_tx_channel);
 }
@@ -88,28 +76,20 @@ void Bsp_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
 
     if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
 
-    // Full-duplex read: the SPI peripheral must shift out dummy bytes
-    // (0xFF) on MOSI while the slave shifts in real data on MISO. The
-    // TX DMA has to be active for the shift register to advance.
-
-    // TX DMA: source = dummy 0xFF, dest = TXDATA
     DL_DMA_setSrcAddr(DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)s_spi_dummy_tx);
     DL_DMA_setDestAddr(
         DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->TXDATA));
     DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_tx_channel, len);
 
-    // RX DMA: source = RXDATA, dest = user buffer
     DL_DMA_setSrcAddr(
         DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->RXDATA));
     DL_DMA_setDestAddr(DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)data);
     DL_DMA_setTransferSize(DMA, bsp_spi_instances[idx].dma_rx_channel, len);
 
-    // Enable RX first, then TX (TX enable triggers the first byte shift).
     DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_rx_channel);
     DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_tx_channel);
 }
 
-// Pure CPU spin on SPI STAT — no FreeRTOS dependency. Safe pre-scheduler.
 static void busy_wait_for_complete(uint32_t idx) {
     if (idx >= SPI_NUM) { return; }
     SPI_Regs* inst = bsp_spi_instances[idx].inst;
@@ -117,18 +97,7 @@ static void busy_wait_for_complete(uint32_t idx) {
     while (DL_SPI_isBusy(inst)) { __NOP(); }
 }
 
-void Bsp_Spi_Wait_For_Complete(uint32_t idx) {
-    // Pure CPU busy-wait on SPI STAT. Safe pre- and post-scheduler.
-    // The blocking variants Bsp_Spi_Write_Blocking / Bsp_Spi_Read_Blocking
-    // call this to serialize back-to-back transfers.
-    //
-    // OS-based blocking (FreeRTOS semaphore / task notification) was tried
-    // and reverted: it can't disambiguate "this consumer's give" from
-    // "another module's give" when multiple consumers share the SPI bus,
-    // so a stale give from a previous transfer can let the next call's
-    // wait return early. The busy-wait is unambiguously correct.
-    busy_wait_for_complete(idx);
-}
+void Bsp_Spi_Wait_For_Complete(uint32_t idx) { busy_wait_for_complete(idx); }
 
 void Bsp_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
     Bsp_Spi_Write(idx, data, len);
@@ -208,6 +177,8 @@ void Bsp_Spi_Irq_Handler(SPI_Regs* spi_inst) {
 
 void Bsp_Spi_Init(void) {}
 
+void Bsp_Spi_Wait_For_Complete(uint32_t idx) { (void)idx; }
+
 void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
     (void)idx;
     (void)data;
@@ -215,6 +186,18 @@ void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
 }
 
 void Bsp_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
+    (void)idx;
+    (void)data;
+    (void)len;
+}
+
+void Bsp_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
+    (void)idx;
+    (void)data;
+    (void)len;
+}
+
+void Bsp_Spi_Read_Blocking(uint32_t idx, uint8_t* data, uint32_t len) {
     (void)idx;
     (void)data;
     (void)len;
@@ -233,6 +216,12 @@ void Bsp_Spi_Register_Tx_Done_Cb(uint32_t idx, Bsp_spi_tx_done_cb_t cb, void* cb
 }
 
 void Bsp_Spi_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_spi_rx_dma_done_cb_t cb, void* cb_arg) {
+    (void)idx;
+    (void)cb;
+    (void)cb_arg;
+}
+
+void Bsp_Spi_Register_Idle_Cb(uint32_t idx, Bsp_spi_idle_cb_t cb, void* cb_arg) {
     (void)idx;
     (void)cb;
     (void)cb_arg;
