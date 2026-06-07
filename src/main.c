@@ -8,6 +8,10 @@
 TaskHandle_t main_task_handle = NULL;
 TaskHandle_t app_task_handle = NULL;
 TaskHandle_t buzzer_task_handle = NULL;
+TaskHandle_t lcd_test_task_handle = NULL;
+
+extern void App_Lcd_Test_Init(void);
+extern void App_Lcd_Test_Loop(void);
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
@@ -39,6 +43,15 @@ static void task_buzzer(void* arg) {
     }
 }
 
+static void task_lcd_test(void* arg) {
+    uint32_t tick = xTaskGetTickCount();
+    App_Lcd_Test_Init();
+    while (1) {
+        App_Lcd_Test_Loop();
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(50));
+    }
+}
+
 int main(void) {
     SYSCFG_DL_init();
 
@@ -49,6 +62,7 @@ int main(void) {
     xTaskCreate(task_gpio, "Gpio_Task", 128, NULL, 1, &main_task_handle);
     xTaskCreate(task_app, "APP_Task", 128, NULL, 1, &app_task_handle);
     xTaskCreate(task_buzzer, "Buzzer_Task", 128, NULL, 1, &buzzer_task_handle);
+    xTaskCreate(task_lcd_test, "LCD_Test", 256, NULL, 1, &lcd_test_task_handle);
 
     vTaskStartScheduler();
 
