@@ -31,9 +31,7 @@ static void lcd_flush_line(int y, uint16_t color) {
 }
 
 static void lcd_fill_screen(uint16_t color) {
-    for (int y = 0; y < LCD_VER_RES; y++) {
-        lcd_flush_line(y, color);
-    }
+    for (int y = 0; y < LCD_VER_RES; y++) { lcd_flush_line(y, color); }
 }
 
 void App_Lcd_Test_Init(void) {
@@ -43,14 +41,14 @@ void App_Lcd_Test_Init(void) {
     //   BLK = PA14  -> GPIO_3
     // If your board wires the panel differently, swap the indices below.
     const St7789_config lcd_cfg = {
-        .spi_idx      = SPI_LCD_IDX,
-        .cs_gpio_idx  = (uint32_t)-1,  // CS hardwired on this board
-        .dc_gpio_idx  = GPIO_TFT_DC_IDX,
+        .spi_idx = SPI_LCD_IDX,
+        .cs_gpio_idx = (uint32_t)-1,  // CS hardwired on this board
+        .dc_gpio_idx = GPIO_TFT_DC_IDX,
         .rst_gpio_idx = GPIO_TFT_RST_IDX,
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
-        .hor_res      = LCD_HOR_RES,
-        .ver_res      = LCD_VER_RES,
-        .flags        = { .mirror_y = 0, .color_use_bgr = 1 },
+        .hor_res = LCD_HOR_RES,
+        .ver_res = LCD_VER_RES,
+        .flags = {.mirror_y = 0, .color_use_bgr = 1},
     };
     g_lcd = St7789_Create(&lcd_cfg);
     St7789_Register_Flush_Done_Cb(g_lcd, on_lcd_flush_done, NULL);

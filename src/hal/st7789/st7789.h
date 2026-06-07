@@ -1,10 +1,9 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <FreeRTOS.h>
 #include <semphr.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct {
     uint32_t spi_idx;
@@ -57,7 +56,8 @@ void St7789_Send_Init_Seq(St7789* obj);
 
 /* Send a short command to the LCD. This function shall wait until the
  * transaction finishes. CS and DC are managed automatically. */
-void St7789_Send_Cmd(St7789* obj, const uint8_t* cmd, size_t cmd_size, const uint8_t* param, size_t param_size);
+void St7789_Send_Cmd(
+    St7789* obj, const uint8_t* cmd, size_t cmd_size, const uint8_t* param, size_t param_size);
 
 /* Send a large array of pixel data to the LCD. This function does the
  * in-place byte-swap of RGB565 pixels (LE → BE) and can do the transfer
@@ -73,4 +73,5 @@ void St7789_Register_Flush_Done_Cb(St7789* obj, St7789_flush_done_cb cb, void* a
  * in place; `px_map` must be writable. The pixel DMA runs asynchronously;
  * completion is signaled via the cb registered with
  * St7789_Register_Flush_Done_Cb. */
-void St7789_Flush(St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t* px_map, size_t px_size);
+void St7789_Flush(
+    St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t* px_map, size_t px_size);
