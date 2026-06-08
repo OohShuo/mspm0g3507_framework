@@ -9,3 +9,6 @@ tools/gcc-arm-none-eabi/*
 .claude
 tools/sysconfig
 1d3_TFT_Example
+
+CLAUDE.md
+graphify-out/
