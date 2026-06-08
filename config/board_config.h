@@ -101,3 +101,17 @@
 #define ADC_JOYSTICK_IDX       0
 #define ADC_JOYSTICK_X_CHANNEL 0
 #define ADC_JOYSTICK_Y_CHANNEL 1
+
+/* lcd - 1.3" TFT (bit-bang SPI, ST7789 or compatible) */
+/* CS tied to GND on hardware, no external font chip */
+
+#define LCD_SCLK_PORT          GPIOA
+#define LCD_SCLK_PIN           DL_GPIO_PIN_17
+#define LCD_SDA_PORT           GPIOB
+#define LCD_SDA_PIN            DL_GPIO_PIN_8
+#define LCD_RES_PORT           GPIOA
+#define LCD_RES_PIN            DL_GPIO_PIN_16
+#define LCD_DC_PORT            GPIOA
+#define LCD_DC_PIN             DL_GPIO_PIN_15
+#define LCD_BLK_PORT           GPIOA
+#define LCD_BLK_PIN            DL_GPIO_PIN_14
