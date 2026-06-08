@@ -5,6 +5,10 @@ tools/sysconfig/*
 *.run
 tools/gcc-arm-none-eabi/*
 .cache/
-graphify-out/
+
+.claude
+tools/sysconfig
+1d3_TFT_Example
+
 CLAUDE.md
-.claude/
+graphify-out/
