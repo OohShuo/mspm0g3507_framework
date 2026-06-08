@@ -9,7 +9,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_BUILD_TYPE Release)
+# set(CMAKE_BUILD_TYPE Release)
 
 project(framework LANGUAGES C CXX ASM)
 
@@ -36,7 +36,7 @@ set(CPU_FLAGS
 add_compile_options(
     ${CPU_FLAGS}
     -fdiagnostics-color=always
-    -Wall
+    -O2 -g -Wall
     -ffunction-sections
     -fdata-sections
 )
