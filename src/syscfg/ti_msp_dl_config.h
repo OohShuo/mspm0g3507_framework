@@ -137,15 +137,6 @@ extern "C" {
 /* Defines for PIN_0: GPIOA.25 with pinCMx 55 on package pin 26 */
 #define GPIO_GRP_0_PIN_0_PIN                                    (DL_GPIO_PIN_25)
 #define GPIO_GRP_0_PIN_0_IOMUX                                   (IOMUX_PINCM55)
-/* Defines for PIN_1: GPIOA.16 with pinCMx 38 on package pin 9 */
-#define GPIO_GRP_0_PIN_1_PIN                                    (DL_GPIO_PIN_16)
-#define GPIO_GRP_0_PIN_1_IOMUX                                   (IOMUX_PINCM38)
-/* Defines for PIN_2: GPIOA.15 with pinCMx 37 on package pin 8 */
-#define GPIO_GRP_0_PIN_2_PIN                                    (DL_GPIO_PIN_15)
-#define GPIO_GRP_0_PIN_2_IOMUX                                   (IOMUX_PINCM37)
-/* Defines for PIN_3: GPIOA.14 with pinCMx 36 on package pin 7 */
-#define GPIO_GRP_0_PIN_3_PIN                                    (DL_GPIO_PIN_14)
-#define GPIO_GRP_0_PIN_3_IOMUX                                   (IOMUX_PINCM36)
 /* Port definition for Pin Group GPIO_GRP_1 */
 #define GPIO_GRP_1_PORT                                                  (GPIOB)
 
@@ -164,6 +155,26 @@ extern "C" {
 /* Defines for PIN_8: GPIOB.24 with pinCMx 52 on package pin 23 */
 #define GPIO_GRP_1_PIN_8_PIN                                    (DL_GPIO_PIN_24)
 #define GPIO_GRP_1_PIN_8_IOMUX                                   (IOMUX_PINCM52)
+/* Defines for PIN_SCL: GPIOA.17 with pinCMx 39 on package pin 10 */
+#define GPIO_TFT_PIN_SCL_PORT                                            (GPIOA)
+#define GPIO_TFT_PIN_SCL_PIN                                    (DL_GPIO_PIN_17)
+#define GPIO_TFT_PIN_SCL_IOMUX                                   (IOMUX_PINCM39)
+/* Defines for PIN_SDA: GPIOB.8 with pinCMx 25 on package pin 60 */
+#define GPIO_TFT_PIN_SDA_PORT                                            (GPIOB)
+#define GPIO_TFT_PIN_SDA_PIN                                     (DL_GPIO_PIN_8)
+#define GPIO_TFT_PIN_SDA_IOMUX                                   (IOMUX_PINCM25)
+/* Defines for PIN_RES: GPIOA.16 with pinCMx 38 on package pin 9 */
+#define GPIO_TFT_PIN_RES_PORT                                            (GPIOA)
+#define GPIO_TFT_PIN_RES_PIN                                    (DL_GPIO_PIN_16)
+#define GPIO_TFT_PIN_RES_IOMUX                                   (IOMUX_PINCM38)
+/* Defines for PIN_DC: GPIOA.15 with pinCMx 37 on package pin 8 */
+#define GPIO_TFT_PIN_DC_PORT                                             (GPIOA)
+#define GPIO_TFT_PIN_DC_PIN                                     (DL_GPIO_PIN_15)
+#define GPIO_TFT_PIN_DC_IOMUX                                    (IOMUX_PINCM37)
+/* Defines for PIN_BLK: GPIOA.14 with pinCMx 36 on package pin 7 */
+#define GPIO_TFT_PIN_BLK_PORT                                            (GPIOA)
+#define GPIO_TFT_PIN_BLK_PIN                                    (DL_GPIO_PIN_14)
+#define GPIO_TFT_PIN_BLK_IOMUX                                   (IOMUX_PINCM36)
 
 
 

@@ -10,6 +10,7 @@
 #include "joystick.h"
 #include "led_breath.h"
 #include "led_simple.h"
+#include "lcd.h"
 
 Led_simple* led_indicator = NULL;
 Led_breath* led_breath = NULL;
@@ -43,6 +44,10 @@ void App_Init(void) {
         .y_offset = -0.0148155261,
     };
     joystick = Joystick_Create(&joystick_cfg);
+
+    /* LCD demo */
+    LCD_Fill(0, 0, LCD_W, LCD_H, WHITE);
+    LCD_ShowString(30, 100, (uint8_t *)"Hello!", RED, WHITE, 32, 0);
 }
 
 void App_Loop(void) {
