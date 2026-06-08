@@ -4,9 +4,9 @@
 #include <stdlib.h>
 
 #include "bsp_gpio.h"
-#include "bsp_spi.h"
+#include "bsp_soft_spi.h"
 
-#define Bsp_Spi_Write Bsp_Spi_Write_Blocking
+#define Bsp_Spi_Write Bsp_Soft_Spi_Write
 
 // ~32 cycles/µs at the default 32 MHz CPUCLK (see ti_msp_dl_config.h).
 // The init sequence's longest delay is 300 ms; this is a one-time cost
@@ -115,13 +115,6 @@ St7789* St7789_Create(const St7789_config* config) {
     return obj;
 }
 
-static uint32_t tt_cnt = 0;
-
-void tt_cb(void* arg) {
-    (void)arg;
-    tt_cnt++;
-}
-
 void St7789_Init(St7789* obj) {
     // Hardware reset pulse.
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_reset);
@@ -140,8 +133,6 @@ void St7789_Init(St7789* obj) {
         send_cmd(obj, &c->cmd, 1, c->args, c->arg_count);
         if (c->delay_ms > 0) { busy_wait_ms(c->delay_ms); }
     }
-
-    Bsp_Spi_Register_Tx_Done_Cb(obj->config.spi_idx, tt_cb, NULL);
 }
 
 void St7789_Set_Backlight(St7789* obj, uint8_t on) {
@@ -194,4 +185,40 @@ void St7789_Flush(
 void St7789_Register_Flush_Done_Cb(St7789* obj, St7789_flush_done_cb cb, void* arg) {
     obj->flush_done_cb = cb;
     obj->flush_done_cb_arg = arg;
+}
+
+void St7789_Fill_Color(St7789* obj, uint16_t color) {
+    const uint8_t caset[] = {0, 0, 0, (uint8_t)(obj->config.hor_res - 1)};
+    const uint8_t raset[] = {0, 0, 0, (uint8_t)(obj->config.ver_res - 1)};
+    const uint8_t ramwr  = ST7789_RAMWR;
+    const uint32_t total_bytes = obj->config.hor_res * obj->config.ver_res * 2;
+
+    // CASET + RASET — each with its own CS cycle, fine.
+    send_cmd(obj, (const uint8_t[]){ST7789_CASET}, 1, caset, 4);
+    send_cmd(obj, (const uint8_t[]){ST7789_RASET}, 1, raset, 4);
+
+    // Pre-swap the colour once (LE → BE for MSB-first SPI).
+    const uint16_t swapped = (uint16_t)((color << 8) | (color >> 8));
+
+    // Fill a small stack buffer with the swapped colour.
+    uint8_t chunk[256];
+    uint16_t* cp = (uint16_t*)chunk;
+    for (uint32_t i = 0; i < sizeof(chunk) / 2; i++) { cp[i] = swapped; }
+
+    // CS low → RAMWR command → pixel data stream → CS high.
+    // CS stays low for the entire pixel burst; the ST7789 auto-increments.
+    cs_low(obj);
+    dc_cmd(obj);
+    Bsp_Spi_Write(obj->config.spi_idx, &ramwr, 1);
+    dc_data(obj);
+
+    uint32_t remaining = total_bytes;
+    while (remaining > 0) {
+        uint32_t n = (remaining < sizeof(chunk)) ? remaining : sizeof(chunk);
+        Bsp_Spi_Write(obj->config.spi_idx, chunk, n);
+        remaining -= n;
+    }
+    cs_high(obj);
+
+    if (obj->flush_done_cb != NULL) { obj->flush_done_cb(obj->flush_done_cb_arg); }
 }
