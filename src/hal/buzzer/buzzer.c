@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "bsp_audio.h"
 #include "bsp_time.h"
 #include "vector.h"
 
@@ -30,6 +31,7 @@ Buzzer* Buzzer_Create(const Buzzer_config* config) {
 
 void Buzzer_Play(Buzzer* obj, const Music* music, uint8_t is_loop) {
     if (obj == NULL || music == NULL) return;
+    if (Bsp_Audio_Is_Playing()) return;
 
     obj->music_score = music->score;
     obj->score_length = music->length;
@@ -46,11 +48,16 @@ void Buzzer_Play(Buzzer* obj, const Music* music, uint8_t is_loop) {
 void Buzzer_Stop(Buzzer* obj) {
     if (obj == NULL) return;
     obj->is_playing = 0;
-    Bsp_Pwm_Stop(obj->config.pwm_idx);
+    if (!Bsp_Audio_Is_Playing()) {
+        Bsp_Pwm_Stop(obj->config.pwm_idx);
+    }
 }
 
 void Buzzer_Update_All(void) {
     if (buzzer_instances == NULL) return;
+
+    /* Audio mode owns TIMA0 — don't touch it */
+    if (Bsp_Audio_Is_Playing()) return;
 
     for (uint32_t i = 0; i < Vector_Get_Size(buzzer_instances); i++) {
         Buzzer* obj = *(Buzzer**)Vector_Get_At(buzzer_instances, i);
