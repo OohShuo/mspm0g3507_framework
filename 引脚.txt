@@ -1,0 +1,24 @@
+双轴遥感：
+PA27  VRx  ADC0_CH0
+PA26  VRy  ADC0_CH1
+PA25  SW   GPIO输入，上拉电阻
+
+TFT显示屏
+PA17  SCL  SPI1-SCK
+PB8    SDA  SPI1-PICO
+PA16   RES  GPIO推挽输出
+PA15   DC   GPIO推挽输出，0命令，1数据
+PA14   BLK  GPIO推挽输出
+
+蜂鸣器
+PA12  TIMA0-C3
+
+震动马达
+PA13  TIMG0-C1
+（我查了一下震动马达好像要连个三极管？）
+
+LED指示灯？
+PB2  电源LED
+
+
+
