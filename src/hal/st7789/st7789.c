@@ -115,13 +115,15 @@ St7789* St7789_Create(const St7789_config* config) {
     return obj;
 }
 
-void St7789_Init(St7789* obj) {
+void St7789_Reset(St7789* obj) {
     // Hardware reset pulse.
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_reset);
     busy_wait_ms(100);
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_set);
     busy_wait_ms(100);
+}
 
+void St7789_Run_Init_Sequence(St7789* obj) {
     // Build MADCTL byte from config.flags.
     if (obj->config.flags.mirror_x) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_MX; }
     if (obj->config.flags.mirror_y) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_MY; }
@@ -133,6 +135,11 @@ void St7789_Init(St7789* obj) {
         send_cmd(obj, &c->cmd, 1, c->args, c->arg_count);
         if (c->delay_ms > 0) { busy_wait_ms(c->delay_ms); }
     }
+}
+
+void St7789_Init(St7789* obj) {
+    St7789_Reset(obj);
+    St7789_Run_Init_Sequence(obj);
 }
 
 void St7789_Set_Backlight(St7789* obj, uint8_t on) {
