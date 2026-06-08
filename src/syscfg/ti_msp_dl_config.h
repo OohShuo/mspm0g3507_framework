@@ -104,29 +104,6 @@ extern "C" {
 
 
 
-/* Defines for SPI_0 */
-#define SPI_0_INST                                                         SPI1
-#define SPI_0_INST_IRQHandler                                   SPI1_IRQHandler
-#define SPI_0_INST_INT_IRQN                                       SPI1_INT_IRQn
-#define GPIO_SPI_0_PICO_PORT                                              GPIOA
-#define GPIO_SPI_0_PICO_PIN                                      DL_GPIO_PIN_18
-#define GPIO_SPI_0_IOMUX_PICO                                   (IOMUX_PINCM40)
-#define GPIO_SPI_0_IOMUX_PICO_FUNC                   IOMUX_PINCM40_PF_SPI1_PICO
-#define GPIO_SPI_0_POCI_PORT                                              GPIOB
-#define GPIO_SPI_0_POCI_PIN                                       DL_GPIO_PIN_7
-#define GPIO_SPI_0_IOMUX_POCI                                   (IOMUX_PINCM24)
-#define GPIO_SPI_0_IOMUX_POCI_FUNC                   IOMUX_PINCM24_PF_SPI1_POCI
-/* GPIO configuration for SPI_0 */
-#define GPIO_SPI_0_SCLK_PORT                                              GPIOA
-#define GPIO_SPI_0_SCLK_PIN                                      DL_GPIO_PIN_17
-#define GPIO_SPI_0_IOMUX_SCLK                                   (IOMUX_PINCM39)
-#define GPIO_SPI_0_IOMUX_SCLK_FUNC                   IOMUX_PINCM39_PF_SPI1_SCLK
-#define GPIO_SPI_0_CS0_PORT                                               GPIOA
-#define GPIO_SPI_0_CS0_PIN                                        DL_GPIO_PIN_2
-#define GPIO_SPI_0_IOMUX_CS0                                     (IOMUX_PINCM7)
-#define GPIO_SPI_0_IOMUX_CS0_FUNC                      IOMUX_PINCM7_PF_SPI1_CS0
-
-
 
 /* Defines for ADC12_0 */
 #define ADC12_0_INST                                                        ADC0
@@ -152,12 +129,6 @@ extern "C" {
 /* Defines for DMA_CH0 */
 #define DMA_CH0_CHAN_ID                                                      (0)
 #define ADC12_0_INST_DMA_TRIGGER                      (DMA_ADC0_EVT_GEN_BD_TRIG)
-/* Defines for DMA_CH1 */
-#define DMA_CH1_CHAN_ID                                                      (1)
-#define SPI_0_INST_DMA_TRIGGER_0                              (DMA_SPI1_TX_TRIG)
-/* Defines for DMA_CH2 */
-#define DMA_CH2_CHAN_ID                                                      (2)
-#define SPI_0_INST_DMA_TRIGGER_1                              (DMA_SPI1_RX_TRIG)
 
 
 /* Port definition for Pin Group GPIO_GRP_0 */
@@ -166,15 +137,6 @@ extern "C" {
 /* Defines for PIN_0: GPIOA.25 with pinCMx 55 on package pin 26 */
 #define GPIO_GRP_0_PIN_0_PIN                                    (DL_GPIO_PIN_25)
 #define GPIO_GRP_0_PIN_0_IOMUX                                   (IOMUX_PINCM55)
-/* Defines for PIN_1: GPIOA.16 with pinCMx 38 on package pin 9 */
-#define GPIO_GRP_0_PIN_1_PIN                                    (DL_GPIO_PIN_16)
-#define GPIO_GRP_0_PIN_1_IOMUX                                   (IOMUX_PINCM38)
-/* Defines for PIN_2: GPIOA.15 with pinCMx 37 on package pin 8 */
-#define GPIO_GRP_0_PIN_2_PIN                                    (DL_GPIO_PIN_15)
-#define GPIO_GRP_0_PIN_2_IOMUX                                   (IOMUX_PINCM37)
-/* Defines for PIN_3: GPIOA.14 with pinCMx 36 on package pin 7 */
-#define GPIO_GRP_0_PIN_3_PIN                                    (DL_GPIO_PIN_14)
-#define GPIO_GRP_0_PIN_3_IOMUX                                   (IOMUX_PINCM36)
 /* Port definition for Pin Group GPIO_GRP_1 */
 #define GPIO_GRP_1_PORT                                                  (GPIOB)
 
@@ -196,6 +158,26 @@ extern "C" {
 /* Defines for PIN_9: GPIOB.17 with pinCMx 43 on package pin 14 */
 #define GPIO_GRP_1_PIN_9_PIN                                    (DL_GPIO_PIN_17)
 #define GPIO_GRP_1_PIN_9_IOMUX                                   (IOMUX_PINCM43)
+/* Defines for PIN_SCL: GPIOA.17 with pinCMx 39 on package pin 10 */
+#define GPIO_TFT_PIN_SCL_PORT                                            (GPIOA)
+#define GPIO_TFT_PIN_SCL_PIN                                    (DL_GPIO_PIN_17)
+#define GPIO_TFT_PIN_SCL_IOMUX                                   (IOMUX_PINCM39)
+/* Defines for PIN_SDA: GPIOB.8 with pinCMx 25 on package pin 60 */
+#define GPIO_TFT_PIN_SDA_PORT                                            (GPIOB)
+#define GPIO_TFT_PIN_SDA_PIN                                     (DL_GPIO_PIN_8)
+#define GPIO_TFT_PIN_SDA_IOMUX                                   (IOMUX_PINCM25)
+/* Defines for PIN_RES: GPIOA.16 with pinCMx 38 on package pin 9 */
+#define GPIO_TFT_PIN_RES_PORT                                            (GPIOA)
+#define GPIO_TFT_PIN_RES_PIN                                    (DL_GPIO_PIN_16)
+#define GPIO_TFT_PIN_RES_IOMUX                                   (IOMUX_PINCM38)
+/* Defines for PIN_DC: GPIOA.15 with pinCMx 37 on package pin 8 */
+#define GPIO_TFT_PIN_DC_PORT                                             (GPIOA)
+#define GPIO_TFT_PIN_DC_PIN                                     (DL_GPIO_PIN_15)
+#define GPIO_TFT_PIN_DC_IOMUX                                    (IOMUX_PINCM37)
+/* Defines for PIN_BLK: GPIOA.14 with pinCMx 36 on package pin 7 */
+#define GPIO_TFT_PIN_BLK_PORT                                            (GPIOA)
+#define GPIO_TFT_PIN_BLK_PIN                                    (DL_GPIO_PIN_14)
+#define GPIO_TFT_PIN_BLK_IOMUX                                   (IOMUX_PINCM36)
 
 
 
@@ -208,7 +190,6 @@ void SYSCFG_DL_GPIO_init(void);
 void SYSCFG_DL_SYSCTL_init(void);
 void SYSCFG_DL_PWM_0_init(void);
 void SYSCFG_DL_PWM_1_init(void);
-void SYSCFG_DL_SPI_0_init(void);
 void SYSCFG_DL_ADC12_0_init(void);
 void SYSCFG_DL_DMA_init(void);
 
