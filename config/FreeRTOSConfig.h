@@ -34,9 +34,10 @@
 extern "C" {
 #endif
 
-void lv_freertos_task_switch_in(const char * name);
+// NOLINTBEGIN(readability-identifier-naming)
+void lv_freertos_task_switch_in(const char* name);
 void lv_freertos_task_switch_out(void);
-
+// NOLINTEND(readability-identifier-naming)
 #ifdef __cplusplus
 }
 #endif
@@ -107,7 +108,7 @@ void lv_freertos_task_switch_out(void);
 
 #define configUSE_IDLE_HOOK                          0
 #define configUSE_TICK_HOOK                          0
-#define configUSE_MALLOC_FAILED_HOOK                 0
+#define configUSE_MALLOC_FAILED_HOOK                 1
 #define configUSE_DAEMON_TASK_STARTUP_HOOK           0
 #define configCHECK_FOR_STACK_OVERFLOW               2
 

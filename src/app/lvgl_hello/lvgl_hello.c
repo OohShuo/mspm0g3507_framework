@@ -3,9 +3,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "SEGGER_RTT.h"
 #include "board_config.h"
 #include "bsp.h"
+#include "bsp_log.h"
 #include "bsp_time.h"
 #include "lvgl.h"
 #include "src/drivers/display/st7789/lv_st7789.h"
@@ -15,7 +15,7 @@
 
 #define LCD_HOR_RES   240
 #define LCD_VER_RES   240
-#define LCD_BUF_LINES (LCD_VER_RES / 10)  // 1/10 screen sized buffer (LVGL docs recommendation)
+#define LCD_BUF_LINES (LCD_VER_RES / 10 / 4)  // 1/10 screen sized buffer (LVGL docs recommendation)
 
 // === Module state ===
 
@@ -28,9 +28,21 @@ static lv_obj_t* g_label = NULL;
 static uint8_t g_render_buf[LCD_HOR_RES * LCD_BUF_LINES * 2];
 
 // "Hello" / "World" toggle cadence.
-#define LABEL_TOGGLE_MS 5000U
+#define LABEL_TOGGLE_MS 1000U
 static uint32_t g_label_last_toggle_ms = 0;
 static bool g_label_show_hello = true;
+
+// Background-color cycling test: every BG_TOGGLE_MS the screen's bg_color
+// flips between two distinct values. Visible on the panel as a color
+// change in lockstep with the RTT log, so we can confirm that
+// lv_obj_invalidate really did push the new bg out to the framebuffer
+// (and that any future change to lv_obj_set_style_bg_color + a
+// backlight-on still re-paints the whole screen, not just the label).
+#define BG_TOGGLE_MS 5000U
+static uint32_t g_bg_last_toggle_ms = 0;
+static const uint32_t BG_COLORS[] = {0x0000ff, 0xff00ff};  // blue, magenta
+#define BG_COLOR_COUNT (sizeof(BG_COLORS) / sizeof(BG_COLORS[0]))
+static uint32_t g_bg_index = 0;
 
 // === LVGL ↔ st7789 bridge ===
 //
@@ -112,31 +124,43 @@ void App_Lvgl_Hello_Init(void) {
     //    VCOMS / VRHS / PWCTRL1 / PVGAMCTRL / NVGAMCTRL) — we just win
     //    the last write.
     St7789_Run_Init_Sequence(g_lcd);
-
-    // 5. Backlight on last so the panel does not flash the bootloader
-    //    logo on a blanked-out framebuffer.
     St7789_Set_Backlight(g_lcd, 1);
 
-    // 6. Widget: a centered label. The loop toggles its text between
-    //    "Hello" and "World" every LABEL_TOGGLE_MS.
+    // 5. Widget + styles. Backlight is already on at this point, so the
+    //    very first flush that ran between St7789_Set_Backlight and now
+    //    already painted the default-white screen into the framebuffer.
+    //    set_style itself does NOT auto-invalidate the whole screen, so
+    //    we have to lv_obj_invalidate() the screen explicitly — otherwise
+    //    the dark-blue bg sits on the object but never reaches the
+    //    panel, and only the label area gets redrawn with red text on
+    //    top of stale white.
     g_label = lv_label_create(lv_screen_active());
     lv_label_set_text(g_label, "Hello");
     lv_obj_align(g_label, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xf10000), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x00001f), LV_PART_MAIN);
+    lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xff0000), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x0000ff), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_invalidate(lv_screen_active());
     g_label_last_toggle_ms = Bsp_Get_Tick_Ms();
 }
 
 void App_Lvgl_Hello_Loop(void) {
-    SEGGER_RTT_printf(0, "loop in\n");
     lv_timer_handler();
-    SEGGER_RTT_printf(0, "loop after lv_timer_handler\n");
 
     const uint32_t now_ms = Bsp_Get_Tick_Ms();
     if ((now_ms - g_label_last_toggle_ms) >= LABEL_TOGGLE_MS) {
         g_label_last_toggle_ms = now_ms;
         g_label_show_hello = !g_label_show_hello;
-        SEGGER_RTT_printf(0, "label toggle: %s\n", g_label_show_hello ? "Hello" : "World");
+        bsp_printf("label toggle: %s\n", g_label_show_hello ? "Hello" : "World");
         if (g_label) { lv_label_set_text(g_label, g_label_show_hello ? "Hello" : "World"); }
+    }
+
+    if ((now_ms - g_bg_last_toggle_ms) >= BG_TOGGLE_MS) {
+        g_bg_last_toggle_ms = now_ms;
+        g_bg_index = (g_bg_index + 1) % BG_COLOR_COUNT;
+        const uint32_t c = BG_COLORS[g_bg_index];
+        lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(c), LV_PART_MAIN);
+        lv_obj_invalidate(lv_screen_active());
+        bsp_printf("bg change: 0x%06lx\n", (unsigned long)c);
     }
 }
