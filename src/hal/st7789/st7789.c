@@ -125,10 +125,10 @@ void St7789_Reset(St7789* obj) {
 
 void St7789_Run_Init_Sequence(St7789* obj) {
     // Build MADCTL byte from config.flags.
-    if (obj->config.flags.mirror_x) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_MX; }
-    if (obj->config.flags.mirror_y) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_MY; }
-    if (obj->config.flags.color_use_bgr) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_BGR; }
-    if (obj->config.flags.color_use_18bit) { st7789_default_init_seq[4].args[0] = ST7789_COLMOD_18BPP; }
+    if (obj->config.flags.mirror_x) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MX; }
+    if (obj->config.flags.mirror_y) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MY; }
+    if (obj->config.flags.color_use_bgr) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_BGR; }
+    if (obj->config.flags.color_use_18bit) { st7789_default_init_seq[2].args[0] = ST7789_COLMOD_18BPP; }
 
     for (uint32_t i = 0; i < ST7789_INIT_SEQ_LEN; i++) {
         const St7789_init_cmd* c = &st7789_default_init_seq[i];
