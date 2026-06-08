@@ -4,9 +4,9 @@
 #include <stdlib.h>
 
 #include "bsp_gpio.h"
-#include "bsp_spi.h"
+#include "bsp_soft_spi.h"
 
-#define Bsp_Spi_Write Bsp_Spi_Write_Blocking
+#define Bsp_Spi_Write Bsp_Soft_Spi_Write
 
 // ~32 cycles/µs at the default 32 MHz CPUCLK (see ti_msp_dl_config.h).
 // The init sequence's longest delay is 300 ms; this is a one-time cost
@@ -115,13 +115,6 @@ St7789* St7789_Create(const St7789_config* config) {
     return obj;
 }
 
-static uint32_t tt_cnt = 0;
-
-void tt_cb(void* arg) {
-    (void)arg;
-    tt_cnt++;
-}
-
 void St7789_Init(St7789* obj) {
     // Hardware reset pulse.
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_reset);
@@ -140,8 +133,6 @@ void St7789_Init(St7789* obj) {
         send_cmd(obj, &c->cmd, 1, c->args, c->arg_count);
         if (c->delay_ms > 0) { busy_wait_ms(c->delay_ms); }
     }
-
-    Bsp_Spi_Register_Tx_Done_Cb(obj->config.spi_idx, tt_cb, NULL);
 }
 
 void St7789_Set_Backlight(St7789* obj, uint8_t on) {
