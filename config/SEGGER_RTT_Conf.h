@@ -106,7 +106,7 @@ Purpose : Default configuration for RTT.
 *    RTT Mode for channel 0.
 */
 #ifndef   SEGGER_RTT_MODE_DEFAULT
-  #define SEGGER_RTT_MODE_DEFAULT                   SEGGER_RTT_MODE_NO_BLOCK_SKIP
+  #define SEGGER_RTT_MODE_DEFAULT                   SEGGER_RTT_MODE_NO_BLOCK_TRIM
 #endif
 
 /*********************************************************************
