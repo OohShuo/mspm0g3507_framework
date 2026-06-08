@@ -7,6 +7,8 @@
 #include "board_config.h"
 #include "bsp_time.h"
 #include "st7789.h"
+#include "lcd_video_player.h"
+#include "lcd_video_delta_data.h"
 #include "task.h"
 
 // === Panel geometry ===
@@ -88,7 +90,7 @@ void App_Lcd_Test_Init(void) {
     // The SDA pin is MOSI-only — no MISO, so we don't try to read back
     // from the panel.
     const St7789_config lcd_cfg = {
-        .spi_idx = SPI_LCD_IDX,
+        .spi_idx = SOFT_SPI_LCD_IDX,
         .cs_gpio_idx = (uint32_t)-1,
         .dc_gpio_idx = GPIO_TFT_DC_IDX,
         .rst_gpio_idx = GPIO_TFT_RST_IDX,
@@ -103,6 +105,14 @@ void App_Lcd_Test_Init(void) {
     St7789_Init(g_lcd);
     St7789_Set_Backlight(g_lcd, 1);
     St7789_Register_Flush_Done_Cb(g_lcd, flush_done_cb, NULL);
+
+    /* Run the Bad Apple!! delta-video demo */
+    Lcd_Video_Play(g_lcd,
+                   g_badapple_delta_data,
+                   g_badapple_delta_frames,
+                   LCD_VIDEO_FRAME_COUNT,
+                   LCD_VIDEO_FPS,
+                   0);  // loop forever
 
     g_status.init_done = true;
 }

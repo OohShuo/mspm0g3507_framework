@@ -93,7 +93,7 @@ int main(void) {
     xTaskCreate(task_app, "APP_Task", 128, NULL, 1, &app_task_handle);
     xTaskCreate(task_buzzer, "Buzzer_Task", 128, NULL, 1, &buzzer_task_handle);
 #if LCD_TEST_ENABLE
-    xTaskCreate(task_lcd_test, "LCD_Test", 256, NULL, 1, &lcd_test_task_handle);
+    xTaskCreate(task_lcd_test, "LCD_Test", 512, NULL, 1, &lcd_test_task_handle);
 #endif
 #if W25Q32_TEST_ENABLE
     xTaskCreate(task_w25q32_test, "W25Q32_Test", 256, NULL, 1, &w25q32_test_task_handle);

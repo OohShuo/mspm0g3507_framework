@@ -52,6 +52,13 @@ void St7789_Send_Color(
 void St7789_Flush(
     St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t* px_map, uint32_t px_size);
 
+// Fill the entire display with a single RGB565 colour.
+//
+// Sets CASET+RASET once, then streams pixel data. Much faster than
+// calling St7789_Flush per row because it avoids per-row address-set
+// overhead and only byte-swaps the scratch buffer once.
+void St7789_Fill_Color(St7789* obj, uint16_t color);
+
 // Register a callback that fires at the end of each St7789_Flush. Pass
 // NULL to unregister. The callback runs in task context; do not block
 // or call any St7789_* API from it.
