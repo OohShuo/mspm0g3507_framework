@@ -12,7 +12,6 @@ void Hal_Init(void) {
     Button_Init();
     Joystick_Init();
     Buzzer_Init();
-    LCD_Init();
 }
 
 void Hal_Gpio_Loop(void) {
