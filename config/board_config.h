@@ -109,7 +109,7 @@
 
 /* spi */
 
-#define SPI_NUM                1
+#define SPI_NUM                0
 
 #define SPI_0_INSTANCE         SPI1
 #define SPI_0_DMA_TX_CHANNEL   1
@@ -122,3 +122,16 @@
 #define SPI_INT_IRQNS          {SPI_0_INT_IRQN}
 
 #define SPI_LCD_IDX            0
+/* lcd - 1.3" TFT (bit-bang SPI, ST7789 or compatible) */
+/* CS tied to GND on hardware, no external font chip */
+
+#define LCD_SCLK_PORT          GPIOA
+#define LCD_SCLK_PIN           DL_GPIO_PIN_17
+#define LCD_SDA_PORT           GPIOB
+#define LCD_SDA_PIN            DL_GPIO_PIN_8
+#define LCD_RES_PORT           GPIOA
+#define LCD_RES_PIN            DL_GPIO_PIN_16
+#define LCD_DC_PORT            GPIOA
+#define LCD_DC_PIN             DL_GPIO_PIN_15
+#define LCD_BLK_PORT           GPIOA
+#define LCD_BLK_PIN            DL_GPIO_PIN_14

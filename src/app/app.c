@@ -12,6 +12,7 @@
 #include "led_breath.h"
 #include "led_simple.h"
 #include "w25q32_test.h"
+#include "lcd.h"
 
 static Led_simple* led_indicator = NULL;
 static Led_breath* led_breath = NULL;
@@ -46,9 +47,9 @@ void App_Init(void) {
     };
     joystick = Joystick_Create(&joystick_cfg);
 
-    // === Per-test initialization (each test owns its own device + state) ===
-    // App_W25q32_Test_Init();
-    // App_Lcd_Test_Init();
+    /* LCD demo */
+    LCD_Fill(0, 0, LCD_W, LCD_H, WHITE);
+    LCD_ShowString(30, 100, (uint8_t *)"Hello!", RED, WHITE, 32, 0);
 }
 
 void App_Loop(void) {
