@@ -16,6 +16,14 @@ extern void App_Lcd_Test_Loop(void);
 extern void App_W25q32_Test_Init(void);
 extern void App_W25q32_Test_Loop(void);
 
+// This SPI bus is dedicated to the ST7789 LCD. The W25Q32 test was
+// sharing SPI0 with the LCD, which is fine when one of them is parked,
+// but breaks the moment both tasks are alive (concurrent DMA config
+// corrupts in-flight transactions on the same SPI instance). Re-enable
+// the W25Q32 test only if you move it to a different SPI / bit-bang.
+#define LCD_TEST_ENABLE    1
+#define W25Q32_TEST_ENABLE 0
+
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
 
@@ -46,17 +54,24 @@ static void task_buzzer(void* arg) {
     }
 }
 
+#if LCD_TEST_ENABLE
 static void task_lcd_test(void* arg) {
     (void)arg;
-    // LCD test is currently disabled — see task_w25q32_test for the active
-    // bsp_spi verification.
-    while (1) { vTaskDelay(pdMS_TO_TICKS(100)); }
+    // Init runs from a task because St7789_Send_Init_Seq uses vTaskDelay.
+    App_Lcd_Test_Init();
+    while (1) {
+        App_Lcd_Test_Loop();
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
 }
+#endif
 
+#if W25Q32_TEST_ENABLE
 static void task_w25q32_test(void* arg) {
     (void)arg;
     // Init was already called from App_Init() before the scheduler started.
-    // Calling it again here would leak the first W25q32 instance.
+    // Calling it again here would leak the first W25q32 instance.App_W25q32_Test_Init();
+    App_W25q32_Test_Init();
     while (1) {
         App_W25q32_Test_Loop();
         // Re-run every 5 s. The full battery does one 4KB sector erase +
@@ -65,6 +80,7 @@ static void task_w25q32_test(void* arg) {
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
+#endif
 
 int main(void) {
     SYSCFG_DL_init();
@@ -76,8 +92,12 @@ int main(void) {
     xTaskCreate(task_gpio, "Gpio_Task", 128, NULL, 1, &main_task_handle);
     xTaskCreate(task_app, "APP_Task", 128, NULL, 1, &app_task_handle);
     xTaskCreate(task_buzzer, "Buzzer_Task", 128, NULL, 1, &buzzer_task_handle);
+#if LCD_TEST_ENABLE
     xTaskCreate(task_lcd_test, "LCD_Test", 256, NULL, 1, &lcd_test_task_handle);
+#endif
+#if W25Q32_TEST_ENABLE
     xTaskCreate(task_w25q32_test, "W25Q32_Test", 256, NULL, 1, &w25q32_test_task_handle);
+#endif
 
     vTaskStartScheduler();
 

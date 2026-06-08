@@ -1,12 +1,23 @@
 #pragma once
 
-// LCD test: creates the St7789 instance, sends the init sequence, and
-// (when enabled) cycles the screen through a few solid colors to verify
-// the full pipeline (SPI + DMA + DC + init sequence).
-//
-// Currently the per-frame flush is disabled in lcd_test.c (kept as a
-// reference implementation). To re-enable, uncomment the loop body in
-// App_Lcd_Test_Loop and add a task in main.c that calls it.
+#include <stdbool.h>
+#include <stdint.h>
 
+// Test status, exposed so a host-side tool (or a debug log) can read
+// the current pattern name. The panel is write-only on this board
+// (no MISO), so there's no readback status to report.
+typedef struct {
+    const char* pattern_name;
+    uint8_t pattern_idx;
+    bool init_done;
+} Lcd_test_status;
+
+// Wire the LCD instance and run the ST7789 init sequence. Must be called
+// from a task (the init uses busy-wait delays but no FreeRTOS APIs).
 void App_Lcd_Test_Init(void);
+
+// Step the test pattern forward. Call from a periodic task. Idempotent
+// when `pattern_hold_ms` has not elapsed — re-runs the same pattern.
 void App_Lcd_Test_Loop(void);
+
+const Lcd_test_status* App_Lcd_Test_Get_Status(void);
