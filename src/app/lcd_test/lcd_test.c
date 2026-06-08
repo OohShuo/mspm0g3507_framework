@@ -1,81 +1,123 @@
 #include "lcd_test.h"
 
+#include <stddef.h>
+#include <string.h>
+
+#include "FreeRTOS.h"
 #include "board_config.h"
 #include "bsp_time.h"
 #include "st7789.h"
+#include "task.h"
 
-#define LCD_HOR_RES 128
-#define LCD_VER_RES 128
+// === Panel geometry ===
+
+#define LCD_HOR_RES       240
+#define LCD_VER_RES       240
+#define LCD_LINE_BUF_SIZE (240 * 2)
+#define PATTERN_HOLD_MS   2000
+
+// === Module-private state ===
 
 static St7789* g_lcd = NULL;
-static volatile uint8_t g_flush_done = 0;
-// One RGB565 line. St7789_Send_Color does the in-place byte-swap (LE → BE).
-static uint16_t g_line_buf[LCD_HOR_RES];
+static Lcd_test_status g_status = {0};
+static uint8_t g_line_buf[LCD_LINE_BUF_SIZE];
+static uint32_t g_last_pattern_change_ms = 0;
 
-static void on_lcd_flush_done(void* arg) {
+// === Color helpers ===
+
+// RGB565 packs R5G6B5, MSB first on the wire (after the bswap in
+// St7789_Send_Color). The values here are the canonical "named" colors.
+#define COLOR_BLACK 0x0000
+#define COLOR_WHITE 0xFFFF
+#define COLOR_RED   0xF800
+#define COLOR_GREEN 0x07E0
+#define COLOR_BLUE  0x001F
+
+// === Patterns ===
+
+// Fill one row of the line buffer with `color` and flush it as a
+// 1-row window. The repeated call builds up a full-screen fill.
+static void flush_row(int32_t y, uint16_t color) {
+    uint16_t* lb = (uint16_t*)g_line_buf;
+    for (uint32_t i = 0; i < LCD_HOR_RES; i++) { lb[i] = color; }
+    St7789_Flush(g_lcd, 0, y, (int32_t)(LCD_HOR_RES - 1), y, g_line_buf, LCD_HOR_RES * 2);
+}
+
+// Fill the entire screen with one color, one row at a time.
+static void pattern_solid(uint16_t color) {
+    for (uint32_t y = 0; y < LCD_VER_RES; y++) { flush_row((int32_t)y, color); }
+}
+
+// === Pattern table ===
+
+static void p_solid_red(void) { pattern_solid(COLOR_RED); }
+static void p_solid_green(void) { pattern_solid(COLOR_GREEN); }
+static void p_solid_blue(void) { pattern_solid(COLOR_BLUE); }
+static void p_solid_white(void) { pattern_solid(COLOR_WHITE); }
+static void p_solid_black(void) { pattern_solid(COLOR_BLACK); }
+
+typedef void (*Pattern_fn)(void);
+typedef struct {
+    const char* name;
+    Pattern_fn fn;
+} Pattern;
+
+static const Pattern g_patterns[] = {
+    {"Solid Red", p_solid_red},
+    {"Solid Green", p_solid_green},
+    {"Solid Blue", p_solid_blue},
+    {"Solid White", p_solid_white},
+    {"Solid Black", p_solid_black},
+};
+#define PATTERN_COUNT (sizeof(g_patterns) / sizeof(g_patterns[0]))
+
+static uint32_t flush_cnt = 0;
+void flush_done_cb(void* arg) {
     (void)arg;
-    g_flush_done = 1;
+    flush_cnt++;
 }
 
-static void lcd_fill_line_pixels(uint16_t color) {
-    for (int i = 0; i < LCD_HOR_RES; i++) g_line_buf[i] = color;
-}
-
-static void lcd_flush_line(int y, uint16_t color) {
-    lcd_fill_line_pixels(color);
-    g_flush_done = 0;
-    St7789_Flush(g_lcd, 0, y, LCD_HOR_RES - 1, y, (uint8_t*)g_line_buf, LCD_HOR_RES * 2);
-    while (!g_flush_done) {
-        // wait for bsp_tx_done_cb -> on_lcd_flush_done
-    }
-}
-
-static void lcd_fill_screen(uint16_t color) {
-    for (int y = 0; y < LCD_VER_RES; y++) { lcd_flush_line(y, color); }
-}
+// === Public API ===
 
 void App_Lcd_Test_Init(void) {
-    // Pin mapping matches the working 地猛星 reference (lcd_init.h):
-    //   RST = PA15  -> GPIO_2
-    //   DC  = PA16  -> GPIO_1
+    // Pin map matches the working 地猛星 reference (lcd_init.h):
+    //   RST = PA15  -> GPIO_1
+    //   DC  = PA16  -> GPIO_2
     //   BLK = PA14  -> GPIO_3
-    // If your board wires the panel differently, swap the indices below.
+    // CS is hardwired on the panel; bsp_spi doesn't see it.
+    // The SDA pin is MOSI-only — no MISO, so we don't try to read back
+    // from the panel.
     const St7789_config lcd_cfg = {
         .spi_idx = SPI_LCD_IDX,
-        .cs_gpio_idx = (uint32_t)-1,  // CS hardwired on this board
+        .cs_gpio_idx = (uint32_t)-1,
         .dc_gpio_idx = GPIO_TFT_DC_IDX,
         .rst_gpio_idx = GPIO_TFT_RST_IDX,
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
         .hor_res = LCD_HOR_RES,
         .ver_res = LCD_VER_RES,
-        .flags = {.mirror_y = 0, .color_use_bgr = 1},
+        .flags = {.mirror_y = 0, .color_use_bgr = 0},
     };
     g_lcd = St7789_Create(&lcd_cfg);
-    St7789_Register_Flush_Done_Cb(g_lcd, on_lcd_flush_done, NULL);
+    if (g_lcd == NULL) { return; }
+
+    St7789_Init(g_lcd);
+    St7789_Set_Backlight(g_lcd, 1);
+    St7789_Register_Flush_Done_Cb(g_lcd, flush_done_cb, NULL);
+
+    g_status.init_done = true;
 }
 
 void App_Lcd_Test_Loop(void) {
-    if (g_lcd == NULL) { return; }
+    if (g_lcd == NULL || !g_status.init_done) { return; }
 
-    // Send the init sequence once (idempotent — only does anything the
-    // first time after power-on / reset).
-    static uint8_t init_done = 0;
-    if (!init_done) {
-        init_done = 1;
-        St7789_Send_Init_Seq(g_lcd);
+    const uint32_t now = Bsp_Get_Tick_Ms();
+    if (g_last_pattern_change_ms == 0 || (now - g_last_pattern_change_ms) >= PATTERN_HOLD_MS) {
+        g_last_pattern_change_ms = now;
+        const uint8_t idx = g_status.pattern_idx;
+        g_patterns[idx].fn();
+        g_status.pattern_name = g_patterns[idx].name;
+        g_status.pattern_idx = (uint8_t)((idx + 1) % PATTERN_COUNT);
     }
-
-    // The per-frame flush is currently disabled to avoid hammering the
-    // LCD while the W25Q32 task is also exercising bsp_spi. To re-enable,
-    // uncomment the block below and add a task in main.c that calls this
-    // function.
-    //
-    // static uint32_t last_change = 0;
-    // static uint8_t color_idx = 0;
-    // static const uint16_t colors[] = {0xF800, 0x07E0, 0x001F, 0xFFFF, 0x0000};
-    // const uint32_t now = Bsp_Get_Tick_Ms();
-    // if (now - last_change < 1000) { return; }
-    // last_change = now;
-    // lcd_fill_screen(colors[color_idx]);
-    // color_idx = (color_idx + 1) % (sizeof(colors) / sizeof(colors[0]));
 }
+
+const Lcd_test_status* App_Lcd_Test_Get_Status(void) { return &g_status; }

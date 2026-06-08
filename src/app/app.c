@@ -47,8 +47,8 @@ void App_Init(void) {
     joystick = Joystick_Create(&joystick_cfg);
 
     // === Per-test initialization (each test owns its own device + state) ===
-    App_W25q32_Test_Init();
-    App_Lcd_Test_Init();
+    // App_W25q32_Test_Init();
+    // App_Lcd_Test_Init();
 }
 
 void App_Loop(void) {
