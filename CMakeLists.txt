@@ -9,7 +9,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE MinSizeRel)
 
 project(framework LANGUAGES C CXX ASM)
 
@@ -20,11 +20,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(CFG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
+set(ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
 
 file(GLOB ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
 file(GLOB IT_C "${SRC_DIR}/it.c")
 file(GLOB SYSCFG_GEN_C "${SYSCFG_GEN_DIR}/*.c")
-file(GLOB LVGL_CONF_H "${CFG_DIR}/lv_conf.h")
+file(GLOB LVGL_CONF_H "${CFG_DIR}/lvgl_config.h")
+file(GLOB ASSETS_C "${ASSETS_DIR}/*.c")
 
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -36,18 +38,19 @@ set(CPU_FLAGS
 add_compile_options(
     ${CPU_FLAGS}
     -fdiagnostics-color=always
-    -O2 -g -Wall
+    -Wall
     -ffunction-sections
     -fdata-sections
 )
 
-add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}")
+add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}" "${ASSETS_C}")
 
 add_subdirectory(ti_device)
 add_subdirectory(lib)
 add_subdirectory(src/app)
 add_subdirectory(src/hal)
 add_subdirectory(src/bsp)
+add_subdirectory(src/syscall)
 
 target_link_options(${PROJECT_NAME}.elf PRIVATE
     ${CPU_FLAGS}
@@ -62,7 +65,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     # "-Wl,--print-gc-sections"
 )
 
-target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib)
+target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib syscall)
 
 add_custom_command(
     TARGET ${PROJECT_NAME}.elf POST_BUILD
