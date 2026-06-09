@@ -10,12 +10,15 @@ TaskHandle_t app_task_handle = NULL;
 TaskHandle_t buzzer_task_handle = NULL;
 TaskHandle_t lcd_test_task_handle = NULL;
 TaskHandle_t lvgl_hello_task_handle = NULL;
+TaskHandle_t lvgl_ball_task_handle = NULL;
 TaskHandle_t w25q32_test_task_handle = NULL;
 
 extern void App_Lcd_Test_Init(void);
 extern void App_Lcd_Test_Loop(void);
 extern void App_Lvgl_Hello_Init(void);
 extern void App_Lvgl_Hello_Loop(void);
+extern void App_Lvgl_Ball_Init(void);
+extern void App_Lvgl_Ball_Loop(void);
 extern void App_W25q32_Test_Init(void);
 extern void App_W25q32_Test_Loop(void);
 
@@ -24,8 +27,11 @@ extern void App_W25q32_Test_Loop(void);
 // but breaks the moment both tasks are alive (concurrent DMA config
 // corrupts in-flight transactions on the same SPI instance). Re-enable
 // the W25Q32 test only if you move it to a different SPI / bit-bang.
+// lvgl_hello and lvgl_ball each own the bus too — only one of them
+// should be enabled at a time.
 #define LCD_TEST_ENABLE    0
-#define LVGL_HELLO_ENABLE  1
+#define LVGL_HELLO_ENABLE  0
+#define LVGL_BALL_ENABLE   1
 #define W25Q32_TEST_ENABLE 0
 
 static void task_gpio(void* arg) {
@@ -101,6 +107,21 @@ static void task_lvgl_hello(void* arg) {
 }
 #endif
 
+#if LVGL_BALL_ENABLE
+static void task_lvgl_ball(void* arg) {
+    (void)arg;
+    App_Lvgl_Ball_Init();
+    uint32_t tick = xTaskGetTickCount();
+    while (1) {
+        App_Lvgl_Ball_Loop();
+        // 20 ms ≈ 50 fps, fast enough to look smooth at 2-3 px/frame
+        // and slow enough that software SPI can keep up. vTaskDelayUntil
+        // anchors to the wall clock, so the ball never drifts over time.
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
+    }
+}
+#endif
+
 int main(void) {
     SYSCFG_DL_init();
 
@@ -116,6 +137,9 @@ int main(void) {
 #endif
 #if LVGL_HELLO_ENABLE
     xTaskCreate(task_lvgl_hello, "LVGL_Hello", 1024, NULL, 1, &lvgl_hello_task_handle);
+#endif
+#if LVGL_BALL_ENABLE
+    xTaskCreate(task_lvgl_ball, "LVGL_Ball", 1024, NULL, 1, &lvgl_ball_task_handle);
 #endif
 #if W25Q32_TEST_ENABLE
     xTaskCreate(task_w25q32_test, "W25Q32_Test", 256, NULL, 1, &w25q32_test_task_handle);
