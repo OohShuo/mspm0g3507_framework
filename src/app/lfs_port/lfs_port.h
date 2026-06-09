@@ -1,5 +1,9 @@
 #pragma once
 
+#if FRAMEWORK_USE_LFS
+
+// clang-format off
+
 #include <stdint.h>
 
 #include "lfs.h"
@@ -27,3 +31,7 @@ int Lfs_Port_Format(Lfs_port* obj);
 int Lfs_Port_Mount(Lfs_port* obj);
 int Lfs_Port_Unmount(Lfs_port* obj);
 lfs_t* Lfs_Port_Get_Lfs(Lfs_port* obj);
+
+// clang-format on
+
+#endif

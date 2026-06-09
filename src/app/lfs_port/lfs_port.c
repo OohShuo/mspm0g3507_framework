@@ -1,3 +1,7 @@
+#if FRAMEWORK_USE_LFS
+
+// clang-format off
+
 #include "lfs_port.h"
 
 #include <stddef.h>
@@ -98,3 +102,7 @@ static int bd_sync(const struct lfs_config* c) {
 
     return 0;
 }
+
+// clang-format on
+
+#endif
