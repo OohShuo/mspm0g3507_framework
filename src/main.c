@@ -14,6 +14,7 @@ TaskHandle_t lvgl_hello_task_handle = NULL;
 TaskHandle_t lvgl_ball_task_handle = NULL;
 TaskHandle_t w25q32_test_task_handle = NULL;
 TaskHandle_t rtt_test_task_handle = NULL;
+TaskHandle_t lfs_test_task_handle = NULL;
 
 extern void App_Lcd_Test_Init(void);
 extern void App_Lcd_Test_Loop(void);
@@ -25,6 +26,8 @@ extern void App_W25q32_Test_Init(void);
 extern void App_W25q32_Test_Loop(void);
 extern void Rtt_Test_Init(void);
 extern void Rtt_Test_Loop(void);
+extern void App_Lfs_Test_Init(void);
+extern void App_Lfs_Test_Loop(void);
 
 // This SPI bus is dedicated to the ST7789 LCD. The W25Q32 test was
 // sharing SPI0 with the LCD, which is fine when one of them is parked,
@@ -35,9 +38,10 @@ extern void Rtt_Test_Loop(void);
 // should be enabled at a time.
 #define LCD_TEST_ENABLE    0
 #define LVGL_HELLO_ENABLE  0
-#define LVGL_BALL_ENABLE   0
+#define LVGL_BALL_ENABLE   1
 #define W25Q32_TEST_ENABLE 0
-#define RTT_TEST_ENABLE    1
+#define RTT_TEST_ENABLE    0
+#define LFS_TEST_ENABLE    0
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
@@ -132,9 +136,24 @@ static void task_rtt_test(void* arg) {
     (void)arg;
     Rtt_Test_Init();
     uint32_t tick = xTaskGetTickCount();
-    while (1) { 
+    while (1) {
         Rtt_Test_Loop();
         vTaskDelayUntil(&tick, pdMS_TO_TICKS(1000));
+    }
+}
+#endif
+
+#if LFS_TEST_ENABLE
+static void task_lfs_test(void* arg) {
+    (void)arg;
+    // lfs test runs the full battery once in Init. Loop is a no-op,
+    // so the task just parks here. Bumping the priority above the
+    // LVGL/LCD tasks would also be safe — the test touches the SPI
+    // bus only during Init, before the scheduler starts.
+    App_Lfs_Test_Init();
+    while (1) {
+        App_Lfs_Test_Loop();
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 #endif
@@ -164,7 +183,10 @@ int main(void) {
     xTaskCreate(task_w25q32_test, "W25Q32_Test", 256, NULL, 1, &w25q32_test_task_handle);
 #endif
 #if RTT_TEST_ENABLE
-    xTaskCreate(task_rtt_test, "RTT_Test", 256, NULL, 1, &rtt_test_task_handle);
+    xTaskCreate(task_rtt_test, "RTT_Test", 512, NULL, 1, &rtt_test_task_handle);
+#endif
+#if LFS_TEST_ENABLE
+    xTaskCreate(task_lfs_test, "LFS_Test", 1024, NULL, 1, &lfs_test_task_handle);
 #endif
 
     vTaskStartScheduler();
