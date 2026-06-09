@@ -13,7 +13,7 @@ PRODUCT_JSON="./tools/product.json"
 SYSCFG_FILE="./config/${PROJECT_NAME}.syscfg"
 
 TEMP_DIR="./build/syscfg_temp"
-FINAL_DIR="./src/syscfg"
+FINAL_DIR="./config/syscfg"
 
 WHITELIST=("ti_msp_dl_config.c" "ti_msp_dl_config.h" "device.opt")
 
