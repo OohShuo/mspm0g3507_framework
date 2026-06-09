@@ -5,7 +5,6 @@
 
 #include "board_config.h"
 #include "bsp.h"
-#include "bsp_log.h"
 #include "bsp_time.h"
 #include "lvgl.h"
 #include "src/drivers/display/st7789/lv_st7789.h"
