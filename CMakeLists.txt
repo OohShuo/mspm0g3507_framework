@@ -13,6 +13,20 @@ set(CMAKE_BUILD_TYPE MinSizeRel)
 
 project(framework LANGUAGES C CXX ASM)
 
+set(_framework_use_keys
+    FRAMEWORK_USE_FREERTOS
+    FRAMEWORK_USE_LVGL
+    FRAMEWORK_USE_LFS
+    FRAMEWORK_USE_RTT
+)
+foreach(_k IN LISTS _framework_use_keys)
+    if(${_k})
+        add_compile_definitions(${_k}=1)
+    else()
+        add_compile_definitions(${_k}=0)
+    endif()
+endforeach()
+
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)
 
