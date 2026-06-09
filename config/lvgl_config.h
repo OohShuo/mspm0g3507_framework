@@ -39,8 +39,14 @@
  * - LV_STDLIB_MICROPYTHON: MicroPython implementation
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
+ *
+ * CUSTOM here means the FreeRTOS-backed implementation in
+ * lib/lvgl/src/stdlib/freertos/lv_mem_core_freertos.c — every
+ * lv_malloc/lv_free goes through pvPortMalloc/vPortFree so LVGL
+ * shares the single FreeRTOS heap (heap_4). Bump configTOTAL_HEAP_SIZE
+ * in FreeRTOSConfig.h to cover both kernel objects and LVGL.
  */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_BUILTIN
+#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CUSTOM
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation
@@ -68,7 +74,9 @@
 #define LV_STDARG_INCLUDE       <stdarg.h>
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
-    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
+    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB).
+     *  Ignored when LV_USE_STDLIB_MALLOC == LV_STDLIB_CUSTOM (above), since
+     *  allocations are served from configTOTAL_HEAP_SIZE in FreeRTOSConfig.h. */
     #define LV_MEM_SIZE (4 * 1024U)           /**< [bytes] */
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
@@ -650,16 +658,16 @@
 
 /* Montserrat fonts with ASCII range and some symbols using bpp = 4
  * https://fonts.google.com/specimen/Montserrat */
-#define LV_FONT_MONTSERRAT_8  0
+#define LV_FONT_MONTSERRAT_8  1
 #define LV_FONT_MONTSERRAT_10 0
-#define LV_FONT_MONTSERRAT_12 1
+#define LV_FONT_MONTSERRAT_12 0
 #define LV_FONT_MONTSERRAT_14 0
 #define LV_FONT_MONTSERRAT_14_ALIGNED 0
 #define LV_FONT_MONTSERRAT_16 0
 #define LV_FONT_MONTSERRAT_18 0
 #define LV_FONT_MONTSERRAT_20 0
 #define LV_FONT_MONTSERRAT_22 0
-#define LV_FONT_MONTSERRAT_24 1
+#define LV_FONT_MONTSERRAT_24 0
 #define LV_FONT_MONTSERRAT_26 0
 #define LV_FONT_MONTSERRAT_28 0
 #define LV_FONT_MONTSERRAT_30 0
@@ -695,7 +703,7 @@
 #define LV_FONT_CUSTOM_DECLARE
 
 /** Always set a default font */
-#define LV_FONT_DEFAULT &lv_font_montserrat_12
+#define LV_FONT_DEFAULT &lv_font_montserrat_8
 
 /** Enable handling large font and/or fonts with a lot of characters.
  *  The limit depends on the font size, font face and bpp.
