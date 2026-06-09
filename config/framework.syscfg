@@ -23,6 +23,8 @@ const SPI     = scripting.addModule("/ti/driverlib/SPI", {}, false);
 const SPI1    = SPI.addInstance();
 const SYSCTL  = scripting.addModule("/ti/driverlib/SYSCTL");
 const SYSTICK = scripting.addModule("/ti/driverlib/SYSTICK");
+const TIMER   = scripting.addModule("/ti/driverlib/TIMER", {}, false);
+const TIMER1  = TIMER.addInstance();
 const UART    = scripting.addModule("/ti/driverlib/UART", {}, false);
 const UART1   = UART.addInstance();
 
@@ -161,6 +163,13 @@ SYSCTL.clockTreeEn           = true;
 SYSTICK.periodEnable    = true;
 SYSTICK.period          = 32000;
 SYSTICK.interruptEnable = true;
+
+TIMER1.$name              = "TIMER_0";
+TIMER1.timerMode          = "PERIODIC_UP";
+TIMER1.timerPeriod        = "1 ms";
+TIMER1.interrupts         = ["ZERO"];
+TIMER1.timerClkPrescale   = 64;
+TIMER1.peripheral.$assign = "TIMA1";
 
 UART1.$name                             = "UART_0";
 UART1.targetBaudRate                    = 115200;

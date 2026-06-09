@@ -12,6 +12,8 @@ void SPI1_IRQHandler(void) { Bsp_Hard_Spi_Irq_Handler(SPI1); }
 
 void UART0_INST_IRQHandler(void) { Bsp_Uart_Irq_Handler(UART0); }
 
+void TIMA1_IRQHandler(void) { Bsp_Uart_Idle_Irq_Handler(0); }
+
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
     printf("STACK OVERFLOW: %s\n", pcTaskName);
     taskDISABLE_INTERRUPTS();
