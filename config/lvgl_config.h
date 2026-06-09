@@ -39,8 +39,14 @@
  * - LV_STDLIB_MICROPYTHON: MicroPython implementation
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
+ *
+ * CUSTOM here means the FreeRTOS-backed implementation in
+ * lib/lvgl/src/stdlib/freertos/lv_mem_core_freertos.c — every
+ * lv_malloc/lv_free goes through pvPortMalloc/vPortFree so LVGL
+ * shares the single FreeRTOS heap (heap_4). Bump configTOTAL_HEAP_SIZE
+ * in FreeRTOSConfig.h to cover both kernel objects and LVGL.
  */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_BUILTIN
+#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CUSTOM
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation
@@ -68,7 +74,9 @@
 #define LV_STDARG_INCLUDE       <stdarg.h>
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
-    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
+    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB).
+     *  Ignored when LV_USE_STDLIB_MALLOC == LV_STDLIB_CUSTOM (above), since
+     *  allocations are served from configTOTAL_HEAP_SIZE in FreeRTOSConfig.h. */
     #define LV_MEM_SIZE (4 * 1024U)           /**< [bytes] */
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
