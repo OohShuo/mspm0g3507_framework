@@ -1,8 +1,7 @@
-#include "bsp_spi.h"
-
-#include <sys/reent.h>
+#include <stdlib.h>
 
 #include "board_config.h"
+#include "bsp_spi.h"
 #include "devices/msp/m0p/mspm0g350x.h"
 #include "dl_dma.h"
 #include "dl_spi.h"
@@ -30,7 +29,7 @@ struct Bsp_spi_instance_t {
 
 static struct Bsp_spi_instance_t bsp_spi_instances[SPI_NUM] = {0};
 
-void Bsp_Spi_Init(void) {
+void Bsp_Hard_Spi_Init(void) {
     for (uint32_t i = 0; i < SPI_NUM; i++) {
         bsp_spi_instances[i].inst = ((SPI_Regs*[])SPI_PORTS)[i];
         bsp_spi_instances[i].dma_tx_channel = ((uint32_t[])SPI_DMA_TX_CHANNELS)[i];
@@ -51,7 +50,7 @@ void Bsp_Spi_Init(void) {
     }
 }
 
-void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
+void Bsp_Hard_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
     if (idx >= SPI_NUM) return;
 
     if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
@@ -71,7 +70,7 @@ void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
     DL_DMA_enableChannel(DMA, bsp_spi_instances[idx].dma_tx_channel);
 }
 
-void Bsp_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
+void Bsp_Hard_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
     if (idx >= SPI_NUM) return;
 
     if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
@@ -97,40 +96,40 @@ static void busy_wait_for_complete(uint32_t idx) {
     while (DL_SPI_isBusy(inst)) { __NOP(); }
 }
 
-void Bsp_Spi_Wait_For_Complete(uint32_t idx) { busy_wait_for_complete(idx); }
+void Bsp_Hard_Spi_Wait_For_Complete(uint32_t idx) { busy_wait_for_complete(idx); }
 
-void Bsp_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
-    Bsp_Spi_Write(idx, data, len);
-    Bsp_Spi_Wait_For_Complete(idx);
+void Bsp_Hard_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
+    Bsp_Hard_Spi_Write(idx, data, len);
+    Bsp_Hard_Spi_Wait_For_Complete(idx);
 }
 
-void Bsp_Spi_Read_Blocking(uint32_t idx, uint8_t* data, uint32_t len) {
-    Bsp_Spi_Read(idx, data, len);
-    Bsp_Spi_Wait_For_Complete(idx);
+void Bsp_Hard_Spi_Read_Blocking(uint32_t idx, uint8_t* data, uint32_t len) {
+    Bsp_Hard_Spi_Read(idx, data, len);
+    Bsp_Hard_Spi_Wait_For_Complete(idx);
 }
 
-void Bsp_Spi_Register_Tx_Dma_Done_Cb(uint32_t idx, Bsp_spi_tx_dma_done_cb_t cb, void* cb_arg) {
+void Bsp_Hard_Spi_Register_Tx_Dma_Done_Cb(uint32_t idx, Bsp_spi_tx_dma_done_cb_t cb, void* cb_arg) {
     if (idx >= SPI_NUM || cb == NULL) return;
 
     Vector_Push_Back(bsp_spi_instances[idx].tx_dma_done.cb_vec, (void*)&cb);
     Vector_Push_Back(bsp_spi_instances[idx].tx_dma_done.cb_arg_vec, (void*)&cb_arg);
 }
 
-void Bsp_Spi_Register_Tx_Done_Cb(uint32_t idx, Bsp_spi_tx_done_cb_t cb, void* cb_arg) {
+void Bsp_Hard_Spi_Register_Tx_Done_Cb(uint32_t idx, Bsp_spi_tx_done_cb_t cb, void* cb_arg) {
     if (idx >= SPI_NUM || cb == NULL) return;
 
     Vector_Push_Back(bsp_spi_instances[idx].tx_done.cb_vec, (void*)&cb);
     Vector_Push_Back(bsp_spi_instances[idx].tx_done.cb_arg_vec, (void*)&cb_arg);
 }
 
-void Bsp_Spi_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_spi_rx_dma_done_cb_t cb, void* cb_arg) {
+void Bsp_Hard_Spi_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_spi_rx_dma_done_cb_t cb, void* cb_arg) {
     if (idx >= SPI_NUM || cb == NULL) return;
 
     Vector_Push_Back(bsp_spi_instances[idx].rx_dma_done.cb_vec, (void*)&cb);
     Vector_Push_Back(bsp_spi_instances[idx].rx_dma_done.cb_arg_vec, (void*)&cb_arg);
 }
 
-void Bsp_Spi_Irq_Handler(SPI_Regs* spi_inst) {
+void Bsp_Hard_Spi_Irq_Handler(SPI_Regs* spi_inst) {
     for (uint32_t i = 0; i < SPI_NUM; i++) {
         struct Bsp_spi_instance_t* spi = &bsp_spi_instances[i];
 
@@ -175,58 +174,58 @@ void Bsp_Spi_Irq_Handler(SPI_Regs* spi_inst) {
 
 #else
 
-void Bsp_Spi_Init(void) {}
+void Bsp_Hard_Spi_Init(void) {}
 
-void Bsp_Spi_Wait_For_Complete(uint32_t idx) { (void)idx; }
+void Bsp_Hard_Spi_Wait_For_Complete(uint32_t idx) { (void)idx; }
 
-void Bsp_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
+void Bsp_Hard_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
     (void)idx;
     (void)data;
     (void)len;
 }
 
-void Bsp_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
+void Bsp_Hard_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
     (void)idx;
     (void)data;
     (void)len;
 }
 
-void Bsp_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
+void Bsp_Hard_Spi_Write_Blocking(uint32_t idx, const uint8_t* data, uint32_t len) {
     (void)idx;
     (void)data;
     (void)len;
 }
 
-void Bsp_Spi_Read_Blocking(uint32_t idx, uint8_t* data, uint32_t len) {
+void Bsp_Hard_Spi_Read_Blocking(uint32_t idx, uint8_t* data, uint32_t len) {
     (void)idx;
     (void)data;
     (void)len;
 }
 
-void Bsp_Spi_Register_Tx_Dma_Done_Cb(uint32_t idx, Bsp_spi_tx_dma_done_cb_t cb, void* cb_arg) {
+void Bsp_Hard_Spi_Register_Tx_Dma_Done_Cb(uint32_t idx, Bsp_spi_tx_dma_done_cb_t cb, void* cb_arg) {
     (void)idx;
     (void)cb;
     (void)cb_arg;
 }
 
-void Bsp_Spi_Register_Tx_Done_Cb(uint32_t idx, Bsp_spi_tx_done_cb_t cb, void* cb_arg) {
+void Bsp_Hard_Spi_Register_Tx_Done_Cb(uint32_t idx, Bsp_spi_tx_done_cb_t cb, void* cb_arg) {
     (void)idx;
     (void)cb;
     (void)cb_arg;
 }
 
-void Bsp_Spi_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_spi_rx_dma_done_cb_t cb, void* cb_arg) {
+void Bsp_Hard_Spi_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_spi_rx_dma_done_cb_t cb, void* cb_arg) {
     (void)idx;
     (void)cb;
     (void)cb_arg;
 }
 
-void Bsp_Spi_Register_Idle_Cb(uint32_t idx, Bsp_spi_idle_cb_t cb, void* cb_arg) {
+void Bsp_Hard_Spi_Register_Idle_Cb(uint32_t idx, Bsp_spi_idle_cb_t cb, void* cb_arg) {
     (void)idx;
     (void)cb;
     (void)cb_arg;
 }
 
-void Bsp_Spi_Irq_Handler(SPI_Regs* spi_inst) { (void)spi_inst; }
+void Bsp_Hard_Spi_Irq_Handler(SPI_Regs* spi_inst) { (void)spi_inst; }
 
 #endif

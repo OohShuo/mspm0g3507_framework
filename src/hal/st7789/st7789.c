@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 #include "bsp_gpio.h"
-#include "bsp_soft_spi.h"
+#include "bsp_spi.h"
 
 #define Bsp_Spi_Write Bsp_Soft_Spi_Write
 
@@ -88,10 +88,10 @@ static void send_cmd(
     St7789* obj, const uint8_t* cmd, uint32_t cmd_len, const uint8_t* params, uint32_t params_len) {
     cs_low(obj);
     dc_cmd(obj);
-    Bsp_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
+    Bsp_Hard_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
     if (params_len > 0) {
         dc_data(obj);
-        Bsp_Spi_Write(obj->config.spi_idx, params, params_len);
+        Bsp_Hard_Spi_Write(obj->config.spi_idx, params, params_len);
     }
     cs_high(obj);
 }
@@ -163,9 +163,9 @@ void St7789_Send_Color(
     bswap16_inplace(pixels, pixels_len);
     cs_low(obj);
     dc_cmd(obj);
-    Bsp_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
+    Bsp_Hard_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
     dc_data(obj);
-    Bsp_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
+    Bsp_Hard_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
     cs_high(obj);
 }
 
