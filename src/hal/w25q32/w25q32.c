@@ -1,7 +1,6 @@
 #include "w25q32.h"
 
 #include <stddef.h>
-#include <stdlib.h>
 
 #include "bsp_gpio.h"
 #include "bsp_spi.h"
@@ -47,14 +46,23 @@ static void send_cmd_addr(W25q32* obj, uint8_t cmd, uint32_t addr) {
 
 // Public API
 
+// One flash per build (w25q32_test / lfs_test each hold a single
+// g_w25q32 / g_flash global, and the demo apps are mutually exclusive
+// targets). Backing the handle with a static removes the heap
+// dependency that used to return NULL on a fragmented/starved
+// FreeRTOS heap — there is now no allocation to fail, and the
+// caller-side `if (g_flash == NULL) { return; }` checks degrade to
+// pure defensive guards against a NULL config (which none of the
+// current call sites ever pass).
+static W25q32 s_w25q32_storage;
+
 W25q32* W25q32_Create(const W25q32_config* config) {
-    W25q32* obj = (W25q32*)malloc(sizeof(W25q32));
-    if (obj == NULL) { return NULL; }
-    obj->config = *config;
-    obj->manufacturer_id = 0;
-    obj->memory_type = 0;
-    obj->capacity = 0;
-    return obj;
+    if (config == NULL) { return NULL; }
+    s_w25q32_storage.config = *config;
+    s_w25q32_storage.manufacturer_id = 0;
+    s_w25q32_storage.memory_type = 0;
+    s_w25q32_storage.capacity = 0;
+    return &s_w25q32_storage;
 }
 
 bool W25q32_Init(W25q32* obj) {
