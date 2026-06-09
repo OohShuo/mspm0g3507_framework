@@ -34,9 +34,10 @@
 extern "C" {
 #endif
 
-void lv_freertos_task_switch_in(const char * name);
+// NOLINTBEGIN(readability-identifier-naming)
+void lv_freertos_task_switch_in(const char* name);
 void lv_freertos_task_switch_out(void);
-
+// NOLINTEND(readability-identifier-naming)
 #ifdef __cplusplus
 }
 #endif
@@ -86,7 +87,7 @@ void lv_freertos_task_switch_out(void);
 
 #define configSUPPORT_STATIC_ALLOCATION              0
 #define configSUPPORT_DYNAMIC_ALLOCATION             1
-#define configTOTAL_HEAP_SIZE                        ((size_t)(8 * 1024))
+#define configTOTAL_HEAP_SIZE                        ((size_t)(18 * 1024))
 #define configAPPLICATION_ALLOCATED_HEAP             0
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP    0
 #define configUSE_MINI_LIST_ITEM                     0
@@ -107,9 +108,9 @@ void lv_freertos_task_switch_out(void);
 
 #define configUSE_IDLE_HOOK                          0
 #define configUSE_TICK_HOOK                          0
-#define configUSE_MALLOC_FAILED_HOOK                 0
+#define configUSE_MALLOC_FAILED_HOOK                 1
 #define configUSE_DAEMON_TASK_STARTUP_HOOK           0
-#define configCHECK_FOR_STACK_OVERFLOW               0
+#define configCHECK_FOR_STACK_OVERFLOW               2
 
 /******************************************************************************/
 /* Run time and task stats gathering related definitions. *********************/

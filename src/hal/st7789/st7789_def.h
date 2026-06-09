@@ -32,5 +32,5 @@
 
 // === COLMOD pixel format (0x3A, lower 3 bits) ===
 
-#define ST7789_COLMOD_16BPP 0x05
-#define ST7789_COLMOD_18BPP 0x06
+#define ST7789_COLMOD_16BPP 0x55
+#define ST7789_COLMOD_18BPP 0x66

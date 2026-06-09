@@ -30,8 +30,22 @@ typedef void (*St7789_flush_done_cb)(void* arg);
 
 St7789* St7789_Create(const St7789_config* config);
 
-// Reset + run the ST7789 startup sequence. Blocks for ~720 ms (busy-wait,
-// no FreeRTOS involvement). Backlight is not touched.
+// Hardware reset pulse on RST (low 100ms, high 100ms). Use when you
+// want to give the panel a clean boot without re-running the full init
+// sequence (e.g. before handing control to a driver that runs its own
+// init, like lv_st7789).
+void St7789_Reset(St7789* obj);
+
+// Run the ST7789 startup sequence (SLPOUT / MADCTL / COLMOD / PORCTRL /
+// GCTRL / VCOMS / LCMCTRL / VDVVRHEN / VRHS / VDVS / FRCTRL2 / PWCTRL1 /
+// PVGAMCTRL / NVGAMCTRL / INVON / DISPON). Blocks for ~720 ms total
+// (busy-wait, no FreeRTOS involvement). Does NOT pulse the RST line —
+// call St7789_Reset() first if the panel is in an unknown state.
+void St7789_Run_Init_Sequence(St7789* obj);
+
+// Reset + run the ST7789 startup sequence. Convenience wrapper for
+// apps that drive the panel directly (lcd_test). Blocks for ~720 ms
+// (busy-wait, no FreeRTOS involvement). Backlight is not touched.
 void St7789_Init(St7789* obj);
 
 void St7789_Set_Backlight(St7789* obj, uint8_t on);
