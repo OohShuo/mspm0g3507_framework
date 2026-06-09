@@ -24,7 +24,7 @@ set(CFG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
 file(GLOB ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
 file(GLOB IT_C "${SRC_DIR}/it.c")
 file(GLOB SYSCFG_GEN_C "${SYSCFG_GEN_DIR}/*.c")
-file(GLOB LVGL_CONF_H "${CFG_DIR}/lv_conf.h")
+file(GLOB LVGL_CONF_H "${CFG_DIR}/lvgl_config.h")
 
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -48,6 +48,7 @@ add_subdirectory(lib)
 add_subdirectory(src/app)
 add_subdirectory(src/hal)
 add_subdirectory(src/bsp)
+add_subdirectory(src/syscall)
 
 target_link_options(${PROJECT_NAME}.elf PRIVATE
     ${CPU_FLAGS}
@@ -55,14 +56,13 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     "-Wl,--cref"
     "-Wl,-Map,${PROJECT_NAME}.map"
     "--specs=nano.specs"
-    "--specs=nosys.specs"
     "-Wl,--gc-sections"
     "-nostartfiles"
     "-Wl,--print-memory-usage"
     # "-Wl,--print-gc-sections"
 )
 
-target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib)
+target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib syscall)
 
 add_custom_command(
     TARGET ${PROJECT_NAME}.elf POST_BUILD

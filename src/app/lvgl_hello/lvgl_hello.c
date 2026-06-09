@@ -2,10 +2,10 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include "board_config.h"
 #include "bsp.h"
-#include "bsp_log.h"
 #include "bsp_time.h"
 #include "lvgl.h"
 #include "src/drivers/display/st7789/lv_st7789.h"
@@ -97,7 +97,7 @@ void App_Lvgl_Hello_Loop(void) {
     if ((now_ms - g_label_last_toggle_ms) >= LABEL_TOGGLE_MS) {
         g_label_last_toggle_ms = now_ms;
         g_label_show_hello = !g_label_show_hello;
-        bsp_printf("label toggle: %s\n", g_label_show_hello ? "Hello" : "World");
+        printf("label toggle: %s\n", g_label_show_hello ? "Hello" : "World");
         if (g_label) { lv_label_set_text(g_label, g_label_show_hello ? "Hello" : "World"); }
     }
 
@@ -107,6 +107,6 @@ void App_Lvgl_Hello_Loop(void) {
         const uint32_t c = BG_COLORS[g_bg_index];
         lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(c), LV_PART_MAIN);
         lv_obj_invalidate(lv_screen_active());
-        bsp_printf("bg change: 0x%06lx\n", (unsigned long)c);
+        printf("bg change: 0x%06lx\n", (unsigned long)c);
     }
 }
