@@ -72,7 +72,7 @@ static const Pattern g_patterns[] = {
 #define PATTERN_COUNT (sizeof(g_patterns) / sizeof(g_patterns[0]))
 
 static uint32_t flush_cnt = 0;
-void flush_done_cb(void* arg) {
+static void flush_done_cb(void* arg) {
     (void)arg;
     flush_cnt++;
 }
@@ -95,7 +95,7 @@ void App_Lcd_Test_Init(void) {
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
         .hor_res = LCD_HOR_RES,
         .ver_res = LCD_VER_RES,
-        .flags = {.mirror_y = 0, .color_use_bgr = 0},
+        .flags = {.mirror_y = 1, .color_use_bgr = 1},
     };
     g_lcd = St7789_Create(&lcd_cfg);
     if (g_lcd == NULL) { return; }
