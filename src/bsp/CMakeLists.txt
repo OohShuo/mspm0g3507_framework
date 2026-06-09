@@ -9,7 +9,7 @@ add_library(bsp STATIC "${BSP_SRC}" "${SYSCFG_GEN_C}")
 
 target_include_directories(bsp PUBLIC "${BSP_INC}" "${CFG_DIR}" "${SYSCFG_GEN_DIR}")
 
-target_link_libraries(bsp PRIVATE lib)
+target_link_libraries(bsp PRIVATE lib syscall)
 target_link_libraries(bsp PUBLIC ti freertos)
 
 add_dependencies(bsp syscfg_gen_target)
