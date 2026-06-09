@@ -2,6 +2,7 @@
 #include "app.h"
 #include "bsp.h"
 #include "hal.h"
+#include "retarget.h"
 #include "task.h"
 #include "ti_msp_dl_config.h"
 
@@ -31,7 +32,7 @@ extern void App_W25q32_Test_Loop(void);
 // should be enabled at a time.
 #define LCD_TEST_ENABLE    0
 #define LVGL_HELLO_ENABLE  0
-#define LVGL_BALL_ENABLE   1
+#define LVGL_BALL_ENABLE   0
 #define W25Q32_TEST_ENABLE 0
 
 static void task_gpio(void* arg) {
@@ -124,6 +125,8 @@ static void task_lvgl_ball(void* arg) {
 
 int main(void) {
     SYSCFG_DL_init();
+
+    Syscall_Init();
 
     Bsp_Init();
     Hal_Init();
