@@ -1,0 +1,244 @@
+/**
+ * @file   lfs_test.c
+ * @brief  Exercise the lfs port with the standard lfs smoke battery.
+ *
+ * Init runs a long, sequential sequence:
+ *   1. bring up W25Q32 on the shared SPI bus
+ *   2. format the chosen lfs region (destructive; do not ship pointing
+ *      at flash that holds anything you want to keep)
+ *   3. mount, then run the test battery
+ *
+ * The battery covers: open+write+read+close of a small file, dir listing,
+ * stat, write a second file, re-mount to prove persistence across mount
+ * cycles, then unlink one and re-list. Results are stored in a static
+ * array that the host can pull via the Get_* accessors.
+ *
+ * Loop is intentionally a no-op: the test runs once in Init and the
+ * results are stable. SPI bus sharing with the LCD still applies — the
+ * lfs test owns the bus only during Init, then yields.
+ */
+
+#include "lfs_test.h"
+
+#include <stdint.h>
+#include <string.h>
+
+#include "board_config.h"
+#include "bsp_gpio.h"
+#include "lfs.h"
+#include "lfs_port.h"
+#include "rtt_log.h"
+#include "w25q32.h"
+
+/* ------------------------------------------------------------------ */
+/* Region layout                                                       */
+/*                                                                     */
+/* Whole W25Q32 is 4 MiB; we use the upper 2 MiB for lfs so the lower  */
+/* half is left untouched for whatever other apps want to put there    */
+/* (asset blobs, log ring, future firmware A/B, ...).                  */
+/* ------------------------------------------------------------------ */
+
+#define LFS_TEST_FLASH_START  (2u * 1024u * 1024u) /* 2 MiB */
+#define LFS_TEST_FLASH_SIZE   (2u * 1024u * 1024u) /* 2 MiB */
+
+#define LFS_TEST_PAYLOAD      "hello littlefs - tick=%u"
+
+/* ------------------------------------------------------------------ */
+/* Module state                                                        */
+/* ------------------------------------------------------------------ */
+
+static W25q32* g_flash = NULL;
+static Lfs_port* g_port = NULL;
+
+#define LFS_TEST_RESULT_MAX 16
+static Lfs_Test_Result g_results[LFS_TEST_RESULT_MAX];
+static uint8_t g_result_count = 0;
+static bool g_all_passed = false;
+
+static void record(const char* name, int err) {
+    if (g_result_count >= LFS_TEST_RESULT_MAX) { return; }
+    g_results[g_result_count].name = name;
+    g_results[g_result_count].lfs_err = err;
+    g_results[g_result_count].passed = (err == 0);
+    g_result_count++;
+    printf("  [%s] %-32s err=%d\n", err == 0 ? " OK " : "FAIL", name, err);
+}
+
+static void record_noerr(const char* name, bool ok) {
+    record(name, ok ? 0 : -1);
+}
+
+/* ------------------------------------------------------------------ */
+/* Init                                                                */
+/* ------------------------------------------------------------------ */
+
+void App_Lfs_Test_Init(void) {
+    /* W25Q32 lives on the same SPI as the LCD; that bus is shared but
+     * the lfs test runs once during init, before the LVGL task takes
+     * over, so there's no contention here. */
+    const W25q32_config cfg = {
+        .spi_idx = SPI_LCD_IDX,
+        .cs_gpio_idx = GPIO_SPI_CS_IDX,
+    };
+    g_flash = W25q32_Create(&cfg);
+    if (!W25q32_Init(g_flash)) {
+        record("W25Q32 init", -1);
+        g_all_passed = false;
+        return;
+    }
+    record("W25Q32 init", 0);
+
+    const Lfs_port_config lfs_cfg = {
+        .flash = g_flash,
+        .start = LFS_TEST_FLASH_START,
+        .size = LFS_TEST_FLASH_SIZE,
+    };
+    g_port = Lfs_Port_Create(&lfs_cfg);
+    if (g_port == NULL) {
+        record("Lfs_Port_Create", -1);
+        g_all_passed = false;
+        return;
+    }
+    record("Lfs_Port_Create", 0);
+
+    int err;
+
+    /* Always format — the test wants a known-clean region, and the
+     * upper 2 MiB is dedicated to lfs anyway. If you change that
+     * assumption, gate this on a "is the superblock sane" probe. */
+    err = Lfs_Port_Format(g_port);
+    record("format", err);
+    if (err != 0) { g_all_passed = false; return; }
+
+    err = Lfs_Port_Mount(g_port);
+    record("mount (after format)", err);
+    if (err != 0) { g_all_passed = false; return; }
+
+    lfs_t* lfs = Lfs_Port_Get_Lfs(g_port);
+
+    /* ---- 1. write a small text file ---- */
+    {
+        lfs_file_t f;
+        err = lfs_file_open(lfs, &f, "boot_count", LFS_O_WRONLY | LFS_O_CREAT);
+        if (err == 0) {
+            char buf[64];
+            int n = snprintf(buf, sizeof(buf), LFS_TEST_PAYLOAD, 1u);
+            err = lfs_file_write(lfs, &f, buf, (lfs_size_t)n);
+            lfs_file_close(lfs, &f);
+        }
+        record("write boot_count", err);
+    }
+
+    /* ---- 2. read it back and compare ---- */
+    {
+        lfs_file_t f;
+        err = lfs_file_open(lfs, &f, "boot_count", LFS_O_RDONLY);
+        bool match = false;
+        if (err == 0) {
+            char read_buf[64] = {0};
+            lfs_size_t n = lfs_file_read(lfs, &f, read_buf, sizeof(read_buf) - 1);
+            lfs_file_close(lfs, &f);
+
+            char expected[64];
+            int en = snprintf(expected, sizeof(expected), LFS_TEST_PAYLOAD, 1u);
+            match = (n == (lfs_size_t)en) && (memcmp(read_buf, expected, en) == 0);
+        }
+        record_noerr("read+verify boot_count", err == 0 && match);
+        if (err != 0) { record("  (read)", err); }
+    }
+
+    /* ---- 3. stat: file exists with non-zero size ---- */
+    {
+        struct lfs_info info;
+        err = lfs_stat(lfs, "boot_count", &info);
+        bool ok = (err == 0) && (info.size > 0) && (info.type == LFS_TYPE_REG);
+        record_noerr("stat boot_count (size>0)", ok);
+        if (err == 0) { printf("       size=%lu type=%d\n", (unsigned long)info.size, (int)info.type); }
+    }
+
+    /* ---- 4. write a second file ---- */
+    {
+        lfs_file_t f;
+        err = lfs_file_open(lfs, &f, "config.txt", LFS_O_WRONLY | LFS_O_CREAT);
+        if (err == 0) {
+            const char* body = "mode=test\nbuild=" __DATE__ "\n";
+            err = lfs_file_write(lfs, &f, body, (lfs_size_t)strlen(body));
+            lfs_file_close(lfs, &f);
+        }
+        record("write config.txt", err);
+    }
+
+    /* ---- 5. dir listing: expect 2 entries ---- */
+    {
+        lfs_dir_t dir;
+        err = lfs_dir_open(lfs, &dir, "/");
+        int count = 0;
+        if (err == 0) {
+            struct lfs_info info;
+            while (lfs_dir_read(lfs, &dir, &info) > 0) {
+                if (info.name[0] == '\0') { continue; } /* skip lfs sentinels */
+                printf("       /%-16s size=%lu type=%d\n",
+                       info.name, (unsigned long)info.size, (int)info.type);
+                count++;
+            }
+            lfs_dir_close(lfs, &dir);
+        }
+        record_noerr("dir list (2 files expected)", err == 0 && count == 2);
+    }
+
+    /* ---- 6. unmount, remount, files must persist ---- */
+    err = Lfs_Port_Unmount(g_port);
+    record("unmount", err);
+
+    err = Lfs_Port_Mount(g_port);
+    record("remount", err);
+    if (err == 0) {
+        lfs_t* lfs2 = Lfs_Port_Get_Lfs(g_port);
+        struct lfs_info info;
+        bool boot_ok = (lfs_stat(lfs2, "boot_count", &info) == 0) && (info.size > 0);
+        bool cfg_ok = (lfs_stat(lfs2, "config.txt", &info) == 0) && (info.size > 0);
+        record_noerr("persisted boot_count", boot_ok);
+        record_noerr("persisted config.txt", cfg_ok);
+    }
+
+    /* ---- 7. unlink boot_count, list again ---- */
+    {
+        lfs_t* lfs3 = Lfs_Port_Get_Lfs(g_port);
+        err = lfs_remove(lfs3, "boot_count");
+        record("unlink boot_count", err);
+
+        lfs_dir_t dir;
+        int count = 0;
+        if (lfs_dir_open(lfs3, &dir, "/") == 0) {
+            struct lfs_info info;
+            while (lfs_dir_read(lfs3, &dir, &info) > 0) {
+                if (info.name[0] != '\0') { count++; }
+            }
+            lfs_dir_close(lfs3, &dir);
+        }
+        record_noerr("dir list after unlink (1 expected)", count == 1);
+    }
+
+    /* ---- aggregate ---- */
+    g_all_passed = true;
+    for (uint8_t i = 0; i < g_result_count; i++) {
+        if (!g_results[i].passed) { g_all_passed = false; break; }
+    }
+
+    /* Visual cue: drive the LCD backlight pin the way w25q32_test does. */
+    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX,
+                   g_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
+
+    printf("lfs_test: %s (%u/%u passed)\n",
+           g_all_passed ? "PASS" : "FAIL",
+           (unsigned)(g_result_count - (g_all_passed ? 0 : 1u)),
+           (unsigned)g_result_count);
+}
+
+void App_Lfs_Test_Loop(void) {
+    /* Test runs once in Init; the loop is intentionally a no-op. */
+}
+
+const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return g_results; }
+uint8_t App_Lfs_Test_Get_Result_Count(void) { return g_result_count; }
+bool App_Lfs_Test_All_Passed(void) { return g_all_passed; }

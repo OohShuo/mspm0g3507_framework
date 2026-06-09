@@ -7,8 +7,10 @@ get_subdirs_and_self(${CMAKE_CURRENT_SOURCE_DIR} LFS_INC)
 
 add_library(littlefs STATIC "${LFS_SRC}")
 
-target_include_directories(littlefs PUBLIC "${LFS_INC}" "${CFG_DIR}")
+target_include_directories(littlefs PUBLIC "${LFS_INC}" "${CFG_DIR}" )
 
 target_compile_definitions(littlefs PRIVATE LFS_DEFINES=lfs_config.h)
+
+target_link_libraries(littlefs PUBLIC rtt)
 
 print_item("LittleFS" "library ${ColorBold}littlefs${ColorReset} built")
