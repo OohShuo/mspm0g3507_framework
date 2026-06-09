@@ -1,7 +1,6 @@
 #include "st7789.h"
 
 #include <stddef.h>
-#include <stdlib.h>
 
 #include "bsp_gpio.h"
 #include "bsp_soft_spi.h"
@@ -106,33 +105,48 @@ static void bswap16_inplace(uint8_t* data, uint32_t byte_count) {
 
 // === Public API ===
 
+// One LCD per build (each app links against its own g_lcd, and the
+// demo apps are mutually exclusive targets). Backing the handle with
+// a static removes the heap dependency that used to return NULL on a
+// fragmented/starved FreeRTOS heap — there is now no allocation to
+// fail, and the caller-side `if (g_lcd == NULL) { return; }` checks
+// degrade to pure defensive guards against a NULL config (which
+// none of the current call sites ever pass).
+static St7789 s_lcd_storage;
+
 St7789* St7789_Create(const St7789_config* config) {
-    St7789* obj = (St7789*)malloc(sizeof(St7789));
-    if (obj == NULL) { return NULL; }
-    obj->config = *config;
-    obj->flush_done_cb = NULL;
-    obj->flush_done_cb_arg = NULL;
-    return obj;
+    if (config == NULL) { return NULL; }
+    s_lcd_storage.config = *config;
+    s_lcd_storage.flush_done_cb = NULL;
+    s_lcd_storage.flush_done_cb_arg = NULL;
+    return &s_lcd_storage;
 }
 
-void St7789_Init(St7789* obj) {
+void St7789_Reset(St7789* obj) {
     // Hardware reset pulse.
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_reset);
     busy_wait_ms(100);
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_set);
     busy_wait_ms(100);
+}
 
+void St7789_Run_Init_Sequence(St7789* obj) {
     // Build MADCTL byte from config.flags.
-    if (obj->config.flags.mirror_x) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_MX; }
-    if (obj->config.flags.mirror_y) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_MY; }
-    if (obj->config.flags.color_use_bgr) { st7789_default_init_seq[3].args[0] |= ST7789_MADCTL_BGR; }
-    if (obj->config.flags.color_use_18bit) { st7789_default_init_seq[4].args[0] = ST7789_COLMOD_18BPP; }
+    if (obj->config.flags.mirror_x) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MX; }
+    if (obj->config.flags.mirror_y) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MY; }
+    if (obj->config.flags.color_use_bgr) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_BGR; }
+    if (obj->config.flags.color_use_18bit) { st7789_default_init_seq[2].args[0] = ST7789_COLMOD_18BPP; }
 
     for (uint32_t i = 0; i < ST7789_INIT_SEQ_LEN; i++) {
         const St7789_init_cmd* c = &st7789_default_init_seq[i];
         send_cmd(obj, &c->cmd, 1, c->args, c->arg_count);
         if (c->delay_ms > 0) { busy_wait_ms(c->delay_ms); }
     }
+}
+
+void St7789_Init(St7789* obj) {
+    St7789_Reset(obj);
+    St7789_Run_Init_Sequence(obj);
 }
 
 void St7789_Set_Backlight(St7789* obj, uint8_t on) {

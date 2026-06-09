@@ -31,9 +31,8 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *****************************************************************************/
-/* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size  = 0;      /* required amount of heap  */
-_Min_Stack_Size = 0x80; /* required amount of stack */
+_Min_Heap_Size  = 0x400;  /* 1 KiB newlib heap  */
+_Min_Stack_Size = 0x80;   /* required amount of stack */
 
 /* Specify the memory areas */
 MEMORY
@@ -177,6 +176,10 @@ SECTIONS
         _end = end;
         __end = end;
         KEEP (*(.heap))
+        /* Reserve _Min_Heap_Size bytes of newlib heap. Without this line
+         * the location counter never advances, so __HeapLimit == start
+         * and _sbrk() returns (void*)-1 on the very first malloc. */
+        . = . + _Min_Heap_Size;
         __heap_end__ = .;
         __HeapLimit = __heap_end__;
     } > REGION_HEAP AT> REGION_HEAP

@@ -39,8 +39,14 @@
  * - LV_STDLIB_MICROPYTHON: MicroPython implementation
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
+ *
+ * CUSTOM here means the FreeRTOS-backed implementation in
+ * lib/lvgl/src/stdlib/freertos/lv_mem_core_freertos.c — every
+ * lv_malloc/lv_free goes through pvPortMalloc/vPortFree so LVGL
+ * shares the single FreeRTOS heap (heap_4). Bump configTOTAL_HEAP_SIZE
+ * in FreeRTOSConfig.h to cover both kernel objects and LVGL.
  */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_BUILTIN
+#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CUSTOM
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation
@@ -68,8 +74,10 @@
 #define LV_STDARG_INCLUDE       <stdarg.h>
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
-    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
-    #define LV_MEM_SIZE (12 * 1024U)          /**< [bytes] */
+    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB).
+     *  Ignored when LV_USE_STDLIB_MALLOC == LV_STDLIB_CUSTOM (above), since
+     *  allocations are served from configTOTAL_HEAP_SIZE in FreeRTOSConfig.h. */
+    #define LV_MEM_SIZE (4 * 1024U)           /**< [bytes] */
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
     #define LV_MEM_POOL_EXPAND_SIZE 0
@@ -178,11 +186,11 @@
     #define LV_DRAW_SW_SUPPORT_RGB565A8     0
     #define LV_DRAW_SW_SUPPORT_RGB888       0
     #define LV_DRAW_SW_SUPPORT_XRGB8888     0
-    #define LV_DRAW_SW_SUPPORT_ARGB8888     1
+    #define LV_DRAW_SW_SUPPORT_ARGB8888     0
     #define LV_DRAW_SW_SUPPORT_ARGB8888_PREMULTIPLIED 0
-    #define LV_DRAW_SW_SUPPORT_L8           1
+    #define LV_DRAW_SW_SUPPORT_L8           0
     #define LV_DRAW_SW_SUPPORT_AL88         0
-    #define LV_DRAW_SW_SUPPORT_A8           1
+    #define LV_DRAW_SW_SUPPORT_A8           0
     #define LV_DRAW_SW_SUPPORT_I1           0
 
     /* The threshold of the luminance to consider a pixel as
@@ -203,7 +211,7 @@
     /**
      * - 0: Use a simple renderer capable of drawing only simple rectangles with gradient, images, text, and straight lines only.
      * - 1: Use a complex renderer capable of drawing rounded corners, shadow, skew lines, and arcs too. */
-    #define LV_DRAW_SW_COMPLEX          1
+    #define LV_DRAW_SW_COMPLEX          0
 
     #if LV_DRAW_SW_COMPLEX == 1
         /** Allow buffering some shadow calculation.
@@ -650,10 +658,11 @@
 
 /* Montserrat fonts with ASCII range and some symbols using bpp = 4
  * https://fonts.google.com/specimen/Montserrat */
-#define LV_FONT_MONTSERRAT_8  0
+#define LV_FONT_MONTSERRAT_8  1
 #define LV_FONT_MONTSERRAT_10 0
 #define LV_FONT_MONTSERRAT_12 0
-#define LV_FONT_MONTSERRAT_14 1
+#define LV_FONT_MONTSERRAT_14 0
+#define LV_FONT_MONTSERRAT_14_ALIGNED 0
 #define LV_FONT_MONTSERRAT_16 0
 #define LV_FONT_MONTSERRAT_18 0
 #define LV_FONT_MONTSERRAT_20 0
@@ -694,7 +703,7 @@
 #define LV_FONT_CUSTOM_DECLARE
 
 /** Always set a default font */
-#define LV_FONT_DEFAULT &lv_font_montserrat_14
+#define LV_FONT_DEFAULT &lv_font_montserrat_8
 
 /** Enable handling large font and/or fonts with a lot of characters.
  *  The limit depends on the font size, font face and bpp.
@@ -770,13 +779,13 @@
 
 #define LV_USE_ANIMIMG    0
 
-#define LV_USE_ARC        1
+#define LV_USE_ARC        0
 
 #define LV_USE_ARCLABEL  0
 
 #define LV_USE_BAR        0
 
-#define LV_USE_BUTTON        1
+#define LV_USE_BUTTON        0
 
 #define LV_USE_BUTTONMATRIX  0
 
@@ -799,26 +808,26 @@
 
 #define LV_USE_CHART      0
 
-#define LV_USE_CHECKBOX   1
+#define LV_USE_CHECKBOX   0
 
 #define LV_USE_DROPDOWN   0   /**< Requires: lv_label */
 
-#define LV_USE_IMAGE      1   /**< Requires: lv_label */
+#define LV_USE_IMAGE      0   /**< Requires: lv_label */
 
-#define LV_USE_IMAGEBUTTON     1
+#define LV_USE_IMAGEBUTTON     0
 
 #define LV_USE_KEYBOARD   0
 
 #define LV_USE_LABEL      1
 #if LV_USE_LABEL
-    #define LV_LABEL_TEXT_SELECTION 1   /**< Enable selecting text of the label */
-    #define LV_LABEL_LONG_TXT_HINT 1    /**< Store some extra info in labels to speed up drawing of very long text */
+    #define LV_LABEL_TEXT_SELECTION 0   /**< Enable selecting text of the label */
+    #define LV_LABEL_LONG_TXT_HINT 0    /**< Store some extra info in labels to speed up drawing of very long text */
     #define LV_LABEL_WAIT_CHAR_COUNT 3  /**< The count of wait chart */
 #endif
 
-#define LV_USE_LED        1
+#define LV_USE_LED        0
 
-#define LV_USE_LINE       1
+#define LV_USE_LINE       0
 
 #define LV_USE_LIST       0
 
@@ -844,7 +853,7 @@
 
 #define LV_USE_SPINNER    0
 
-#define LV_USE_SWITCH     1
+#define LV_USE_SWITCH     0
 
 #define LV_USE_TABLE      0
 
@@ -867,7 +876,7 @@
 /* Documentation for themes can be found here: https://docs.lvgl.io/master/common-widget-features/styles/styles.html#themes . */
 
 /** A simple, impressive and very complete theme */
-#define LV_USE_THEME_DEFAULT 1
+#define LV_USE_THEME_DEFAULT 0
 #if LV_USE_THEME_DEFAULT
     /** 0: Light mode; 1: Dark mode */
     #define LV_THEME_DEFAULT_DARK 0
@@ -891,7 +900,7 @@
 /* Documentation for layouts can be found here: https://docs.lvgl.io/master/common-widget-features/layouts/index.html . */
 
 /** A layout similar to Flexbox in CSS. */
-#define LV_USE_FLEX 1
+#define LV_USE_FLEX 0
 
 /** A layout similar to Grid in CSS. */
 #define LV_USE_GRID 0
@@ -999,7 +1008,7 @@
 #define LV_USE_LIBWEBP 0
 
 /** GIF decoder library */
-#define LV_USE_GIF 1
+#define LV_USE_GIF 0
 #if LV_USE_GIF
     /** GIF decoder accelerate */
     #define LV_GIF_CACHE_DECODE_DATA 0
