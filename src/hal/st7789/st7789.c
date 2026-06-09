@@ -1,7 +1,6 @@
 #include "st7789.h"
 
 #include <stddef.h>
-#include <stdlib.h>
 
 #include "bsp_gpio.h"
 #include "bsp_soft_spi.h"
@@ -106,13 +105,21 @@ static void bswap16_inplace(uint8_t* data, uint32_t byte_count) {
 
 // === Public API ===
 
+// One LCD per build (each app links against its own g_lcd, and the
+// demo apps are mutually exclusive targets). Backing the handle with
+// a static removes the heap dependency that used to return NULL on a
+// fragmented/starved FreeRTOS heap — there is now no allocation to
+// fail, and the caller-side `if (g_lcd == NULL) { return; }` checks
+// degrade to pure defensive guards against a NULL config (which
+// none of the current call sites ever pass).
+static St7789 s_lcd_storage;
+
 St7789* St7789_Create(const St7789_config* config) {
-    St7789* obj = (St7789*)malloc(sizeof(St7789));
-    if (obj == NULL) { return NULL; }
-    obj->config = *config;
-    obj->flush_done_cb = NULL;
-    obj->flush_done_cb_arg = NULL;
-    return obj;
+    if (config == NULL) { return NULL; }
+    s_lcd_storage.config = *config;
+    s_lcd_storage.flush_done_cb = NULL;
+    s_lcd_storage.flush_done_cb_arg = NULL;
+    return &s_lcd_storage;
 }
 
 void St7789_Reset(St7789* obj) {
