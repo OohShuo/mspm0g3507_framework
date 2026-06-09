@@ -11,20 +11,18 @@
  *   "everyone needs it, the board doesn't matter" layer.
  *
  * Linker contract:
- *   The root CMakeLists.txt links this translation unit into the
- *   final executable WITHOUT `--specs=nosys.specs`, so the symbols
- *   defined here (and only here) satisfy newlib-nano's syscall
- *   references. Strong definitions beat the spec files would have
- *   provided.
+ *   Root CMakeLists.txt links `--specs=nano.specs --specs=nosys.specs`
+ *   and this translation unit. The nosys spec provides WEAK stubs for
+ *   every syscall; the three below are STRONG and override them. The
+ *   rest (_close, _fstat, _isatty, _lseek, _getpid, _kill, _exit, ...)
+ *   stay as the weak nosys defaults and are dropped by --gc-sections
+ *   when nothing references them.
  */
 
 #include "retarget.h"
 
 #include <errno.h>
-#include <reent.h>
 #include <stddef.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "SEGGER_RTT.h"
@@ -90,41 +88,4 @@ void* _sbrk(ptrdiff_t incr) {
     }
     heap_end = next;
     return prev;
-}
-
-/* ------------------------------------------------------------------ */
-/* Remaining newlib syscalls: trivial stubs that satisfy the linker.  */
-/* The project does not use files / processes / signals, so the       */
-/* "no such thing" answers are correct, not workarounds.              */
-/* ------------------------------------------------------------------ */
-
-int _close(int fd) {
-    (void)fd;
-    return -1;
-}
-
-int _fstat(int fd, struct stat* st) {
-    (void)fd;
-    st->st_mode = S_IFCHR; /* pretend everything is a char device */
-    return 0;
-}
-
-int _isatty(int fd) {
-    (void)fd;
-    return 1; /* tell newlib stdout is a tty -> line-buffered printf */
-}
-
-int _lseek(int fd, int ptr, int dir) {
-    (void)fd;
-    (void)ptr;
-    (void)dir;
-    return 0;
-}
-
-int _getpid(void) { return 1; }
-
-int _kill(int pid, int sig) {
-    (void)pid;
-    (void)sig;
-    return -1;
 }
