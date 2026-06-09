@@ -1,0 +1,9 @@
+build:
+  build_type: Release          # Debug | Release | RelWithDebInfo | MinSizeRel
+  generator: ninja             # ninja | make | auto
+  graphviz: ON                 # ON | OFF — appends --graphviz=framework.dot
+
+  FRAMEWORK_USE_FREERTOS: ON
+  FRAMEWORK_USE_RTT: ON
+  FRAMEWORK_USE_LVGL: ON
+  FRAMEWORK_USE_LFS: ON

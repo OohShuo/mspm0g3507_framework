@@ -1,3 +1,7 @@
+#if FRAMEWORK_USE_LVGL
+
+// clang-format off
+
 #include "lvgl_hello.h"
 
 #include <stdbool.h>
@@ -108,3 +112,13 @@ void App_Lvgl_Hello_Loop(void) {
         printf("bg change: 0x%06lx\n", (unsigned long)c);
     }
 }
+
+#else
+
+void App_Lvgl_Hello_Init(void) {}
+
+void App_Lvgl_Hello_Loop(void) {}
+
+// clang-format on
+
+#endif

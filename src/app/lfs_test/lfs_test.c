@@ -1,3 +1,11 @@
+#include "lfs_test.h"
+
+#include <string.h>
+
+#if FRAMEWORK_USE_LFS
+
+// clang-format off
+
 /**
  * @file   lfs_test.c
  * @brief  Exercise the lfs port with the standard lfs smoke battery.
@@ -18,10 +26,7 @@
  * lfs test owns the bus only during Init, then yields.
  */
 
-#include "lfs_test.h"
-
 #include <stdint.h>
-#include <string.h>
 
 #include "board_config.h"
 #include "bsp_gpio.h"
@@ -281,3 +286,13 @@ void App_Lfs_Test_Loop(void) { /* Test runs once in Init; the loop is intentiona
 const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return g_results; }
 uint8_t App_Lfs_Test_Get_Result_Count(void) { return g_result_count; }
 bool App_Lfs_Test_All_Passed(void) { return g_all_passed; }
+
+#else
+
+void App_Lfs_Test_Init(void) {  }
+void App_Lfs_Test_Loop(void) { /* no-op */ }
+const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return NULL; }
+uint8_t App_Lfs_Test_Get_Result_Count(void) { return 0; }
+bool App_Lfs_Test_All_Passed(void) { return false; }
+
+#endif
