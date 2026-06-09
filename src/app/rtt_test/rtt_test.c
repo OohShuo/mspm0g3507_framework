@@ -1,10 +1,12 @@
 #include "rtt_test.h"
 
-#include "rtt_log.h"
 #include "bsp_time.h"
+#include "rtt_log.h"
 
 void Rtt_Test_Init(void) {
-    printf("Hello from RTT test app! This confirms that the RTT control block is working and can be used for logging.\n");
+    printf(
+        "Hello from RTT test app! This confirms that the RTT control block is working and can be used for "
+        "logging.\n");
 }
 
 static int tick = 0;

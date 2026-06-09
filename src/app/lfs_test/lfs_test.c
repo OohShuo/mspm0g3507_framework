@@ -38,10 +38,10 @@
 /* (asset blobs, log ring, future firmware A/B, ...).                  */
 /* ------------------------------------------------------------------ */
 
-#define LFS_TEST_FLASH_START  (2u * 1024u * 1024u) /* 2 MiB */
-#define LFS_TEST_FLASH_SIZE   (2u * 1024u * 1024u) /* 2 MiB */
+#define LFS_TEST_FLASH_START (2u * 1024u * 1024u) /* 2 MiB */
+#define LFS_TEST_FLASH_SIZE  (2u * 1024u * 1024u) /* 2 MiB */
 
-#define LFS_TEST_PAYLOAD      "hello littlefs - tick=%u"
+#define LFS_TEST_PAYLOAD     "hello littlefs - tick=%u"
 
 /* ------------------------------------------------------------------ */
 /* Module state                                                        */
@@ -64,9 +64,7 @@ static void record(const char* name, int err) {
     printf("  [%s] %-32s err=%d\n", err == 0 ? " OK " : "FAIL", name, err);
 }
 
-static void record_noerr(const char* name, bool ok) {
-    record(name, ok ? 0 : -1);
-}
+static void record_noerr(const char* name, bool ok) { record(name, ok ? 0 : -1); }
 
 /* ------------------------------------------------------------------ */
 /* Init                                                                */
@@ -88,6 +86,11 @@ void App_Lfs_Test_Init(void) {
     }
     record("W25Q32 init", 0);
 
+    extern char __heap_start__[];  // NOLINT (readability-identifier-naming)
+    extern char __HeapLimit[];     // NOLINT (readability-identifier-naming)
+    printf("       newlib heap: %p..%p (%u B)\n", (void*)__heap_start__, (void*)__HeapLimit,
+        (unsigned)((char*)__HeapLimit - (char*)__heap_start__));
+
     const Lfs_port_config lfs_cfg = {
         .flash = g_flash,
         .start = LFS_TEST_FLASH_START,
@@ -108,28 +111,24 @@ void App_Lfs_Test_Init(void) {
      * assumption, gate this on a "is the superblock sane" probe. */
     err = Lfs_Port_Format(g_port);
     record("format", err);
-    if (err != 0) { g_all_passed = false; return; }
+    if (err != 0) {
+        g_all_passed = false;
+        return;
+    }
 
     err = Lfs_Port_Mount(g_port);
     record("mount (after format)", err);
-    if (err != 0) { g_all_passed = false; return; }
+    if (err != 0) {
+        g_all_passed = false;
+        return;
+    }
 
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_port);
-
-    /* LFS_NO_MALLOC is set on the lfs library, so each lfs_file_open() that
-     * does not provide a buffer would fail with LFS_ERR_NOMEM (the official
-     * source spells this out at lfs.h:578-579). Each file below therefore
-     * uses lfs_file_opencfg with an explicit cache buffer. The buffer is
-     * sized to match LFS_PORT_CACHE_SIZE (256 B); we share one static copy
-     * across the whole Init because every open/close pair is sequential. */
-    static uint8_t file_cache[256];
 
     /* ---- 1. write a small text file ---- */
     {
         lfs_file_t f;
-        struct lfs_file_config fcfg = { .buffer = file_cache };
-        err = lfs_file_opencfg(lfs, &f, "boot_count",
-                               LFS_O_WRONLY | LFS_O_CREAT, &fcfg);
+        err = lfs_file_open(lfs, &f, "boot_count", LFS_O_WRONLY | LFS_O_CREAT);
         if (err == 0) {
             char buf[64];
             int n = snprintf(buf, sizeof(buf), LFS_TEST_PAYLOAD, 1u);
@@ -147,8 +146,7 @@ void App_Lfs_Test_Init(void) {
     /* ---- 2. read it back and compare ---- */
     {
         lfs_file_t f;
-        struct lfs_file_config fcfg = { .buffer = file_cache };
-        err = lfs_file_opencfg(lfs, &f, "boot_count", LFS_O_RDONLY, &fcfg);
+        err = lfs_file_open(lfs, &f, "boot_count", LFS_O_RDONLY);
         bool match = false;
         if (err == 0) {
             char read_buf[64] = {0};
@@ -175,9 +173,7 @@ void App_Lfs_Test_Init(void) {
     /* ---- 4. write a second file ---- */
     {
         lfs_file_t f;
-        struct lfs_file_config fcfg = { .buffer = file_cache };
-        err = lfs_file_opencfg(lfs, &f, "config.txt",
-                               LFS_O_WRONLY | LFS_O_CREAT, &fcfg);
+        err = lfs_file_open(lfs, &f, "config.txt", LFS_O_WRONLY | LFS_O_CREAT);
         if (err == 0) {
             const char* body = "mode=test\nbuild=" __DATE__ "\n";
             lfs_size_t want = (lfs_size_t)strlen(body);
@@ -199,12 +195,11 @@ void App_Lfs_Test_Init(void) {
                 /* Skip the root's "." and ".." self-references littlefs
                  * emits on every dir_read; they're not user files. */
                 if (info.name[0] == '.' &&
-                        (info.name[1] == '\0' ||
-                         (info.name[1] == '.' && info.name[2] == '\0'))) {
+                    (info.name[1] == '\0' || (info.name[1] == '.' && info.name[2] == '\0'))) {
                     continue;
                 }
-                printf("       /%-16s size=%lu type=%d\n",
-                       info.name, (unsigned long)info.size, (int)info.type);
+                printf(
+                    "       /%-16s size=%lu type=%d\n", info.name, (unsigned long)info.size, (int)info.type);
                 count++;
             }
             lfs_dir_close(lfs, &dir);
@@ -240,8 +235,7 @@ void App_Lfs_Test_Init(void) {
             while (lfs_dir_read(lfs3, &dir, &info) > 0) {
                 /* Same "." / ".." skip as the listing above. */
                 if (info.name[0] == '.' &&
-                        (info.name[1] == '\0' ||
-                         (info.name[1] == '.' && info.name[2] == '\0'))) {
+                    (info.name[1] == '\0' || (info.name[1] == '.' && info.name[2] == '\0'))) {
                     continue;
                 }
                 count++;
@@ -254,12 +248,14 @@ void App_Lfs_Test_Init(void) {
     /* ---- aggregate ---- */
     g_all_passed = true;
     for (uint8_t i = 0; i < g_result_count; i++) {
-        if (!g_results[i].passed) { g_all_passed = false; break; }
+        if (!g_results[i].passed) {
+            g_all_passed = false;
+            break;
+        }
     }
 
     /* Visual cue: drive the LCD backlight pin the way w25q32_test does. */
-    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX,
-                   g_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
+    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
 
     /* Print a single paste-friendly block of all results so the user can
      * copy/paste the whole list back to the host for analysis without
@@ -270,22 +266,17 @@ void App_Lfs_Test_Init(void) {
     uint8_t passed = 0;
     for (uint8_t i = 0; i < g_result_count; i++) {
         if (g_results[i].passed) { passed++; }
-        printf("  [%2u] %-32s err=%-4d %s\n",
-               (unsigned)i, g_results[i].name, g_results[i].lfs_err,
-               g_results[i].passed ? "PASS" : "FAIL");
+        printf("  [%2u] %-32s err=%-4d %s\n", (unsigned)i, g_results[i].name, g_results[i].lfs_err,
+            g_results[i].passed ? "PASS" : "FAIL");
     }
     printf("  ---- %u/%u passed ----\n", (unsigned)passed, (unsigned)g_result_count);
     printf("====================================================\n");
 
-    printf("lfs_test: %s (%u/%u passed)\n",
-           g_all_passed ? "PASS" : "FAIL",
-           (unsigned)passed,
-           (unsigned)g_result_count);
+    printf("lfs_test: %s (%u/%u passed)\n", g_all_passed ? "PASS" : "FAIL", (unsigned)passed,
+        (unsigned)g_result_count);
 }
 
-void App_Lfs_Test_Loop(void) {
-    /* Test runs once in Init; the loop is intentionally a no-op. */
-}
+void App_Lfs_Test_Loop(void) { /* Test runs once in Init; the loop is intentionally a no-op. */ }
 
 const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return g_results; }
 uint8_t App_Lfs_Test_Get_Result_Count(void) { return g_result_count; }
