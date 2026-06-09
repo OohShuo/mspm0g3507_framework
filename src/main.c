@@ -32,15 +32,8 @@ extern void Rtt_Test_Loop(void);
 extern void App_Lfs_Test_Init(void);
 extern void App_Lfs_Test_Loop(void);
 
-// This SPI bus is dedicated to the ST7789 LCD. The W25Q32 test was
-// sharing SPI0 with the LCD, which is fine when one of them is parked,
-// but breaks the moment both tasks are alive (concurrent DMA config
-// corrupts in-flight transactions on the same SPI instance). Re-enable
-// the W25Q32 test only if you move it to a different SPI / bit-bang.
-// lvgl_hello and lvgl_ball each own the bus too — only one of them
-// should be enabled at a time.
 #define LCD_TEST_ENABLE        0
-#define ST7789_IMG_TEST_ENABLE 1
+#define ST7789_IMG_TEST_ENABLE 0
 #define LVGL_HELLO_ENABLE      0
 #define LVGL_BALL_ENABLE       0
 #define W25Q32_TEST_ENABLE     0

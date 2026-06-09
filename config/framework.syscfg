@@ -23,6 +23,8 @@ const SPI     = scripting.addModule("/ti/driverlib/SPI", {}, false);
 const SPI1    = SPI.addInstance();
 const SYSCTL  = scripting.addModule("/ti/driverlib/SYSCTL");
 const SYSTICK = scripting.addModule("/ti/driverlib/SYSTICK");
+const UART    = scripting.addModule("/ti/driverlib/UART", {}, false);
+const UART1   = UART.addInstance();
 
 /**
  * Write custom configuration values to the imported modules.
@@ -160,6 +162,29 @@ SYSTICK.periodEnable    = true;
 SYSTICK.period          = 32000;
 SYSTICK.interruptEnable = true;
 
+UART1.$name                             = "UART_0";
+UART1.targetBaudRate                    = 115200;
+UART1.enableFIFO                        = true;
+UART1.rxFifoThreshold                   = "DL_UART_RX_FIFO_LEVEL_ONE_ENTRY";
+UART1.txFifoThreshold                   = "DL_UART_TX_FIFO_LEVEL_ONE_ENTRY";
+UART1.enabledInterrupts                 = ["DMA_DONE_RX","DMA_DONE_TX","EOT_DONE"];
+UART1.enabledDMARXTriggers              = "DL_UART_DMA_INTERRUPT_RX";
+UART1.enabledDMATXTriggers              = "DL_UART_DMA_INTERRUPT_TX";
+UART1.peripheral.rxPin.$assign          = "PA11";
+UART1.peripheral.txPin.$assign          = "PA10";
+UART1.txPinConfig.$name                 = "ti_driverlib_gpio_GPIOPinGeneric8";
+UART1.rxPinConfig.$name                 = "ti_driverlib_gpio_GPIOPinGeneric9";
+UART1.DMA_CHANNEL_RX.$name              = "DMA_CH3";
+UART1.DMA_CHANNEL_RX.addressMode        = "f2b";
+UART1.DMA_CHANNEL_RX.srcLength          = "BYTE";
+UART1.DMA_CHANNEL_RX.dstLength          = "BYTE";
+UART1.DMA_CHANNEL_RX.peripheral.$assign = "DMA_CH4";
+UART1.DMA_CHANNEL_TX.$name              = "DMA_CH4";
+UART1.DMA_CHANNEL_TX.addressMode        = "b2f";
+UART1.DMA_CHANNEL_TX.srcLength          = "BYTE";
+UART1.DMA_CHANNEL_TX.dstLength          = "BYTE";
+UART1.DMA_CHANNEL_TX.peripheral.$assign = "DMA_CH3";
+
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
@@ -170,3 +195,4 @@ Board.peripheral.swclkPin.$suggestSolution = "PA20";
 Board.peripheral.swdioPin.$suggestSolution = "PA19";
 PWM1.peripheral.$suggestSolution           = "TIMA0";
 SPI1.peripheral.cs0Pin.$suggestSolution    = "PA2";
+UART1.peripheral.$suggestSolution          = "UART0";

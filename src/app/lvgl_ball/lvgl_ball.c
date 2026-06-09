@@ -1,3 +1,7 @@
+#if FRAMEWORK_USE_LVGL
+
+// clang-format off
+
 #include "lvgl_ball.h"
 
 #include <stdbool.h>
@@ -196,3 +200,13 @@ void App_Lvgl_Ball_Loop(void) {
 
     lv_timer_handler();
 }
+
+#else
+
+void App_Lvgl_Ball_Init(void) {}
+
+void App_Lvgl_Ball_Loop(void) {}
+
+// clang-format on
+
+#endif

@@ -13,8 +13,8 @@
 #include "led_simple.h"
 #include "w25q32_test.h"
 
-static Led_simple* led_indicator = NULL;
-static Led_breath* led_breath = NULL;
+[[maybe_unused]] static Led_simple* led_indicator = NULL;
+[[maybe_unused]] static Led_breath* led_breath = NULL;
 static Button* button1 = NULL;
 // Button* button2 = NULL;
 static Buzzer* buzzer = NULL;

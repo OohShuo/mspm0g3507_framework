@@ -12,3 +12,5 @@ tools/sysconfig
 
 CLAUDE.md
 graphify-out/
+
+__pycache__/

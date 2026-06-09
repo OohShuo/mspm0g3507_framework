@@ -125,16 +125,32 @@
 
 /* soft spi */
 
-#define SOFT_SPI_NUM                1
+#define SOFT_SPI_NUM           1
 
-#define SOFT_SPI_0_SCLK_PORT        GPIOA
-#define SOFT_SPI_0_SCLK_PIN         DL_GPIO_PIN_17
-#define SOFT_SPI_0_MOSI_PORT        GPIOB
-#define SOFT_SPI_0_MOSI_PIN         DL_GPIO_PIN_8
+#define SOFT_SPI_0_SCLK_PORT   GPIOA
+#define SOFT_SPI_0_SCLK_PIN    DL_GPIO_PIN_17
+#define SOFT_SPI_0_MOSI_PORT   GPIOB
+#define SOFT_SPI_0_MOSI_PIN    DL_GPIO_PIN_8
 
-#define SOFT_SPI_SCLK_PORTS         {SOFT_SPI_0_SCLK_PORT}
-#define SOFT_SPI_MOSI_PORTS         {SOFT_SPI_0_MOSI_PORT}
-#define SOFT_SPI_SCLK_PINS          {SOFT_SPI_0_SCLK_PIN}
-#define SOFT_SPI_MOSI_PINS          {SOFT_SPI_0_MOSI_PIN}
+#define SOFT_SPI_SCLK_PORTS    {SOFT_SPI_0_SCLK_PORT}
+#define SOFT_SPI_MOSI_PORTS    {SOFT_SPI_0_MOSI_PORT}
+#define SOFT_SPI_SCLK_PINS     {SOFT_SPI_0_SCLK_PIN}
+#define SOFT_SPI_MOSI_PINS     {SOFT_SPI_0_MOSI_PIN}
 
-#define SOFT_SPI_LCD_IDX            0
+#define SOFT_SPI_LCD_IDX       0
+
+/* uart */
+
+#define UART_NUM               1
+
+#define UART_0_INSTANCE        UART0
+#define UART_0_DMA_TX_CHANNEL  3
+#define UART_0_DMA_RX_CHANNEL  4
+#define UART_0_INT_IRQN        UART0_INT_IRQn
+
+#define UART_PORTS             {UART_0_INSTANCE}
+#define UART_DMA_TX_CHANNELS   {UART_0_DMA_TX_CHANNEL}
+#define UART_DMA_RX_CHANNELS   {UART_0_DMA_RX_CHANNEL}
+#define UART_INT_IRQNS         {UART_0_INT_IRQN}
+
+#define UART_DEBUG_IDX         0
