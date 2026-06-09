@@ -15,7 +15,7 @@ endif()
 set(TAG "Tools")
 
 set(SYSCFG_INSTALL_DIR "${CMAKE_SOURCE_DIR}/tools/sysconfig" CACHE PATH "Directory for installing syscfg tool")
-set(SYSCFG_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/syscfg" CACHE PATH "Directory for generated syscfg files")
+set(SYSCFG_GEN_DIR "${CMAKE_SOURCE_DIR}/config/syscfg" CACHE PATH "Directory for generated syscfg files")
 
 set(SYSCFG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/${PROJECT_NAME}.syscfg")
 set(SYSCFG_CLI "${SYSCFG_INSTALL_DIR}/sysconfig_cli${SCRIPTS_SUFFIX}")

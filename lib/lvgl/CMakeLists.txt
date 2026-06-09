@@ -21,6 +21,14 @@ file(GLOB_RECURSE THORVG_SOURCES
 
 add_library(lvgl ${SOURCES})
 
+# LVGL core is hot (lvgl_render + timer_handler called from a 5 ms task).
+# The default project build is -O0 (Debug), but at -O0 the dispatch in
+# lv_refr.c and lv_obj_style.c retains stack copies of style state per
+# iteration. Force -O2 for the whole library so the v9 rendering path
+# fits within MSPM0G3507's 128 KB flash after kitchen-sink defaults are
+# turned off in lv_conf.h.
+set_source_files_properties(${SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
+
 target_link_libraries(lvgl PRIVATE freertos)
 
 # ======================= #
