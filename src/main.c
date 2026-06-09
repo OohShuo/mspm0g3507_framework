@@ -38,10 +38,10 @@ extern void App_Lfs_Test_Loop(void);
 // should be enabled at a time.
 #define LCD_TEST_ENABLE    0
 #define LVGL_HELLO_ENABLE  0
-#define LVGL_BALL_ENABLE   1
-#define W25Q32_TEST_ENABLE 1
+#define LVGL_BALL_ENABLE   0
+#define W25Q32_TEST_ENABLE 0
 #define RTT_TEST_ENABLE    0
-#define LFS_TEST_ENABLE    0
+#define LFS_TEST_ENABLE    1
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();

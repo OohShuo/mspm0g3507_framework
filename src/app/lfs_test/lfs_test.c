@@ -116,14 +116,29 @@ void App_Lfs_Test_Init(void) {
 
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_port);
 
+    /* LFS_NO_MALLOC is set on the lfs library, so each lfs_file_open() that
+     * does not provide a buffer would fail with LFS_ERR_NOMEM (the official
+     * source spells this out at lfs.h:578-579). Each file below therefore
+     * uses lfs_file_opencfg with an explicit cache buffer. The buffer is
+     * sized to match LFS_PORT_CACHE_SIZE (256 B); we share one static copy
+     * across the whole Init because every open/close pair is sequential. */
+    static uint8_t file_cache[256];
+
     /* ---- 1. write a small text file ---- */
     {
         lfs_file_t f;
-        err = lfs_file_open(lfs, &f, "boot_count", LFS_O_WRONLY | LFS_O_CREAT);
+        struct lfs_file_config fcfg = { .buffer = file_cache };
+        err = lfs_file_opencfg(lfs, &f, "boot_count",
+                               LFS_O_WRONLY | LFS_O_CREAT, &fcfg);
         if (err == 0) {
             char buf[64];
             int n = snprintf(buf, sizeof(buf), LFS_TEST_PAYLOAD, 1u);
-            err = lfs_file_write(lfs, &f, buf, (lfs_size_t)n);
+            /* lfs_file_write returns bytes written (>=0) on success, or a
+             * negative lfs error code. We want to record an lfs-shaped
+             * error code, so map "all bytes written" to 0 and leave a
+             * negative return as-is. */
+            lfs_ssize_t w = lfs_file_write(lfs, &f, buf, (lfs_size_t)n);
+            err = (w == (lfs_ssize_t)n) ? 0 : (int)w;
             lfs_file_close(lfs, &f);
         }
         record("write boot_count", err);
@@ -132,7 +147,8 @@ void App_Lfs_Test_Init(void) {
     /* ---- 2. read it back and compare ---- */
     {
         lfs_file_t f;
-        err = lfs_file_open(lfs, &f, "boot_count", LFS_O_RDONLY);
+        struct lfs_file_config fcfg = { .buffer = file_cache };
+        err = lfs_file_opencfg(lfs, &f, "boot_count", LFS_O_RDONLY, &fcfg);
         bool match = false;
         if (err == 0) {
             char read_buf[64] = {0};
@@ -159,10 +175,14 @@ void App_Lfs_Test_Init(void) {
     /* ---- 4. write a second file ---- */
     {
         lfs_file_t f;
-        err = lfs_file_open(lfs, &f, "config.txt", LFS_O_WRONLY | LFS_O_CREAT);
+        struct lfs_file_config fcfg = { .buffer = file_cache };
+        err = lfs_file_opencfg(lfs, &f, "config.txt",
+                               LFS_O_WRONLY | LFS_O_CREAT, &fcfg);
         if (err == 0) {
             const char* body = "mode=test\nbuild=" __DATE__ "\n";
-            err = lfs_file_write(lfs, &f, body, (lfs_size_t)strlen(body));
+            lfs_size_t want = (lfs_size_t)strlen(body);
+            lfs_ssize_t w = lfs_file_write(lfs, &f, body, want);
+            err = (w == (lfs_ssize_t)want) ? 0 : (int)w;
             lfs_file_close(lfs, &f);
         }
         record("write config.txt", err);
@@ -176,7 +196,13 @@ void App_Lfs_Test_Init(void) {
         if (err == 0) {
             struct lfs_info info;
             while (lfs_dir_read(lfs, &dir, &info) > 0) {
-                if (info.name[0] == '\0') { continue; } /* skip lfs sentinels */
+                /* Skip the root's "." and ".." self-references littlefs
+                 * emits on every dir_read; they're not user files. */
+                if (info.name[0] == '.' &&
+                        (info.name[1] == '\0' ||
+                         (info.name[1] == '.' && info.name[2] == '\0'))) {
+                    continue;
+                }
                 printf("       /%-16s size=%lu type=%d\n",
                        info.name, (unsigned long)info.size, (int)info.type);
                 count++;
@@ -212,7 +238,13 @@ void App_Lfs_Test_Init(void) {
         if (lfs_dir_open(lfs3, &dir, "/") == 0) {
             struct lfs_info info;
             while (lfs_dir_read(lfs3, &dir, &info) > 0) {
-                if (info.name[0] != '\0') { count++; }
+                /* Same "." / ".." skip as the listing above. */
+                if (info.name[0] == '.' &&
+                        (info.name[1] == '\0' ||
+                         (info.name[1] == '.' && info.name[2] == '\0'))) {
+                    continue;
+                }
+                count++;
             }
             lfs_dir_close(lfs3, &dir);
         }
@@ -229,9 +261,25 @@ void App_Lfs_Test_Init(void) {
     Bsp_Gpio_Write(GPIO_TFT_BLK_IDX,
                    g_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
 
+    /* Print a single paste-friendly block of all results so the user can
+     * copy/paste the whole list back to the host for analysis without
+     * having to scroll the RTT log. The per-test `[OK]/[FAIL]` lines
+     * above are interleaved with trace spam; this block is the canonical
+     * summary. */
+    printf("\n========== lfs_test results (paste this) ==========\n");
+    uint8_t passed = 0;
+    for (uint8_t i = 0; i < g_result_count; i++) {
+        if (g_results[i].passed) { passed++; }
+        printf("  [%2u] %-32s err=%-4d %s\n",
+               (unsigned)i, g_results[i].name, g_results[i].lfs_err,
+               g_results[i].passed ? "PASS" : "FAIL");
+    }
+    printf("  ---- %u/%u passed ----\n", (unsigned)passed, (unsigned)g_result_count);
+    printf("====================================================\n");
+
     printf("lfs_test: %s (%u/%u passed)\n",
            g_all_passed ? "PASS" : "FAIL",
-           (unsigned)(g_result_count - (g_all_passed ? 0 : 1u)),
+           (unsigned)passed,
            (unsigned)g_result_count);
 }
 
