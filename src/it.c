@@ -1,8 +1,7 @@
-#include "rtt_log.h"
-
 #include "FreeRTOS.h"
 #include "bsp_adc.h"
 #include "bsp_spi.h"
+#include "rtt_log.h"
 #include "task.h"
 #include "ti_msp_dl_config.h"
 
