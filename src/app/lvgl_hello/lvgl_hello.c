@@ -8,7 +8,6 @@
 #include "bsp.h"
 #include "bsp_time.h"
 #include "lvgl.h"
-#include "src/drivers/display/st7789/lv_st7789.h"
 #include "st7789.h"
 
 #define LCD_HOR_RES   240
