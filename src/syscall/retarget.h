@@ -10,3 +10,11 @@
  * the host RTT viewer.
  */
 void Syscall_Init(void);
+
+/**
+ * @file   rtt_log.h
+ * @brief  See rtt_log.h in the same directory for the printf -> RTT macro.
+ *         This header re-includes it for convenience so files that only
+ *         need logging + Syscall_Init can include just retarget.h.
+ */
+#include "rtt_log.h"

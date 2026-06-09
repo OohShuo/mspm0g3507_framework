@@ -1,6 +1,4 @@
-#include <src/tick/lv_tick.h>
-
-#include <stdio.h>
+#include "rtt_log.h"
 
 #include "FreeRTOS.h"
 #include "bsp_adc.h"
