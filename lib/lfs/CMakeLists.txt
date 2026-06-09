@@ -11,6 +11,6 @@ target_include_directories(littlefs PUBLIC "${LFS_INC}" "${CFG_DIR}" )
 
 target_compile_definitions(littlefs PRIVATE LFS_DEFINES=lfs_config.h)
 
-target_link_libraries(littlefs PUBLIC rtt)
+target_link_libraries(littlefs PRIVATE rtt freertos)
 
 print_item("LittleFS" "library ${ColorBold}littlefs${ColorReset} built")
