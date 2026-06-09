@@ -9,8 +9,13 @@ extern void  vPortFree(void *pv);
 
 // NOLINTEND(readability-identifier-naming)
 
+#include "FreeRTOSConfig.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
 #define LFS_MALLOC(sz) pvPortMalloc((sz))
 #define LFS_FREE(p)    vPortFree((p))
+#define LFS_ASSERT(x) configASSERT(x)
 
 #define LFS_TRACE(fmt, ...) SEGGER_RTT_printf(0, "%s:%d:trace: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 
