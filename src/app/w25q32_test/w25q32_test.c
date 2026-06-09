@@ -47,7 +47,7 @@ void App_W25q32_Test_Init(void) {
     g_w25q32 = W25q32_Create(&cfg);
     g_w25q32_jedec_ok = W25q32_Init(g_w25q32);
 
-    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_w25q32_jedec_ok ? bsp_gpio_state_set : bsp_gpio_state_reset);
+    // Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_w25q32_jedec_ok ? bsp_gpio_state_set : bsp_gpio_state_reset);
 }
 
 // Comprehensive SPI flash test battery.
@@ -138,7 +138,7 @@ void App_W25q32_Test_Loop(void) {
         }
     }
 
-    Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_w25q32_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
+    // Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_w25q32_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
 }
 
 const W25q32_test_result* App_W25q32_Test_Get_Results(void) { return g_w25q32_results; }

@@ -39,7 +39,7 @@ extern void App_Lfs_Test_Loop(void);
 #define LCD_TEST_ENABLE    0
 #define LVGL_HELLO_ENABLE  0
 #define LVGL_BALL_ENABLE   1
-#define W25Q32_TEST_ENABLE 0
+#define W25Q32_TEST_ENABLE 1
 #define RTT_TEST_ENABLE    0
 #define LFS_TEST_ENABLE    0
 
@@ -180,7 +180,7 @@ int main(void) {
     xTaskCreate(task_lvgl_ball, "LVGL_Ball", 1024, NULL, 1, &lvgl_ball_task_handle);
 #endif
 #if W25Q32_TEST_ENABLE
-    xTaskCreate(task_w25q32_test, "W25Q32_Test", 256, NULL, 1, &w25q32_test_task_handle);
+    xTaskCreate(task_w25q32_test, "W25Q32_Test", 128, NULL, 1, &w25q32_test_task_handle);
 #endif
 #if RTT_TEST_ENABLE
     xTaskCreate(task_rtt_test, "RTT_Test", 512, NULL, 1, &rtt_test_task_handle);
