@@ -20,11 +20,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(CFG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/config")
+set(ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
 
 file(GLOB ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
 file(GLOB IT_C "${SRC_DIR}/it.c")
 file(GLOB SYSCFG_GEN_C "${SYSCFG_GEN_DIR}/*.c")
 file(GLOB LVGL_CONF_H "${CFG_DIR}/lvgl_config.h")
+file(GLOB ASSETS_C "${ASSETS_DIR}/*.c")
 
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -41,7 +43,7 @@ add_compile_options(
     -fdata-sections
 )
 
-add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}")
+add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}" "${ASSETS_C}")
 
 add_subdirectory(ti_device)
 add_subdirectory(lib)
