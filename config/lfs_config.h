@@ -2,7 +2,15 @@
 
 #include "SEGGER_RTT.h"
 
-#define LFS_NO_MALLOC
+// NOLINTBEGIN(readability-identifier-naming)
+
+extern void *pvPortMalloc(size_t xWantedSize);
+extern void  vPortFree(void *pv);
+
+// NOLINTEND(readability-identifier-naming)
+
+#define LFS_MALLOC(sz) pvPortMalloc((sz))
+#define LFS_FREE(p)    vPortFree((p))
 
 #define LFS_TRACE(fmt, ...) SEGGER_RTT_printf(0, "%s:%d:trace: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 
