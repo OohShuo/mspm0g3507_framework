@@ -13,6 +13,7 @@ TaskHandle_t lcd_test_task_handle = NULL;
 TaskHandle_t lvgl_hello_task_handle = NULL;
 TaskHandle_t lvgl_ball_task_handle = NULL;
 TaskHandle_t w25q32_test_task_handle = NULL;
+TaskHandle_t rtt_test_task_handle = NULL;
 
 extern void App_Lcd_Test_Init(void);
 extern void App_Lcd_Test_Loop(void);
@@ -22,6 +23,8 @@ extern void App_Lvgl_Ball_Init(void);
 extern void App_Lvgl_Ball_Loop(void);
 extern void App_W25q32_Test_Init(void);
 extern void App_W25q32_Test_Loop(void);
+extern void Rtt_Test_Init(void);
+extern void Rtt_Test_Loop(void);
 
 // This SPI bus is dedicated to the ST7789 LCD. The W25Q32 test was
 // sharing SPI0 with the LCD, which is fine when one of them is parked,
@@ -34,6 +37,7 @@ extern void App_W25q32_Test_Loop(void);
 #define LVGL_HELLO_ENABLE  0
 #define LVGL_BALL_ENABLE   0
 #define W25Q32_TEST_ENABLE 0
+#define RTT_TEST_ENABLE    1
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
@@ -123,6 +127,18 @@ static void task_lvgl_ball(void* arg) {
 }
 #endif
 
+#if RTT_TEST_ENABLE
+static void task_rtt_test(void* arg) {
+    (void)arg;
+    Rtt_Test_Init();
+    uint32_t tick = xTaskGetTickCount();
+    while (1) { 
+        Rtt_Test_Loop();
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(1000));
+    }
+}
+#endif
+
 int main(void) {
     SYSCFG_DL_init();
 
@@ -146,6 +162,9 @@ int main(void) {
 #endif
 #if W25Q32_TEST_ENABLE
     xTaskCreate(task_w25q32_test, "W25Q32_Test", 256, NULL, 1, &w25q32_test_task_handle);
+#endif
+#if RTT_TEST_ENABLE
+    xTaskCreate(task_rtt_test, "RTT_Test", 256, NULL, 1, &rtt_test_task_handle);
 #endif
 
     vTaskStartScheduler();

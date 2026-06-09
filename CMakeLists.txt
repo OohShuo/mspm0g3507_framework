@@ -56,6 +56,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     "-Wl,--cref"
     "-Wl,-Map,${PROJECT_NAME}.map"
     "--specs=nano.specs"
+    "--specs=nosys.specs"
     "-Wl,--gc-sections"
     "-nostartfiles"
     "-Wl,--print-memory-usage"
