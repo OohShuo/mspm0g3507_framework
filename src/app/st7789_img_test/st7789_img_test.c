@@ -23,6 +23,7 @@
 #define IMG_W           100
 #define IMG_H           100
 #define IMG_X_OFFSET    ((LCD_HOR_RES - IMG_W) / 2)  // 10 — center the 220-wide image on the 240-wide panel
+#define IMG_Y_OFFSET    ((LCD_VER_RES - IMG_H) / 2)  // 10 — center the 220-wide image on the 240-wide panel
 #define IMG_ROW_BYTES   (IMG_W * 2)  // RGB565, little-endian on the wire after St7789_Send_Color's bswap
 #define LINE_BUF_SIZE   IMG_ROW_BYTES
 #define REFRESH_HOLD_MS 2000
@@ -44,7 +45,7 @@ static void flush_done_cb(void* arg) {
 // itself is in flash) and send it as a 1-row window.
 extern const uint8_t MizunoAkane100x100_map[];
 static void flush_image_row(int32_t y) {
-    const uint8_t* src = &MizunoAkane100x100_map[y * IMG_ROW_BYTES];
+    const uint8_t* src = &MizunoAkane100x100_map[(y - IMG_Y_OFFSET) * IMG_ROW_BYTES];
     memcpy(g_line_buf, src, IMG_ROW_BYTES);
     St7789_Flush(g_lcd, IMG_X_OFFSET, y, (int32_t)(IMG_X_OFFSET + IMG_W - 1), y, g_line_buf, IMG_ROW_BYTES);
 }
@@ -53,7 +54,7 @@ static void flush_image_row(int32_t y) {
 // over soft SPI, but the caller drives the loop on a periodic tick —
 // re-entry is safe because St7789_Flush is reentrant on its own bus.
 static void flush_full_image(void) {
-    for (uint32_t y = 0; y < IMG_H; y++) { flush_image_row((int32_t)y); }
+    for (uint32_t y = IMG_Y_OFFSET; y < IMG_Y_OFFSET + IMG_H; y++) { flush_image_row((int32_t)y); }
     g_status.flush_count++;
 }
 

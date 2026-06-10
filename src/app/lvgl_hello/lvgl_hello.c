@@ -14,7 +14,7 @@
 #include "st7789.h"
 
 #define LCD_HOR_RES   240
-#define LCD_VER_RES   240
+#define LCD_VER_RES   320
 #define LCD_BUF_LINES (LCD_VER_RES / 10 / 4)
 
 static St7789* g_lcd = NULL;
@@ -73,11 +73,6 @@ void App_Lvgl_Hello_Init(void) {
         lv_st7789_create(LCD_HOR_RES, LCD_VER_RES, LV_LCD_FLAG_NONE, lvgl_send_cmd_cb, lvgl_send_color_cb);
     if (g_disp == NULL) { return; }
     lv_display_set_buffers(g_disp, g_render_buf, NULL, sizeof(g_render_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
-    {
-        const uint8_t invon = 0x21;
-        lvgl_send_cmd_cb(g_disp, &invon, 1, NULL, 0);
-    }
 
     St7789_Set_Backlight(g_lcd, 1);
 
