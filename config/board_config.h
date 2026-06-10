@@ -57,100 +57,106 @@
     {GPIO_0_MODE, GPIO_1_MODE, GPIO_2_MODE, GPIO_3_MODE, GPIO_4_MODE, GPIO_5_MODE, GPIO_6_MODE, GPIO_7_MODE, \
         GPIO_8_MODE, GPIO_9_MODE}
 
-#define GPIO_SW_BTN_IDX        0
-#define GPIO_TFT_RST_IDX       1
-#define GPIO_TFT_DC_IDX        2
-#define GPIO_TFT_BLK_IDX       3
-#define GPIO_PWR_LED_IDX       4
-#define GPIO_BNT_UP_IDX        5
-#define GPIO_BNT_LEFT_IDX      6
-#define GPIO_BNT_DOWN_IDX      7
-#define GPIO_BNT_RIGHT_IDX     8
-#define GPIO_SPI_CS_IDX        9
+#define GPIO_SW_BTN_IDX              0
+#define GPIO_TFT_RST_IDX             1
+#define GPIO_TFT_DC_IDX              2
+#define GPIO_TFT_BLK_IDX             3
+#define GPIO_PWR_LED_IDX             4
+#define GPIO_BNT_UP_IDX              5
+#define GPIO_BNT_LEFT_IDX            6
+#define GPIO_BNT_DOWN_IDX            7
+#define GPIO_BNT_RIGHT_IDX           8
+#define GPIO_SPI_CS_IDX              9
 
 /* pwm */
 
-#define PWM_NUM                2
+#define PWM_NUM                      2
 
-#define PWM_0_TIMER            TIMA0
-#define PWM_0_CHANNEL          DL_TIMER_CC_3_INDEX
-#define PWM_0_CLK_FREQ         4000000
+#define PWM_0_TIMER                  TIMA0
+#define PWM_0_CHANNEL                DL_TIMER_CC_3_INDEX
+#define PWM_0_CLK_FREQ               4000000
 
-#define PWM_1_TIMER            TIMG0
-#define PWM_1_CHANNEL          DL_TIMER_CC_1_INDEX
-#define PWM_1_CLK_FREQ         4000000
+#define PWM_1_TIMER                  TIMG0
+#define PWM_1_CHANNEL                DL_TIMER_CC_1_INDEX
+#define PWM_1_CLK_FREQ               4000000
 
-#define PWM_PORTS              {PWM_0_TIMER, PWM_1_TIMER}
-#define PWM_CHANNELS           {PWM_0_CHANNEL, PWM_1_CHANNEL}
-#define PWM_CLK_FREQS          {PWM_0_CLK_FREQ, PWM_1_CLK_FREQ}
+#define PWM_PORTS                    {PWM_0_TIMER, PWM_1_TIMER}
+#define PWM_CHANNELS                 {PWM_0_CHANNEL, PWM_1_CHANNEL}
+#define PWM_CLK_FREQS                {PWM_0_CLK_FREQ, PWM_1_CLK_FREQ}
 
-#define PWM_BUZZER_IDX         0
-#define PWM_VIB_MOTOR_IDX      1
+#define PWM_BUZZER_IDX               0
+#define PWM_VIB_MOTOR_IDX            1
 
 /* adc */
 
-#define ADC_NUM                1
+#define ADC_NUM                      1
 
-#define ADC_0_INSTANCE         ADC0
-#define ADC_0_CHANNEL_NUM      2
-#define ADC_0_INT_IRQN         ADC0_INT_IRQn
-#define ADC_0_DMA_CHANNEL      0
-#define ADC_0_DMA_TX_SIZE      10
+#define ADC_0_INSTANCE               ADC0
+#define ADC_0_CHANNEL_NUM            2
+#define ADC_0_INT_IRQN               ADC0_INT_IRQn
+#define ADC_0_DMA_CHANNEL            0
+#define ADC_0_DMA_TX_SIZE            10
 
-#define ADC_PORTS              {ADC_0_INSTANCE}
-#define ADC_CHANNEL_NUMS       {ADC_0_CHANNEL_NUM}
-#define ADC_INT_IRQNS          {ADC_0_INT_IRQN}
-#define ADC_DMA_CHANNELS       {ADC_0_DMA_CHANNEL}
-#define ADC_DMA_TX_SIZES       {ADC_0_DMA_TX_SIZE}
+#define ADC_PORTS                    {ADC_0_INSTANCE}
+#define ADC_CHANNEL_NUMS             {ADC_0_CHANNEL_NUM}
+#define ADC_INT_IRQNS                {ADC_0_INT_IRQN}
+#define ADC_DMA_CHANNELS             {ADC_0_DMA_CHANNEL}
+#define ADC_DMA_TX_SIZES             {ADC_0_DMA_TX_SIZE}
 
-#define ADC_JOYSTICK_IDX       0
-#define ADC_JOYSTICK_X_CHANNEL 0
-#define ADC_JOYSTICK_Y_CHANNEL 1
+#define ADC_JOYSTICK_IDX             0
+#define ADC_JOYSTICK_X_CHANNEL       0
+#define ADC_JOYSTICK_Y_CHANNEL       1
 
 /* spi */
 
-#define SPI_NUM                1
+#define SPI_NUM                      1
 
-#define SPI_0_INSTANCE         SPI1
-#define SPI_0_DMA_TX_CHANNEL   1
-#define SPI_0_DMA_RX_CHANNEL   2
-#define SPI_0_INT_IRQN         SPI1_INT_IRQn
+#define SPI_0_INSTANCE               SPI1
+#define SPI_0_DMA_TX_CHANNEL         1
+#define SPI_0_DMA_RX_CHANNEL         2
+#define SPI_0_INT_IRQN               SPI1_INT_IRQn
 
-#define SPI_PORTS              {SPI_0_INSTANCE}
-#define SPI_DMA_TX_CHANNELS    {SPI_0_DMA_TX_CHANNEL}
-#define SPI_DMA_RX_CHANNELS    {SPI_0_DMA_RX_CHANNEL}
-#define SPI_INT_IRQNS          {SPI_0_INT_IRQN}
+#define SPI_PORTS                    {SPI_0_INSTANCE}
+#define SPI_DMA_TX_CHANNELS          {SPI_0_DMA_TX_CHANNEL}
+#define SPI_DMA_RX_CHANNELS          {SPI_0_DMA_RX_CHANNEL}
+#define SPI_INT_IRQNS                {SPI_0_INT_IRQN}
 
-#define SPI_LCD_IDX            0
+#define SPI_LCD_IDX                  0
 
 /* soft spi */
 
-#define SOFT_SPI_NUM           1
+#define SOFT_SPI_NUM                 1
 
-#define SOFT_SPI_0_SCLK_PORT   GPIOA
-#define SOFT_SPI_0_SCLK_PIN    DL_GPIO_PIN_17
-#define SOFT_SPI_0_MOSI_PORT   GPIOB
-#define SOFT_SPI_0_MOSI_PIN    DL_GPIO_PIN_8
+#define SOFT_SPI_0_SCLK_PORT         GPIOA
+#define SOFT_SPI_0_SCLK_PIN          DL_GPIO_PIN_17
+#define SOFT_SPI_0_MOSI_PORT         GPIOB
+#define SOFT_SPI_0_MOSI_PIN          DL_GPIO_PIN_8
 
-#define SOFT_SPI_SCLK_PORTS    {SOFT_SPI_0_SCLK_PORT}
-#define SOFT_SPI_MOSI_PORTS    {SOFT_SPI_0_MOSI_PORT}
-#define SOFT_SPI_SCLK_PINS     {SOFT_SPI_0_SCLK_PIN}
-#define SOFT_SPI_MOSI_PINS     {SOFT_SPI_0_MOSI_PIN}
+#define SOFT_SPI_SCLK_PORTS          {SOFT_SPI_0_SCLK_PORT}
+#define SOFT_SPI_MOSI_PORTS          {SOFT_SPI_0_MOSI_PORT}
+#define SOFT_SPI_SCLK_PINS           {SOFT_SPI_0_SCLK_PIN}
+#define SOFT_SPI_MOSI_PINS           {SOFT_SPI_0_MOSI_PIN}
 
-#define SOFT_SPI_LCD_IDX       0
+#define SOFT_SPI_LCD_IDX             0
 
 /* uart */
 
-#define UART_NUM               1
+#define UART_NUM                     1
 
-#define UART_0_INSTANCE        UART0
-#define UART_0_DMA_TX_CHANNEL  3
-#define UART_0_DMA_RX_CHANNEL  4
-#define UART_0_INT_IRQN        UART0_INT_IRQn
+#define UART_0_INSTANCE              UART0
+#define UART_0_DMA_TX_CHANNEL        3
+#define UART_0_DMA_RX_CHANNEL        4
+#define UART_0_INT_IRQN              UART0_INT_IRQn
+#define UART_0_IDLE_TIMER            TIMA1
+#define UART_0_IDLE_TIMER_IRQN       TIMA1_INT_IRQn
+#define UART_0_IDLE_TIMER_CLOCK_FREQ 500000
 
-#define UART_PORTS             {UART_0_INSTANCE}
-#define UART_DMA_TX_CHANNELS   {UART_0_DMA_TX_CHANNEL}
-#define UART_DMA_RX_CHANNELS   {UART_0_DMA_RX_CHANNEL}
-#define UART_INT_IRQNS         {UART_0_INT_IRQN}
+#define UART_PORTS                   {UART_0_INSTANCE}
+#define UART_DMA_TX_CHANNELS         {UART_0_DMA_TX_CHANNEL}
+#define UART_DMA_RX_CHANNELS         {UART_0_DMA_RX_CHANNEL}
+#define UART_INT_IRQNS               {UART_0_INT_IRQN}
+#define UART_IDLE_TIMERS             {UART_0_IDLE_TIMER}
+#define UART_IDLE_TIMER_IRQNS        {UART_0_IDLE_TIMER_IRQN}
+#define UART_IDLE_TIMER_CLOCK_FREQS  {UART_0_IDLE_TIMER_CLOCK_FREQ}
 
-#define UART_DEBUG_IDX         0
+#define UART_DEBUG_IDX               0
