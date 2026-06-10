@@ -65,12 +65,12 @@ void App_Com_Uart_Test_Loop(void) {
     if (n <= 0) { return; }
 
     static char* payloads[] = {
-        "Hello, world!",
-        "The quick brown fox jumps over the lazy dog.",
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-        "1234567890",
-        "!@#$^&*()_+-=[]{}|;':\",./<>?",
-        "Short",
+        "Hello, world!\n",
+        "The quick brown fox jumps over the lazy dog.\n",
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n",
+        "1234567890\n",
+        "!@#$^&*()_+-=[]{}|;':\",./<>?\n",
+        "Short\n",
     };
 
     static uint32_t payload_idx = 0;
