@@ -35,6 +35,8 @@ static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, void* arg) {
         printf("%c", c);
     }
     printf("\n");
+
+    Com_Uart_Send(obj, data, len);
 }
 
 void App_Com_Uart_Test_Init(void) {
