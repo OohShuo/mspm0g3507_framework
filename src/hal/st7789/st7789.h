@@ -19,6 +19,7 @@ typedef struct {
         uint8_t mirror_y        : 1;
         uint8_t color_use_bgr   : 1;
         uint8_t color_use_18bit : 1;
+        uint8_t use_inv         : 1;  // send ST7789_INVON during init (panel-dependent)
     } flags;
 } St7789_config;
 

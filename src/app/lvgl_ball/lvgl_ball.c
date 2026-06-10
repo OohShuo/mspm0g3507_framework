@@ -16,7 +16,7 @@
 // === Panel geometry — matches lvgl_hello / st7789 test ===
 
 #define LCD_HOR_RES   240
-#define LCD_VER_RES   240
+#define LCD_VER_RES   320
 #define LCD_BUF_LINES (LCD_VER_RES / 10 / 4)  // LVGL docs recommendation, 1/10 screen
 
 // === Play field ===
@@ -108,7 +108,7 @@ void App_Lvgl_Ball_Init(void) {
     if (g_disp == NULL) { return; }
     lv_display_set_buffers(g_disp, g_render_buf, NULL, sizeof(g_render_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
 
-    lv_lcd_generic_mipi_set_invert(g_disp, 1);
+    lv_lcd_generic_mipi_set_invert(g_disp, 0);
 
     // Dark background — gives the white border and red ball strong
     // contrast. NOTE: we do NOT call lv_obj_invalidate on the screen

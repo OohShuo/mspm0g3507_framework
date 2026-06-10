@@ -12,7 +12,7 @@
 // === Panel geometry ===
 
 #define LCD_HOR_RES       240
-#define LCD_VER_RES       240
+#define LCD_VER_RES       320
 #define LCD_LINE_BUF_SIZE (240 * 2)
 #define PATTERN_HOLD_MS   2000
 
