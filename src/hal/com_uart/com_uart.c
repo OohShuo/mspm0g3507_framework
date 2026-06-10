@@ -7,6 +7,7 @@
 #include "board_config.h"
 #include "bsp_uart.h"
 #include "freertos_alloc.h"
+#include "rtt_log.h"
 #include "soft_crc.h"
 #include "vector.h"
 
@@ -83,11 +84,18 @@ static void com_uart_idle_cb(uint32_t idx, uint8_t* data, uint32_t len, void* ar
     if (len < 3) { return; }
     uint8_t payload_len = data[0];
     uint32_t expected = (uint32_t)payload_len + 3u;
-    if (expected != len) { return; }
+    if (expected != len) {
+        printf(
+            "[com_uart] Idle RX length mismatch: expected %u, got %u\n", (unsigned)expected, (unsigned)len);
+        // return;
+    }
 
     uint16_t crc_rx = (uint16_t)data[len - 2] | ((uint16_t)data[len - 1] << 8);
     uint16_t crc_chk = Soft_Crc16_Calc(soft_crc16_default, data, len - 2);
-    if (crc_rx != crc_chk) { return; }
+    if (crc_rx != crc_chk) {
+        printf("[com_uart] Idle RX CRC mismatch: expected 0x%04X, got 0x%04X\n", (unsigned)crc_chk, (unsigned)crc_rx);
+        // return;
+    }
 
     obj->rx_data.len = payload_len;
     obj->rx_data.crc16 = crc_rx;
@@ -97,7 +105,7 @@ static void com_uart_idle_cb(uint32_t idx, uint8_t* data, uint32_t len, void* ar
     if (obj->config.on_rx != NULL) { obj->config.on_rx(obj, &data[1], payload_len, obj->config.on_rx_arg); }
 }
 
-#else  // UART_NUM == 0
+#else
 
 void Com_Uart_Init(void) {}
 

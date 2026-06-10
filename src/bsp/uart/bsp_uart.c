@@ -68,6 +68,10 @@ void Bsp_Uart_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
     if (idx >= UART_NUM) { return; }
     struct Bsp_uart_instance_t* u = &bsp_uart_instances[idx];
 
+    // uint32_t spin = 1000000U;
+    // while (u->tx_in_progress && (DL_UART_Main_isBusy(u->inst) != 0U) && spin--) { __NOP(); }
+
+    DL_DMA_disableChannel(DMA, u->dma_tx_channel);
     DL_DMA_setSrcAddr(DMA, u->dma_tx_channel, (uint32_t)data);
     DL_DMA_setDestAddr(DMA, u->dma_tx_channel, (uint32_t)(&u->inst->TXDATA));
     DL_DMA_setTransferSize(DMA, u->dma_tx_channel, len);
