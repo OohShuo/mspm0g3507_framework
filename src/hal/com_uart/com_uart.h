@@ -16,8 +16,6 @@ typedef struct {
     uint32_t tx_max_len;        
     Com_uart_on_rx_t on_rx;     
     void* on_rx_arg;
-
-    uint8_t use_crc;
 } Com_uart_config;
 
 struct Com_uart_t {

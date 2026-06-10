@@ -29,7 +29,7 @@ static void cs_high(W25q32* obj) {
 
 static void send_cmd(W25q32* obj, uint8_t cmd) {
     cs_low(obj);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, &cmd, 1);
+    Bsp_Spi_Write(obj->config.spi_idx, &cmd, 1);
     cs_high(obj);
 }
 
@@ -41,7 +41,7 @@ static void send_cmd_addr(W25q32* obj, uint8_t cmd, uint32_t addr) {
         (uint8_t)(addr),
     };
     cs_low(obj);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, buf, sizeof(buf));
+    Bsp_Spi_Write(obj->config.spi_idx, buf, sizeof(buf));
 }
 
 // Public API
@@ -86,8 +86,8 @@ uint8_t W25q32_Init(W25q32* obj) {
 void W25q32_Read_Jedec_Id(W25q32* obj, uint8_t* out_id3) {
     const uint8_t cmd = W25Q32_CMD_READ_JEDEC_ID;
     cs_low(obj);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, &cmd, 1);
-    Bsp_Hard_Spi_Read(obj->config.spi_idx, out_id3, 3);
+    Bsp_Spi_Write(obj->config.spi_idx, &cmd, 1);
+    Bsp_Spi_Read(obj->config.spi_idx, out_id3, 3);
     cs_high(obj);
 }
 
@@ -95,8 +95,8 @@ uint8_t W25q32_Read_Status_Reg_1(W25q32* obj) {
     const uint8_t cmd = W25Q32_CMD_READ_STATUS_REG_1;
     uint8_t sr = 0;
     cs_low(obj);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, &cmd, 1);
-    Bsp_Hard_Spi_Read(obj->config.spi_idx, &sr, 1);
+    Bsp_Spi_Write(obj->config.spi_idx, &cmd, 1);
+    Bsp_Spi_Read(obj->config.spi_idx, &sr, 1);
     cs_high(obj);
     return sr;
 }
@@ -107,7 +107,7 @@ void W25q32_Write_Status_Reg_1(W25q32* obj, uint8_t sr1_value) {
     W25q32_Write_Enable(obj);
     cs_low(obj);
     const uint8_t buf[2] = {W25Q32_CMD_WRITE_STATUS_REG_1, sr1_value};
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, buf, sizeof(buf));
+    Bsp_Spi_Write(obj->config.spi_idx, buf, sizeof(buf));
     cs_high(obj);
     W25q32_Wait_Busy(obj);
 }
@@ -120,7 +120,7 @@ void W25q32_Wait_Busy(W25q32* obj) {
 
 void W25q32_Read(W25q32* obj, uint32_t addr, uint8_t* data, uint32_t len) {
     send_cmd_addr(obj, W25Q32_CMD_READ_DATA, addr);
-    Bsp_Hard_Spi_Read(obj->config.spi_idx, data, len);
+    Bsp_Spi_Read(obj->config.spi_idx, data, len);
     cs_high(obj);
 }
 
@@ -129,7 +129,7 @@ void W25q32_Page_Program(W25q32* obj, uint32_t addr, const uint8_t* data, uint32
 
     W25q32_Write_Enable(obj);
     send_cmd_addr(obj, W25Q32_CMD_PAGE_PROGRAM, addr);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, data, len);
+    Bsp_Spi_Write(obj->config.spi_idx, data, len);
     cs_high(obj);
     W25q32_Wait_Busy(obj);
 }
