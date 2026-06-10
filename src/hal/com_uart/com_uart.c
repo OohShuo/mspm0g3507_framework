@@ -1,10 +1,11 @@
 #include "com_uart.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "board_config.h"
 #include "bsp_uart.h"
+#include "freertos_alloc.h"
 #include "soft_crc.h"
 #include "vector.h"
 
@@ -25,23 +26,23 @@ Com_uart* Com_Uart_Create(const Com_uart_config* config) {
     if (config->data_len == 0 || config->data_len > 253) { return NULL; }
     if (config->uart_idx >= UART_NUM) { return NULL; }
 
-    Com_uart* obj = (Com_uart*)malloc(sizeof(Com_uart));
+    Com_uart* obj = (Com_uart*)pvPortMalloc(sizeof(Com_uart));
     if (obj == NULL) { return NULL; }
     memset(obj, 0, sizeof(Com_uart));
 
     obj->config = *config;
     obj->data_rx.len = config->data_len;
-    obj->data_rx.data = (uint8_t*)malloc(config->data_len);
+    obj->data_rx.data = (uint8_t*)pvPortMalloc(config->data_len);
     obj->data_rx.crc16 = 0;
     if (obj->data_rx.data == NULL) {
-        free(obj);
+        vPortFree(obj);
         return NULL;
     }
 
-    obj->tx_buf = (uint8_t*)malloc((size_t)config->data_len + 3);
+    obj->tx_buf = (uint8_t*)pvPortMalloc((size_t)config->data_len + 3);
     if (obj->tx_buf == NULL) {
-        free(obj->data_rx.data);
-        free(obj);
+        vPortFree(obj->data_rx.data);
+        vPortFree(obj);
         return NULL;
     }
 

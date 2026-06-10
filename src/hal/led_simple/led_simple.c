@@ -1,9 +1,10 @@
 #include "led_simple.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "bsp_time.h"
+#include "freertos_alloc.h"
 #include "vector.h"
 
 static Vector* led_simple_instances = NULL;
@@ -15,7 +16,7 @@ void Led_Simple_Init(void) {
 Led_simple* Led_Simple_Create(const Led_simple_config* config) {
     if (config == NULL || led_simple_instances == NULL) return NULL;
 
-    Led_simple* obj = malloc(sizeof(Led_simple));
+    Led_simple* obj = (Led_simple*)pvPortMalloc(sizeof(Led_simple));
     if (obj == NULL) return NULL;
 
     memset(obj, 0, sizeof(Led_simple));
