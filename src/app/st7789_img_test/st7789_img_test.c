@@ -19,9 +19,9 @@
 
 // === Panel geometry (matches the wiring used by lcd_test) ===
 #define LCD_HOR_RES     240
-#define LCD_VER_RES     240
-#define IMG_W           220
-#define IMG_H           240
+#define LCD_VER_RES     320
+#define IMG_W           100
+#define IMG_H           100
 #define IMG_X_OFFSET    ((LCD_HOR_RES - IMG_W) / 2)  // 10 — center the 220-wide image on the 240-wide panel
 #define IMG_ROW_BYTES   (IMG_W * 2)  // RGB565, little-endian on the wire after St7789_Send_Color's bswap
 #define LINE_BUF_SIZE   IMG_ROW_BYTES
@@ -42,9 +42,9 @@ static void flush_done_cb(void* arg) {
 // Copy one image row into the scratch buffer (bswap16_inplace inside
 // St7789_Send_Color needs a writable buffer — the const image data
 // itself is in flash) and send it as a 1-row window.
-extern const uint8_t MizunoAkane220x240_map[];
+extern const uint8_t MizunoAkane100x100_map[];
 static void flush_image_row(int32_t y) {
-    const uint8_t* src = &MizunoAkane220x240_map[y * IMG_ROW_BYTES];
+    const uint8_t* src = &MizunoAkane100x100_map[y * IMG_ROW_BYTES];
     memcpy(g_line_buf, src, IMG_ROW_BYTES);
     St7789_Flush(g_lcd, IMG_X_OFFSET, y, (int32_t)(IMG_X_OFFSET + IMG_W - 1), y, g_line_buf, IMG_ROW_BYTES);
 }
