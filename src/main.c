@@ -43,7 +43,7 @@ extern void App_Com_Uart_Test_Loop(void);
 #define W25Q32_TEST_ENABLE     0
 #define RTT_TEST_ENABLE        0
 #define LFS_TEST_ENABLE        0
-#define COM_UART_TEST_ENABLE   1
+#define COM_UART_TEST_ENABLE   0
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
