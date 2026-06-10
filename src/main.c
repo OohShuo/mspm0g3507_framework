@@ -33,7 +33,7 @@ extern void App_Lfs_Test_Init(void);
 extern void App_Lfs_Test_Loop(void);
 
 #define LCD_TEST_ENABLE        0
-#define ST7789_IMG_TEST_ENABLE 0
+#define ST7789_IMG_TEST_ENABLE 1
 #define LVGL_HELLO_ENABLE      0
 #define LVGL_BALL_ENABLE       0
 #define W25Q32_TEST_ENABLE     0
