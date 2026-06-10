@@ -2,6 +2,7 @@
 #include "app.h"
 #include "bsp.h"
 #include "hal.h"
+#include "local_lib.h"
 #include "retarget.h"
 #include "task.h"
 #include "ti_msp_dl_config.h"
@@ -175,6 +176,7 @@ int main(void) {
 
     Syscall_Init();
 
+    Local_Lib_Init();
     Bsp_Init();
     Hal_Init();
     App_Init();
