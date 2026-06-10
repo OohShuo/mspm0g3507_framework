@@ -1,9 +1,10 @@
 #include "joystick.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "bsp_adc.h"
+#include "freertos_alloc.h"
 #include "vector.h"
 
 static Vector* joystick_instances = NULL;
@@ -17,7 +18,7 @@ void Joystick_Init(void) {
 Joystick* Joystick_Create(const Joystick_config* config) {
     if (config == NULL || joystick_instances == NULL) return NULL;
 
-    Joystick* obj = malloc(sizeof(Joystick));
+    Joystick* obj = (Joystick*)pvPortMalloc(sizeof(Joystick));
     if (obj == NULL) return NULL;
 
     memset(obj, 0, sizeof(Joystick));

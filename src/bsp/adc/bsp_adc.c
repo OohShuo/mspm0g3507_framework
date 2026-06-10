@@ -1,11 +1,12 @@
 #include "bsp_adc.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 
 #include "board_config.h"
 #include "devices/msp/m0p/mspm0g350x.h"
 #include "dl_adc12.h"
 #include "dl_dma.h"
+#include "freertos_alloc.h"
 #include "vector.h"
 
 #define ADC_DMA_BUFFER_SIZE 32
@@ -36,8 +37,10 @@ void Bsp_Adc_Init(void) {
         bsp_adc_instances[i].dma_tx_size = ((uint32_t[])ADC_DMA_TX_SIZES)[i];
         bsp_adc_instances[i].cb_dma_done_vec = Vector_Init(sizeof(Bsp_adc_cb_t), 1);
         bsp_adc_instances[i].cb_dma_done_arg_vec = Vector_Init(sizeof(void*), 1);
-        bsp_adc_instances[i].adc_value = (float*)malloc(sizeof(float) * bsp_adc_instances[i].channel_num);
-        bsp_adc_instances[i].adc_voltage = (float*)malloc(sizeof(float) * bsp_adc_instances[i].channel_num);
+        bsp_adc_instances[i].adc_value =
+            (float*)pvPortMalloc(sizeof(float) * bsp_adc_instances[i].channel_num);
+        bsp_adc_instances[i].adc_voltage =
+            (float*)pvPortMalloc(sizeof(float) * bsp_adc_instances[i].channel_num);
 
         DL_DMA_setSrcAddr(
             DMA, bsp_adc_instances[i].dma_channel, DL_ADC12_getFIFOAddress(bsp_adc_instances[i].inst));
