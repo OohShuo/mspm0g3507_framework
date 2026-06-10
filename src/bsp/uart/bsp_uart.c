@@ -29,8 +29,7 @@ struct Bsp_uart_instance_t {
     volatile bool rx_in_progress;
     volatile bool continuous_rx_active;
 
-    uint8_t* continuous_rx_buf;
-    uint32_t continuous_rx_max_len;
+    uint8_t continuous_rx_buf[BSP_UART_CONTINUOUS_RX_BUF_SIZE];
 };
 
 static struct Bsp_uart_instance_t bsp_uart_instances[UART_NUM] = {0};
@@ -51,7 +50,6 @@ void Bsp_Uart_Init(void) {
         bsp_uart_instances[i].rx_dma_done.cb_vec = Vector_Init(sizeof(Bsp_uart_rx_dma_done_cb_t), 1);
         bsp_uart_instances[i].rx_dma_done.cb_arg_vec = Vector_Init(sizeof(void*), 1);
         bsp_uart_instances[i].rx_idle.cb_vec = Vector_Init(sizeof(Bsp_uart_rx_idle_cb_t), 1);
-        bsp_uart_instances[i].rx_idle.cb_arg_vec = Vector_Init(sizeof(void*), 1);
 
         DL_DMA_enableChannel(DMA, bsp_uart_instances[i].dma_tx_channel);
         DL_DMA_enableChannel(DMA, bsp_uart_instances[i].dma_rx_channel);
@@ -86,19 +84,17 @@ void Bsp_Uart_Read(uint32_t idx, uint8_t* data, uint32_t len) {
     DL_DMA_enableChannel(DMA, u->dma_rx_channel);
 }
 
-void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint8_t* data, uint32_t len, uint32_t idle_timeout_ms) {
+void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms) {
     if (idx >= UART_NUM) { return; }
     struct Bsp_uart_instance_t* u = &bsp_uart_instances[idx];
 
-    u->continuous_rx_buf = data;
-    u->continuous_rx_max_len = len;
     u->continuous_rx_active = true;
 
     DL_Timer_setLoadValue(u->idle_timer, u->idle_timer_clock_freq / 1000 * idle_timeout_ms - 1);
 
     DL_DMA_setSrcAddr(DMA, u->dma_rx_channel, (uint32_t)(&u->inst->RXDATA));
-    DL_DMA_setDestAddr(DMA, u->dma_rx_channel, (uint32_t)data);
-    DL_DMA_setTransferSize(DMA, u->dma_rx_channel, len);
+    DL_DMA_setDestAddr(DMA, u->dma_rx_channel, (uint32_t)u->continuous_rx_buf);
+    DL_DMA_setTransferSize(DMA, u->dma_rx_channel, BSP_UART_CONTINUOUS_RX_BUF_SIZE);
 
     DL_DMA_enableChannel(DMA, u->dma_rx_channel);
     DL_Timer_startCounter(u->idle_timer);
@@ -146,10 +142,9 @@ void Bsp_Uart_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_uart_rx_dma_done_cb_t cb
     Vector_Push_Back(bsp_uart_instances[idx].rx_dma_done.cb_arg_vec, (void*)&cb_arg);
 }
 
-void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb, void* cb_arg) {
+void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb) {
     if (idx >= UART_NUM || cb == NULL) { return; }
     Vector_Push_Back(bsp_uart_instances[idx].rx_idle.cb_vec, (void*)&cb);
-    Vector_Push_Back(bsp_uart_instances[idx].rx_idle.cb_arg_vec, (void*)&cb_arg);
 }
 
 void Bsp_Uart_Idle_Irq_Handler(uint32_t idx) {
@@ -161,17 +156,17 @@ void Bsp_Uart_Idle_Irq_Handler(uint32_t idx) {
     if (!u->continuous_rx_active || Vector_Get_Size(u->rx_idle.cb_vec) == 0) { return; }
 
     uint32_t remaining = DL_DMA_getTransferSize(DMA, u->dma_rx_channel);
-    uint32_t received = (u->continuous_rx_max_len > remaining) ? u->continuous_rx_max_len - remaining : 0;
+    uint32_t received =
+        (BSP_UART_CONTINUOUS_RX_BUF_SIZE > remaining) ? BSP_UART_CONTINUOUS_RX_BUF_SIZE - remaining : 0;
     if (received == 0) { return; }
 
     for (uint32_t j = 0; j < Vector_Get_Size(u->rx_idle.cb_vec); j++) {
         Bsp_uart_rx_idle_cb_t cb = *(Bsp_uart_rx_idle_cb_t*)Vector_Get_At(u->rx_idle.cb_vec, j);
-        void* cb_arg = *(void**)Vector_Get_At(u->rx_idle.cb_arg_vec, j);
-        cb(cb_arg, received);
+        cb(idx, u->continuous_rx_buf, received);
     }
 
     DL_DMA_disableChannel(DMA, u->dma_rx_channel);
-    DL_DMA_setTransferSize(DMA, u->dma_rx_channel, u->continuous_rx_max_len);
+    DL_DMA_setTransferSize(DMA, u->dma_rx_channel, BSP_UART_CONTINUOUS_RX_BUF_SIZE);
     DL_DMA_enableChannel(DMA, u->dma_rx_channel);
 }
 
@@ -231,10 +226,8 @@ void Bsp_Uart_Read(uint32_t idx, uint8_t* data, uint32_t len) {
     (void)len;
 }
 
-void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint8_t* data, uint32_t len, uint32_t idle_timeout_ms) {
+void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms) {
     (void)idx;
-    (void)data;
-    (void)len;
     (void)idle_timeout_ms;
 }
 
@@ -270,10 +263,9 @@ void Bsp_Uart_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_uart_rx_dma_done_cb_t cb
     (void)cb_arg;
 }
 
-void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb, void* cb_arg) {
+void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb) {
     (void)idx;
     (void)cb;
-    (void)cb_arg;
 }
 
 void Bsp_Uart_Irq_Handler(UART_Regs* uart_inst) { (void)uart_inst; }
