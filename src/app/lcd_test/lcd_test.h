@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
 
 // Test status, exposed so a host-side tool (or a debug log) can read
@@ -9,7 +8,7 @@
 typedef struct {
     const char* pattern_name;
     uint8_t pattern_idx;
-    bool init_done;
+    uint8_t init_done;
 } Lcd_test_status;
 
 // Wire the LCD instance and run the ST7789 init sequence. Must be called

@@ -2,6 +2,7 @@
 
 #include "button.h"
 #include "buzzer.h"
+#include "com_uart.h"
 #include "joystick.h"
 #include "led_breath.h"
 #include "led_simple.h"
@@ -12,6 +13,7 @@ void Hal_Init(void) {
     Button_Init();
     Joystick_Init();
     Buzzer_Init();
+    Com_Uart_Init();
 }
 
 void Hal_Gpio_Loop(void) {

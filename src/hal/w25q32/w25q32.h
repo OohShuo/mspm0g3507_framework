@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -22,7 +21,7 @@ struct W25q32_t {
 
 W25q32* W25q32_Create(const W25q32_config* config);
 
-bool W25q32_Init(W25q32* obj);
+uint8_t W25q32_Init(W25q32* obj);
 
 // identification
 void W25q32_Read_Jedec_Id(W25q32* obj, uint8_t* out_id3);

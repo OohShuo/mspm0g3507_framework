@@ -4,7 +4,6 @@
 
 #include "lvgl_hello.h"
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -26,7 +25,7 @@ static uint8_t g_render_buf[LCD_HOR_RES * LCD_BUF_LINES * 2];
 
 #define LABEL_TOGGLE_MS 1000U
 static uint32_t g_label_last_toggle_ms = 0;
-static bool g_label_show_hello = true;
+static uint8_t g_label_show_hello = 1;
 
 #define BG_TOGGLE_MS 5000U
 static uint32_t g_bg_last_toggle_ms = 0;
