@@ -9,6 +9,8 @@
 #include "rtt_log.h"
 
 #define COM_UART_TEST_UART_IDX       0
+#define COM_UART_TEST_RX_MAX_LEN     253
+#define COM_UART_TEST_TX_MAX_LEN     253
 #define COM_UART_TEST_IDLE_TIMEOUT   10   // ms
 #define COM_UART_TEST_SEND_PERIOD_MS 1000
 
@@ -16,23 +18,31 @@ static Com_uart* g_com = NULL;
 static uint32_t g_last_send_ms = 0;
 
 static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, void* arg) {
-    (void)obj;
     (void)arg;
-    // data points into the bsp's internal rx buffer — only valid during this call.
-    // Copy out for printing. Cap at 128 to keep stack usage bounded.
+
     char buf[129];
     uint32_t n = (len < sizeof(buf) - 1) ? len : (uint32_t)(sizeof(buf) - 1);
     memcpy(buf, data, n);
     buf[n] = '\0';
-    printf("[com_uart_test] RX (%u): %s\n", (unsigned)len, buf);
+    printf("[com_uart_test] RX (%u):\n", (unsigned)len);
+    for (uint32_t i = 0; i < n; i++) {
+        printf("%02X ", data[i]);
+    }
+    printf(" | ");
+    for (uint32_t i = 0; i < n; i++) {
+        char c = (data[i] >= 32 && data[i] <= 126) ? (char)data[i]
+                                  : '.';
+        printf("%c", c);
+    }
+    printf("\n");
 }
 
 void App_Com_Uart_Test_Init(void) {
     static const Com_uart_config cfg = {
         .uart_idx = COM_UART_TEST_UART_IDX,
         .idle_timeout_ms = COM_UART_TEST_IDLE_TIMEOUT,
-        .rx_max_len = 128,
-        .tx_max_len = 128,
+        .rx_max_len = COM_UART_TEST_RX_MAX_LEN,
+        .tx_max_len = COM_UART_TEST_TX_MAX_LEN,
         .on_rx = on_rx,
         .on_rx_arg = NULL,
     };
@@ -52,5 +62,16 @@ void App_Com_Uart_Test_Loop(void) {
         (unsigned long)(now_ms % 1000u));
     if (n <= 0) { return; }
 
-    Com_Uart_Send(g_com, (const uint8_t*)buf, (uint32_t)n);
+    static char* payloads[] = {
+        "Hello, world!",
+        "The quick brown fox jumps over the lazy dog.",
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "1234567890",
+        "!@#$^&*()_+-=[]{}|;':\",./<>?",
+        "Short",
+    };
+
+    static uint32_t payload_idx = 0;
+    Com_Uart_Send(g_com, (const uint8_t*)payloads[payload_idx], (uint32_t)strlen(payloads[payload_idx]));
+    payload_idx = (payload_idx + 1) % (sizeof(payloads) / sizeof(payloads[0]));
 }
