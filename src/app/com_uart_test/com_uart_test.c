@@ -24,11 +24,11 @@ static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, void* arg) {
     uint32_t n = (len < sizeof(buf) - 1) ? len : (uint32_t)(sizeof(buf) - 1);
     memcpy(buf, data, n);
     buf[n] = '\0';
-    printf("[com_uart_test] RX (%u):\n", (unsigned)len);
-    for (uint32_t i = 0; i < n; i++) {
-        printf("%02X ", data[i]);
-    }
-    printf(" | ");
+    // printf("[com_uart_test] RX (%u):\n", (unsigned)len);
+    // for (uint32_t i = 0; i < n; i++) {
+    //     printf("%02X ", data[i]);
+    // }
+    // printf(" | ");
     for (uint32_t i = 0; i < n; i++) {
         char c = (data[i] >= 32 && data[i] <= 126) ? (char)data[i]
                                   : '.';
