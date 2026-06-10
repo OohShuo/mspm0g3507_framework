@@ -7,27 +7,10 @@
 
 #define Bsp_Spi_Write Bsp_Soft_Spi_Write
 
-// ~32 cycles/µs at the default 32 MHz CPUCLK (see ti_msp_dl_config.h).
-// The init sequence's longest delay is 300 ms; this is a one-time cost
-// at boot, so a busy-wait is acceptable (matches w25q32.c style).
 static void busy_wait_ms(uint32_t ms) {
     volatile uint32_t cycles = ms * 32U * 1000U;
     while (cycles--) { (void)cycles; }
 }
-
-// === Module-private state ===
-
-struct St7789_t {
-    St7789_config config;
-    St7789_flush_done_cb flush_done_cb;
-    void* flush_done_cb_arg;
-};
-
-// === Init sequence (from 地猛星 1.3" reference) ===
-//
-// The power/voltage/gamma block (B2, B7, BB, C0, C2, C3, C4, C6, D0,
-// E0, E1) is required or the panel stays blank. INVON (0x21) is also
-// required for this particular 1.3" panel.
 
 typedef struct {
     uint8_t cmd;
@@ -37,11 +20,9 @@ typedef struct {
 } St7789_init_cmd;
 
 static St7789_init_cmd st7789_default_init_seq[] = {
-    // The hardware reset pulse in St7789_Init is sufficient — the
-    // reference (地猛星) goes straight to SLPOUT, no SLPIN/SWRESET.
-    {ST7789_SLPOUT, 120, 0, {0}},  // sleep out (datasheet: wait > 120 ms)
+    {ST7789_SLPOUT, 120, 0, {0}},
 
-    {ST7789_MADCTL, 0, 1, {0x00}},  // overwritten per config.flags
+    {ST7789_MADCTL, 0, 1, {0x00}},
     {ST7789_COLMOD, 0, 1, {ST7789_COLMOD_16BPP}},
 
     {ST7789_PORCTRL, 0, 5, {0x0C, 0x0C, 0x00, 0x33, 0x33}},
@@ -58,13 +39,11 @@ static St7789_init_cmd st7789_default_init_seq[] = {
     {ST7789_NVGAMCTRL, 0, 14,
         {0xD0, 0x04, 0x0C, 0x11, 0x13, 0x2C, 0x3F, 0x44, 0x51, 0x2F, 0x1F, 0x1F, 0x20, 0x23}},
 
-    {ST7789_INVON, 0, 0, {0}},     // display inversion on (required for 1.3" panel)
-    {ST7789_DISPON, 200, 0, {0}},  // display on
+    {ST7789_INVON, 0, 0, {0}},
+    {ST7789_DISPON, 200, 0, {0}},
 };
 
 #define ST7789_INIT_SEQ_LEN (sizeof(st7789_default_init_seq) / sizeof(st7789_default_init_seq[0]))
-
-// === Low-level helpers ===
 
 static void cs_low(St7789* obj) {
     if (obj->config.cs_gpio_idx != (uint32_t)-1) {
@@ -78,12 +57,10 @@ static void cs_high(St7789* obj) {
     }
 }
 
-// ST7789 convention: DC low = command, DC high = data.
 static void dc_cmd(St7789* obj) { Bsp_Gpio_Write(obj->config.dc_gpio_idx, bsp_gpio_state_reset); }
 
 static void dc_data(St7789* obj) { Bsp_Gpio_Write(obj->config.dc_gpio_idx, bsp_gpio_state_set); }
 
-// One CS-low/high cycle: command byte, then optional params.
 static void send_cmd(
     St7789* obj, const uint8_t* cmd, uint32_t cmd_len, const uint8_t* params, uint32_t params_len) {
     cs_low(obj);
@@ -96,7 +73,6 @@ static void send_cmd(
     cs_high(obj);
 }
 
-// In-place byte-swap of an array of 16-bit pixels (LE → BE for SPI MSB-first).
 static void bswap16_inplace(uint8_t* data, uint32_t byte_count) {
     uint16_t* px = (uint16_t*)data;
     const uint32_t n = byte_count / 2;
@@ -104,14 +80,6 @@ static void bswap16_inplace(uint8_t* data, uint32_t byte_count) {
 }
 
 // === Public API ===
-
-// One LCD per build (each app links against its own g_lcd, and the
-// demo apps are mutually exclusive targets). Backing the handle with
-// a static removes the heap dependency that used to return NULL on a
-// fragmented/starved FreeRTOS heap — there is now no allocation to
-// fail, and the caller-side `if (g_lcd == NULL) { return; }` checks
-// degrade to pure defensive guards against a NULL config (which
-// none of the current call sites ever pass).
 static St7789 s_lcd_storage;
 
 St7789* St7789_Create(const St7789_config* config) {
@@ -123,7 +91,6 @@ St7789* St7789_Create(const St7789_config* config) {
 }
 
 void St7789_Reset(St7789* obj) {
-    // Hardware reset pulse.
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_reset);
     busy_wait_ms(100);
     Bsp_Gpio_Write(obj->config.rst_gpio_idx, bsp_gpio_state_set);
@@ -131,7 +98,6 @@ void St7789_Reset(St7789* obj) {
 }
 
 void St7789_Run_Init_Sequence(St7789* obj) {
-    // Build MADCTL byte from config.flags.
     if (obj->config.flags.mirror_x) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MX; }
     if (obj->config.flags.mirror_y) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MY; }
     if (obj->config.flags.color_use_bgr) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_BGR; }

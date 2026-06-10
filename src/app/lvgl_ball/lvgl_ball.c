@@ -4,7 +4,6 @@
 
 #include "lvgl_ball.h"
 
-#include <stdbool.h>
 #include <stddef.h>
 
 #include "board_config.h"
@@ -109,7 +108,7 @@ void App_Lvgl_Ball_Init(void) {
     if (g_disp == NULL) { return; }
     lv_display_set_buffers(g_disp, g_render_buf, NULL, sizeof(g_render_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
 
-    lv_lcd_generic_mipi_set_invert(g_disp, true);
+    lv_lcd_generic_mipi_set_invert(g_disp, 1);
 
     // Dark background — gives the white border and red ball strong
     // contrast. NOTE: we do NOT call lv_obj_invalidate on the screen
