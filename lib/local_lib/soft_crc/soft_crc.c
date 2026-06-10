@@ -1,7 +1,9 @@
 #include "soft_crc.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
+
+#include "freertos_alloc.h"
 
 Soft_crc16* soft_crc16_default = NULL;
 Soft_crc8* soft_crc8_default = NULL;
@@ -24,7 +26,7 @@ static uint8_t bit_reverse_u8(uint8_t x) {
 
 Soft_crc16* Soft_Crc16_Create(const Soft_crc16_config* config) {
     if (config == NULL) { return NULL; }
-    Soft_crc16* obj = (Soft_crc16*)malloc(sizeof(Soft_crc16));
+    Soft_crc16* obj = (Soft_crc16*)pvPortMalloc(sizeof(Soft_crc16));
     if (obj == NULL) { return NULL; }
 
     uint16_t table_poly = bit_reverse_u16(config->poly);
@@ -47,7 +49,7 @@ Soft_crc16* Soft_Crc16_Create(const Soft_crc16_config* config) {
 
 Soft_crc8* Soft_Crc8_Create(const Soft_crc8_config* config) {
     if (config == NULL) { return NULL; }
-    Soft_crc8* obj = (Soft_crc8*)malloc(sizeof(Soft_crc8));
+    Soft_crc8* obj = (Soft_crc8*)pvPortMalloc(sizeof(Soft_crc8));
     if (obj == NULL) { return NULL; }
 
     uint8_t table_poly = bit_reverse_u8(config->poly);

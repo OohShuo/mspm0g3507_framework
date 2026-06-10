@@ -1,9 +1,10 @@
 #include "led_breath.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "bsp_time.h"
+#include "freertos_alloc.h"
 #include "vector.h"
 
 static Vector* led_breath_instances = NULL;
@@ -15,7 +16,7 @@ void Led_Breath_Init(void) {
 Led_breath* Led_Breath_Create(const Led_breath_config* config) {
     if (config == NULL || led_breath_instances == NULL) return NULL;
 
-    Led_breath* obj = malloc(sizeof(Led_breath));
+    Led_breath* obj = (Led_breath*)pvPortMalloc(sizeof(Led_breath));
     if (obj == NULL) return NULL;
 
     memset(obj, 0, sizeof(Led_breath));
