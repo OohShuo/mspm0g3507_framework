@@ -65,10 +65,10 @@ static void send_cmd(
     St7789* obj, const uint8_t* cmd, uint32_t cmd_len, const uint8_t* params, uint32_t params_len) {
     cs_low(obj);
     dc_cmd(obj);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
+    Bsp_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
     if (params_len > 0) {
         dc_data(obj);
-        Bsp_Hard_Spi_Write(obj->config.spi_idx, params, params_len);
+        Bsp_Spi_Write(obj->config.spi_idx, params, params_len);
     }
     cs_high(obj);
 }
@@ -105,6 +105,7 @@ void St7789_Run_Init_Sequence(St7789* obj) {
 
     for (uint32_t i = 0; i < ST7789_INIT_SEQ_LEN; i++) {
         const St7789_init_cmd* c = &st7789_default_init_seq[i];
+        if (!obj->config.flags.use_inv && c->cmd == ST7789_INVON) { continue; }
         send_cmd(obj, &c->cmd, 1, c->args, c->arg_count);
         if (c->delay_ms > 0) { busy_wait_ms(c->delay_ms); }
     }
@@ -129,9 +130,9 @@ void St7789_Send_Color(
     bswap16_inplace(pixels, pixels_len);
     cs_low(obj);
     dc_cmd(obj);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
+    Bsp_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
     dc_data(obj);
-    Bsp_Hard_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
+    Bsp_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
     cs_high(obj);
 }
 
