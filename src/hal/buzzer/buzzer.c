@@ -1,9 +1,10 @@
 #include "buzzer.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "bsp_time.h"
+#include "freertos_alloc.h"
 #include "vector.h"
 
 // 滑音标记：最高位置 1 表示该音符需要滑音到下一个音
@@ -18,7 +19,7 @@ void Buzzer_Init(void) {
 Buzzer* Buzzer_Create(const Buzzer_config* config) {
     if (config == NULL || buzzer_instances == NULL) return NULL;
 
-    Buzzer* obj = malloc(sizeof(Buzzer));
+    Buzzer* obj = (Buzzer*)pvPortMalloc(sizeof(Buzzer));
     if (obj == NULL) return NULL;
 
     memset(obj, 0, sizeof(Buzzer));

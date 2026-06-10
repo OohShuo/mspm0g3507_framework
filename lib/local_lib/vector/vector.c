@@ -1,17 +1,19 @@
 #include "vector.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
+
+#include "freertos_alloc.h"
 
 Vector* Vector_Init(uint32_t element_size, uint32_t init_capacity) {
     if (element_size == 0 || init_capacity == 0) return NULL;
 
-    Vector* obj = malloc(sizeof(Vector));
+    Vector* obj = (Vector*)pvPortMalloc(sizeof(Vector));
     if (obj == NULL) return NULL;
 
-    obj->p_data = malloc(element_size * init_capacity);
+    obj->p_data = pvPortMalloc((size_t)element_size * init_capacity);
     if (obj->p_data == NULL) {
-        free(obj);
+        vPortFree(obj);
         return NULL;
     }
 
@@ -26,7 +28,7 @@ void Vector_Deinit(Vector* obj) {
     if (obj == NULL) return;
 
     if (obj->p_data != NULL) {
-        free(obj->p_data);
+        vPortFree(obj->p_data);
         obj->p_data = NULL;
     }
     obj->total_size = 0;
@@ -38,8 +40,11 @@ void Vector_Push_Back(Vector* obj, void* element) {
 
     if (obj->total_size >= obj->capacity) {
         uint32_t new_capacity = obj->capacity * 2;
-        void* new_ptr = realloc(obj->p_data, new_capacity * obj->element_size);
+        size_t new_size = (size_t)new_capacity * obj->element_size;
+        void* new_ptr = pvPortMalloc(new_size);
         if (new_ptr == NULL) return;
+        memcpy(new_ptr, obj->p_data, (size_t)obj->capacity * obj->element_size);
+        vPortFree(obj->p_data);
 
         obj->p_data = new_ptr;
         obj->capacity = new_capacity;

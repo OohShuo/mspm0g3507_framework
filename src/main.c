@@ -17,6 +17,7 @@ TaskHandle_t lvgl_ball_task_handle = NULL;
 TaskHandle_t w25q32_test_task_handle = NULL;
 TaskHandle_t rtt_test_task_handle = NULL;
 TaskHandle_t lfs_test_task_handle = NULL;
+TaskHandle_t com_uart_test_task_handle = NULL;
 
 extern void App_Lcd_Test_Init(void);
 extern void App_Lcd_Test_Loop(void);
@@ -32,6 +33,8 @@ extern void Rtt_Test_Init(void);
 extern void Rtt_Test_Loop(void);
 extern void App_Lfs_Test_Init(void);
 extern void App_Lfs_Test_Loop(void);
+extern void App_Com_Uart_Test_Init(void);
+extern void App_Com_Uart_Test_Loop(void);
 
 #define LCD_TEST_ENABLE        0
 #define ST7789_IMG_TEST_ENABLE 0
@@ -40,6 +43,7 @@ extern void App_Lfs_Test_Loop(void);
 #define W25Q32_TEST_ENABLE     0
 #define RTT_TEST_ENABLE        0
 #define LFS_TEST_ENABLE        0
+#define COM_UART_TEST_ENABLE   1
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
@@ -171,6 +175,21 @@ static void task_lfs_test(void* arg) {
 }
 #endif
 
+#if COM_UART_TEST_ENABLE
+static void task_com_uart_test(void* arg) {
+    (void)arg;
+    App_Com_Uart_Test_Init();
+    uint32_t tick = xTaskGetTickCount();
+    while (1) {
+        App_Com_Uart_Test_Loop();
+        // 1 s tick is the send cadence; on_rx fires from the bsp idle
+        // ISR and prints synchronously via printf, so the loop only
+        // needs to wake up often enough to drive the heartbeat send.
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(1000));
+    }
+}
+#endif
+
 int main(void) {
     SYSCFG_DL_init();
 
@@ -204,6 +223,9 @@ int main(void) {
 #endif
 #if LFS_TEST_ENABLE
     xTaskCreate(task_lfs_test, "LFS_Test", 1024, NULL, 1, &lfs_test_task_handle);
+#endif
+#if COM_UART_TEST_ENABLE
+    xTaskCreate(task_com_uart_test, "ComUartTest", 512, NULL, 1, &com_uart_test_task_handle);
 #endif
 
     vTaskStartScheduler();

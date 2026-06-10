@@ -1,9 +1,10 @@
 #include "button.h"
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "bsp_time.h"
+#include "freertos_alloc.h"
 #include "vector.h"
 
 #define DEBOUNCE_TIME_MS 20
@@ -17,7 +18,7 @@ void Button_Init(void) {
 Button* Button_Create(const Button_config* config) {
     if (config == NULL || button_instances == NULL) return NULL;
 
-    Button* obj = malloc(sizeof(Button));
+    Button* obj = (Button*)pvPortMalloc(sizeof(Button));
     if (obj == NULL) return NULL;
 
     memset(obj, 0, sizeof(Button));
