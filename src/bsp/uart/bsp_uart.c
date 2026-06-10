@@ -30,6 +30,7 @@ struct Bsp_uart_instance_t {
     volatile uint8_t tx_in_progress;
     volatile uint8_t rx_in_progress;
     volatile uint8_t continuous_rx_active;
+    uint8_t continuous_rx_in_progress;
     uint32_t continuous_rx_len;
     uint8_t* continuous_rx_dest_buf;
     uint32_t continuous_rx_max_len;
@@ -100,6 +101,7 @@ void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms, uint8_
 
     u->continuous_rx_active = 1;
     u->continuous_rx_len = 0;
+    u->continuous_rx_in_progress = 0;
     u->continuous_rx_dest_buf = buf;
     u->continuous_rx_max_len = max_len;
 
@@ -184,7 +186,7 @@ void Bsp_Uart_Idle_Irq_Handler(uint32_t idx) {
             memcpy(u->continuous_rx_dest_buf + u->continuous_rx_len, u->continuous_rx_buf, received);
             u->continuous_rx_len += received;
         }
-        
+
         if (u->continuous_rx_len > 0) {
             for (uint32_t j = 0; j < Vector_Get_Size(u->rx_idle.cb_vec); j++) {
                 Bsp_uart_rx_idle_cb_t cb = *(Bsp_uart_rx_idle_cb_t*)Vector_Get_At(u->rx_idle.cb_vec, j);
@@ -194,6 +196,8 @@ void Bsp_Uart_Idle_Irq_Handler(uint32_t idx) {
         }
         u->continuous_rx_len = 0;
     }
+
+    u->continuous_rx_in_progress = 0;
 
     DL_DMA_setDestAddr(DMA, u->dma_rx_channel, (uint32_t)u->continuous_rx_buf);
     DL_DMA_setTransferSize(DMA, u->dma_rx_channel, BSP_UART_CONTINUOUS_RX_BUF_SIZE);
@@ -253,6 +257,14 @@ void Bsp_Uart_Irq_Handler(UART_Regs* uart_inst) {
                 }
                 break;
             }
+            case DL_UART_MAIN_IIDX_RX:
+                if (!u->continuous_rx_in_progress) {
+                    u->continuous_rx_in_progress = 1;
+                    uint32_t load_value = DL_Timer_getLoadValue(u->idle_timer);
+                    DL_Timer_setTimerCount(u->idle_timer, load_value - 1);
+                    DL_Timer_startCounter(u->idle_timer);
+                }
+                break;
             default:
                 break;
         }
