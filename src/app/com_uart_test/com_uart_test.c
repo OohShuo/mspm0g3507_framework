@@ -11,7 +11,7 @@
 #define COM_UART_TEST_UART_IDX       0
 #define COM_UART_TEST_RX_MAX_LEN     253
 #define COM_UART_TEST_TX_MAX_LEN     253
-#define COM_UART_TEST_IDLE_TIMEOUT   10   // ms
+#define COM_UART_TEST_IDLE_TIMEOUT   5   // ms
 #define COM_UART_TEST_SEND_PERIOD_MS 1000
 
 static Com_uart* g_com = NULL;
