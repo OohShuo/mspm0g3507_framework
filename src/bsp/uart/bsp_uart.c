@@ -112,6 +112,7 @@ void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms, uint8_
 void Bsp_Uart_Stop_Continuous_Rx(uint32_t idx) {
     if (idx >= UART_NUM) { return; }
     bsp_uart_instances[idx].continuous_rx_active = 0;
+    bsp_uart_instances[idx].continuous_rx_len = 0;
 
     DL_DMA_disableChannel(DMA, bsp_uart_instances[idx].dma_rx_channel);
     DL_Timer_stopCounter(bsp_uart_instances[idx].idle_timer);
@@ -166,24 +167,30 @@ void Bsp_Uart_Idle_Irq_Handler(uint32_t idx) {
 
     if (!u->continuous_rx_active) { return; }
 
+    DL_DMA_disableChannel(DMA, u->dma_rx_channel);
+
     uint32_t remaining = DL_DMA_getTransferSize(DMA, u->dma_rx_channel);
     uint32_t received =
         (BSP_UART_CONTINUOUS_RX_BUF_SIZE > remaining) ? BSP_UART_CONTINUOUS_RX_BUF_SIZE - remaining : 0;
 
     if (u->continuous_rx_len + received > u->continuous_rx_max_len) {
-        // TODO
+        u->continuous_rx_len = 0;
+    } else {
+        if (received > 0) {
+            memcpy(u->continuous_rx_dest_buf + u->continuous_rx_len, u->continuous_rx_buf, received);
+            u->continuous_rx_len += received;
+        }
+        
+        if (u->continuous_rx_len > 0) {
+            for (uint32_t j = 0; j < Vector_Get_Size(u->rx_idle.cb_vec); j++) {
+                Bsp_uart_rx_idle_cb_t cb = *(Bsp_uart_rx_idle_cb_t*)Vector_Get_At(u->rx_idle.cb_vec, j);
+                void* cb_arg = *(void**)Vector_Get_At(u->rx_idle.cb_arg_vec, j);
+                cb(idx, u->continuous_rx_dest_buf, u->continuous_rx_len, cb_arg);
+            }
+        }
+        u->continuous_rx_len = 0;
     }
-    memcpy(u->continuous_rx_dest_buf + u->continuous_rx_len, u->continuous_rx_buf, received);
-    u->continuous_rx_len += received;
 
-    for (uint32_t j = 0; j < Vector_Get_Size(u->rx_idle.cb_vec); j++) {
-        Bsp_uart_rx_idle_cb_t cb = *(Bsp_uart_rx_idle_cb_t*)Vector_Get_At(u->rx_idle.cb_vec, j);
-        void* cb_arg = *(void**)Vector_Get_At(u->rx_idle.cb_arg_vec, j);
-        cb(idx, u->continuous_rx_dest_buf, u->continuous_rx_len, cb_arg);
-    }
-
-    u->continuous_rx_len = 0;
-    DL_DMA_disableChannel(DMA, u->dma_rx_channel);
     DL_DMA_setDestAddr(DMA, u->dma_rx_channel, (uint32_t)u->continuous_rx_buf);
     DL_DMA_setTransferSize(DMA, u->dma_rx_channel, BSP_UART_CONTINUOUS_RX_BUF_SIZE);
     DL_DMA_enableChannel(DMA, u->dma_rx_channel);
@@ -219,11 +226,15 @@ void Bsp_Uart_Irq_Handler(UART_Regs* uart_inst) {
                 DL_Timer_startCounter(u->idle_timer);
 
                 if (u->continuous_rx_len + BSP_UART_CONTINUOUS_RX_BUF_SIZE > u->continuous_rx_max_len) {
-                    // TODO
+                    // Same overflow policy as the idle handler: drop the
+                    // in-flight frame and let the next idle / DMA-done
+                    // start clean.
+                    u->continuous_rx_len = 0;
+                } else {
+                    memcpy(u->continuous_rx_dest_buf + u->continuous_rx_len, u->continuous_rx_buf,
+                        BSP_UART_CONTINUOUS_RX_BUF_SIZE);
+                    u->continuous_rx_len += BSP_UART_CONTINUOUS_RX_BUF_SIZE;
                 }
-                memcpy(u->continuous_rx_dest_buf + u->continuous_rx_len, u->continuous_rx_buf,
-                    BSP_UART_CONTINUOUS_RX_BUF_SIZE);
-                u->continuous_rx_len += BSP_UART_CONTINUOUS_RX_BUF_SIZE;
 
                 DL_DMA_disableChannel(DMA, u->dma_rx_channel);
                 DL_DMA_setDestAddr(DMA, u->dma_rx_channel, (uint32_t)u->continuous_rx_buf);
