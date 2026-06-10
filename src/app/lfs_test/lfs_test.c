@@ -58,18 +58,18 @@ static Lfs_port* g_port = NULL;
 #define LFS_TEST_RESULT_MAX 16
 static Lfs_Test_Result g_results[LFS_TEST_RESULT_MAX];
 static uint8_t g_result_count = 0;
-static bool g_all_passed = false;
+static uint8_t g_all_passed = 0;
 
 static void record(const char* name, int err) {
     if (g_result_count >= LFS_TEST_RESULT_MAX) { return; }
     g_results[g_result_count].name = name;
     g_results[g_result_count].lfs_err = err;
-    g_results[g_result_count].passed = (err == 0);
+    g_results[g_result_count].passed = (uint8_t)(err == 0);
     g_result_count++;
     printf("  [%s] %-32s err=%d\n", err == 0 ? " OK " : "FAIL", name, err);
 }
 
-static void record_noerr(const char* name, bool ok) { record(name, ok ? 0 : -1); }
+static void record_noerr(const char* name, uint8_t ok) { record(name, ok ? 0 : -1); }
 
 /* ------------------------------------------------------------------ */
 /* Init                                                                */
@@ -86,7 +86,7 @@ void App_Lfs_Test_Init(void) {
     g_flash = W25q32_Create(&cfg);
     if (!W25q32_Init(g_flash)) {
         record("W25Q32 init", -1);
-        g_all_passed = false;
+        g_all_passed = 0;
         return;
     }
     record("W25Q32 init", 0);
@@ -104,7 +104,7 @@ void App_Lfs_Test_Init(void) {
     g_port = Lfs_Port_Create(&lfs_cfg);
     if (g_port == NULL) {
         record("Lfs_Port_Create", -1);
-        g_all_passed = false;
+        g_all_passed = 0;
         return;
     }
     record("Lfs_Port_Create", 0);
@@ -117,14 +117,14 @@ void App_Lfs_Test_Init(void) {
     err = Lfs_Port_Format(g_port);
     record("format", err);
     if (err != 0) {
-        g_all_passed = false;
+        g_all_passed = 0;
         return;
     }
 
     err = Lfs_Port_Mount(g_port);
     record("mount (after format)", err);
     if (err != 0) {
-        g_all_passed = false;
+        g_all_passed = 0;
         return;
     }
 
@@ -152,7 +152,7 @@ void App_Lfs_Test_Init(void) {
     {
         lfs_file_t f;
         err = lfs_file_open(lfs, &f, "boot_count", LFS_O_RDONLY);
-        bool match = false;
+        uint8_t match = 0;
         if (err == 0) {
             char read_buf[64] = {0};
             lfs_size_t n = lfs_file_read(lfs, &f, read_buf, sizeof(read_buf) - 1);
@@ -170,7 +170,7 @@ void App_Lfs_Test_Init(void) {
     {
         struct lfs_info info;
         err = lfs_stat(lfs, "boot_count", &info);
-        bool ok = (err == 0) && (info.size > 0) && (info.type == LFS_TYPE_REG);
+        uint8_t ok = (uint8_t)((err == 0) && (info.size > 0) && (info.type == LFS_TYPE_REG));
         record_noerr("stat boot_count (size>0)", ok);
         if (err == 0) { printf("       size=%lu type=%d\n", (unsigned long)info.size, (int)info.type); }
     }
@@ -221,8 +221,10 @@ void App_Lfs_Test_Init(void) {
     if (err == 0) {
         lfs_t* lfs2 = Lfs_Port_Get_Lfs(g_port);
         struct lfs_info info;
-        bool boot_ok = (lfs_stat(lfs2, "boot_count", &info) == 0) && (info.size > 0);
-        bool cfg_ok = (lfs_stat(lfs2, "config.txt", &info) == 0) && (info.size > 0);
+        uint8_t boot_ok =
+            (uint8_t)((lfs_stat(lfs2, "boot_count", &info) == 0) && (info.size > 0));
+        uint8_t cfg_ok =
+            (uint8_t)((lfs_stat(lfs2, "config.txt", &info) == 0) && (info.size > 0));
         record_noerr("persisted boot_count", boot_ok);
         record_noerr("persisted config.txt", cfg_ok);
     }
@@ -251,10 +253,10 @@ void App_Lfs_Test_Init(void) {
     }
 
     /* ---- aggregate ---- */
-    g_all_passed = true;
+    g_all_passed = 1;
     for (uint8_t i = 0; i < g_result_count; i++) {
         if (!g_results[i].passed) {
-            g_all_passed = false;
+            g_all_passed = 0;
             break;
         }
     }
@@ -285,7 +287,7 @@ void App_Lfs_Test_Loop(void) { /* Test runs once in Init; the loop is intentiona
 
 const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return g_results; }
 uint8_t App_Lfs_Test_Get_Result_Count(void) { return g_result_count; }
-bool App_Lfs_Test_All_Passed(void) { return g_all_passed; }
+uint8_t App_Lfs_Test_All_Passed(void) { return g_all_passed; }
 
 #else
 
@@ -293,6 +295,6 @@ void App_Lfs_Test_Init(void) {  }
 void App_Lfs_Test_Loop(void) { /* no-op */ }
 const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return NULL; }
 uint8_t App_Lfs_Test_Get_Result_Count(void) { return 0; }
-bool App_Lfs_Test_All_Passed(void) { return false; }
+uint8_t App_Lfs_Test_All_Passed(void) { return 0; }
 
 #endif

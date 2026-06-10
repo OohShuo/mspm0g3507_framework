@@ -65,7 +65,7 @@ W25q32* W25q32_Create(const W25q32_config* config) {
     return &s_w25q32_storage;
 }
 
-bool W25q32_Init(W25q32* obj) {
+uint8_t W25q32_Init(W25q32* obj) {
     W25q32_Release_Power_Down(obj);
 
     W25q32_Reset(obj);
@@ -80,7 +80,7 @@ bool W25q32_Init(W25q32* obj) {
     obj->manufacturer_id = id3[0];
     obj->memory_type = id3[1];
     obj->capacity = id3[2];
-    return (id3[0] == W25Q32_JEDEC_MFR_WINBOND);
+    return (uint8_t)(id3[0] == W25Q32_JEDEC_MFR_WINBOND);
 }
 
 void W25q32_Read_Jedec_Id(W25q32* obj, uint8_t* out_id3) {

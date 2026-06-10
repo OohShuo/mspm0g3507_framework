@@ -81,7 +81,7 @@ void App_St7789_Img_Test_Init(void) {
     St7789_Register_Flush_Done_Cb(g_lcd, flush_done_cb, NULL);
 
     g_status.image_name = "MizunoAkane220x240";
-    g_status.init_done = true;
+    g_status.init_done = 1;
 }
 
 void App_St7789_Img_Test_Loop(void) {
