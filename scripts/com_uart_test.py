@@ -129,7 +129,7 @@ def main() -> int:
             if now - last_send >= 1.0:
                 last_send = now
                 ts = time.strftime("%H:%M:%S")
-                payload = f"from pc {ts}".encode("utf-8")
+                payload = f"111 from pc {ts}".encode("utf-8")
                 try:
                     ser.write(make_frame(payload))
                 except serial.SerialException as e:
