@@ -18,6 +18,7 @@ TaskHandle_t w25q32_test_task_handle = NULL;
 TaskHandle_t rtt_test_task_handle = NULL;
 TaskHandle_t lfs_test_task_handle = NULL;
 TaskHandle_t com_uart_test_task_handle = NULL;
+TaskHandle_t slip_recv_task_handle = NULL;
 
 extern void App_Lcd_Test_Init(void);
 extern void App_Lcd_Test_Loop(void);
@@ -35,6 +36,8 @@ extern void App_Lfs_Test_Init(void);
 extern void App_Lfs_Test_Loop(void);
 extern void App_Com_Uart_Test_Init(void);
 extern void App_Com_Uart_Test_Loop(void);
+extern void App_Slip_Recv_Init(void);
+extern void App_Slip_Recv_Loop(void);
 
 #define LCD_TEST_ENABLE        0
 #define ST7789_IMG_TEST_ENABLE 1
@@ -44,6 +47,7 @@ extern void App_Com_Uart_Test_Loop(void);
 #define RTT_TEST_ENABLE        0
 #define LFS_TEST_ENABLE        0
 #define COM_UART_TEST_ENABLE   0
+#define SLIP_RECV_ENABLE       1
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
@@ -190,6 +194,14 @@ static void task_com_uart_test(void* arg) {
 }
 #endif
 
+#if SLIP_RECV_ENABLE
+static void task_slip_recv(void* arg) {
+    (void)arg;
+    App_Slip_Recv_Init();
+    while (1) { App_Slip_Recv_Loop(); }
+}
+#endif
+
 int main(void) {
     SYSCFG_DL_init();
 
@@ -226,6 +238,10 @@ int main(void) {
 #endif
 #if COM_UART_TEST_ENABLE
     xTaskCreate(task_com_uart_test, "ComUartTest", 512, NULL, 1, &com_uart_test_task_handle);
+#endif
+#if SLIP_RECV_ENABLE
+    // All work is in the idle_cb, so the task body just parks cheaply.
+    xTaskCreate(task_slip_recv, "SlipRecv", 256, NULL, 1, &slip_recv_task_handle);
 #endif
 
     vTaskStartScheduler();
