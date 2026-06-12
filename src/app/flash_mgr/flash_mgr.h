@@ -77,7 +77,7 @@ typedef struct {
  *
  * Called from main.c.  Must run after Hal_Init().
  */
-void flash_mgr_protocol_init(void);
+void Flash_Mgr_Init(void);
 
 // clang-format on
 
