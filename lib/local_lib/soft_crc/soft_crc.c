@@ -10,17 +10,13 @@ Soft_crc8* soft_crc8_default = NULL;
 
 static uint16_t bit_reverse_u16(uint16_t x) {
     uint16_t result = 0;
-    for (uint32_t i = 0; i < 16; i++) {
-        result |= (uint16_t)(((x >> i) & 1u) << (15 - i));
-    }
+    for (uint32_t i = 0; i < 16; i++) { result |= (uint16_t)(((x >> i) & 1u) << (15 - i)); }
     return result;
 }
 
 static uint8_t bit_reverse_u8(uint8_t x) {
     uint8_t result = 0;
-    for (uint32_t i = 0; i < 8; i++) {
-        result |= (uint8_t)(((x >> i) & 1u) << (7 - i));
-    }
+    for (uint32_t i = 0; i < 8; i++) { result |= (uint8_t)(((x >> i) & 1u) << (7 - i)); }
     return result;
 }
 
@@ -100,8 +96,6 @@ uint16_t Soft_Crc16_Calc(const Soft_crc16* obj, const uint8_t* data, uint32_t nu
 uint8_t Soft_Crc8_Calc(const Soft_crc8* obj, const uint8_t* data, uint32_t num_bytes) {
     if (obj == NULL || data == NULL) { return 0; }
     uint8_t crc = obj->crc_init;
-    for (uint32_t i = 0; i < num_bytes; i++) {
-        crc = obj->table[(crc ^ data[i]) & 0xFFu];
-    }
+    for (uint32_t i = 0; i < num_bytes; i++) { crc = obj->table[(crc ^ data[i]) & 0xFFu]; }
     return crc;
 }
