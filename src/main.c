@@ -19,6 +19,7 @@ TaskHandle_t rtt_test_task_handle = NULL;
 TaskHandle_t lfs_test_task_handle = NULL;
 TaskHandle_t com_uart_test_task_handle = NULL;
 TaskHandle_t slip_recv_task_handle = NULL;
+TaskHandle_t flash_mgr_init_task_handle = NULL;
 
 extern void App_Lcd_Test_Init(void);
 extern void App_Lcd_Test_Loop(void);
@@ -41,7 +42,7 @@ extern void App_Slip_Recv_Loop(void);
 extern void flash_mgr_protocol_init(void);
 
 #define LCD_TEST_ENABLE        0
-#define ST7789_IMG_TEST_ENABLE 1
+#define ST7789_IMG_TEST_ENABLE 0
 #define LVGL_HELLO_ENABLE      0
 #define LVGL_BALL_ENABLE       0
 #define W25Q32_TEST_ENABLE     0
@@ -204,6 +205,14 @@ static void task_slip_recv(void* arg) {
 }
 #endif
 
+#if FLASH_MGR_ENABLE
+static void task_flash_mgr_init(void* arg) {
+    (void)arg;
+    flash_mgr_protocol_init();
+    vTaskDelete(NULL);
+}
+#endif
+
 int main(void) {
     SYSCFG_DL_init();
 
@@ -246,7 +255,7 @@ int main(void) {
     xTaskCreate(task_slip_recv, "SlipRecv", 256, NULL, 1, &slip_recv_task_handle);
 #endif
 #if FLASH_MGR_ENABLE
-    flash_mgr_protocol_init();
+    xTaskCreate(task_flash_mgr_init, "FlashMgrInit", 1024, NULL, 2, &flash_mgr_init_task_handle);
 #endif
 
     vTaskStartScheduler();

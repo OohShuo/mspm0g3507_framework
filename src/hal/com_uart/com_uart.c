@@ -73,6 +73,12 @@ static void com_uart_idle_cb(uint32_t idx, uint8_t* data, uint32_t len, void* ar
     if (obj == NULL || obj->config.uart_idx != idx) { return; }
     if (len == 0) { return; }
 
+    // for (uint32_t i = 0; i < len; i++) {
+    //     printf("%02x ", data[i]);
+    //     if ((i + 1) % 16 == 0) { printf("\n"); }
+    // }
+    // printf("\n");
+
     if (obj->proto != NULL) { obj->proto->ops->recv_feed(obj->proto, data, (uint16_t)len); }
 }
 

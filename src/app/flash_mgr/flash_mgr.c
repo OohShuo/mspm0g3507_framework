@@ -38,14 +38,14 @@
 #define FLASH_MGR_RX_MAX_LEN          600u
 #define FLASH_MGR_TX_MAX_LEN          600u
 #define FLASH_MGR_IDLE_TIMEOUT_MS     5u
-#define FLASH_MGR_PROTO_MAX_PAYLOAD   515u  /* CMD(1)+SEQ(2)+data(512) */
+#define FLASH_MGR_PROTO_MAX_PAYLOAD   520u  /* CMD(1)+SEQ(2)+data(512)+offset(4) max = 519 */
 
 /* ------------------------------------------------------------------ */
 /* Task / queue config                                                  */
 /* ------------------------------------------------------------------ */
 
-#define FLASH_MGR_TASK_STACK_WORDS 768u
-#define FLASH_MGR_TASK_PRIORITY    2u
+#define FLASH_MGR_TASK_STACK_WORDS 1024
+#define FLASH_MGR_TASK_PRIORITY    1u
 #define FLASH_MGR_QUEUE_DEPTH      4u
 
 /* ------------------------------------------------------------------ */
@@ -201,10 +201,12 @@ static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
     }
 
     if (g_cmd_queue != NULL) {
-        BaseType_t ok = xQueueSendToBack(g_cmd_queue, &queue_item, 0);
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        BaseType_t ok = xQueueSendToBackFromISR(g_cmd_queue, &queue_item, &xHigherPriorityTaskWoken);
         if (ok != pdPASS) {
             send_response(FLASH_MGR_RESP_BUSY, seq, NULL, 0);
         }
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 
     g_last_seq     = seq;
@@ -690,7 +692,7 @@ void flash_mgr_protocol_init(void) {
 
 #else
 
-#include <stddef.h>
+    #include <stddef.h>
 
 void flash_mgr_protocol_init(void) { (void)0; }
 
