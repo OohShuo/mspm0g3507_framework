@@ -1,4 +1,4 @@
-#include "lvgl_hello.h"
+#include "test_lvgl_hello.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -51,7 +51,7 @@ static void lvgl_send_color_cb(
 
 static uint32_t lvgl_get_tick(void) { return Bsp_Get_Tick_Ms(); }
 
-void App_Lvgl_Hello_Init(void) {
+static void lvgl_hello_init(void) {
     const St7789_config lcd_cfg = {
         .spi_idx = SOFT_SPI_LCD_IDX,
         .cs_gpio_idx = (uint32_t)-1,
@@ -87,7 +87,7 @@ void App_Lvgl_Hello_Init(void) {
     g_label_last_toggle_ms = Bsp_Get_Tick_Ms();
 }
 
-void App_Lvgl_Hello_Loop(void) {
+static void lvgl_hello_loop(void) {
     lv_timer_handler();
 
     const uint32_t now_ms = Bsp_Get_Tick_Ms();
@@ -110,20 +110,20 @@ void App_Lvgl_Hello_Loop(void) {
 
 #else
 
-void App_Lvgl_Hello_Init(void) {}
+static void lvgl_hello_init(void) {}
 
-void App_Lvgl_Hello_Loop(void) {}
+static void lvgl_hello_loop(void) {}
 
 #endif
 
 static void lvgl_hello_task(void* arg) {
     (void)arg;
-    App_Lvgl_Hello_Init();
+    lvgl_hello_init();
     uint32_t tick = xTaskGetTickCount();
     while (1) {
-        App_Lvgl_Hello_Loop();
+        lvgl_hello_loop();
         vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
     }
 }
 
-void Lvgl_Hello_Test_Task_Def(void) { xTaskCreate(lvgl_hello_task, "LVGL_Hello", 1024, NULL, 1, NULL); }
+void Test_Lvgl_Hello_Task_Def(void) { xTaskCreate(lvgl_hello_task, "LVGL_Hello", 1024, NULL, 1, NULL); }

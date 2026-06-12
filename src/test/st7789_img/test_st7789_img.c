@@ -1,4 +1,4 @@
-#include "st7789_img_test.h"
+#include "test_st7789_img.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -46,7 +46,7 @@ static void flush_full_image(void) {
     for (uint32_t y = IMG_Y_OFFSET; y < IMG_Y_OFFSET + IMG_H; y++) { flush_image_row((int32_t)y); }
 }
 
-void App_St7789_Img_Test_Init(void) {
+static void st7789_img_init(void) {
     const St7789_config lcd_cfg = {
         .spi_idx = SOFT_SPI_LCD_IDX,
         .cs_gpio_idx = (uint32_t)-1,
@@ -66,7 +66,7 @@ void App_St7789_Img_Test_Init(void) {
     St7789_Register_Flush_Done_Cb(g_lcd, flush_done_cb, NULL);
 }
 
-void App_St7789_Img_Test_Loop(void) {
+static void st7789_img_loop(void) {
     if (g_lcd == NULL) { return; }
 
     const uint32_t now = Bsp_Get_Tick_Ms();
@@ -78,11 +78,11 @@ void App_St7789_Img_Test_Loop(void) {
 
 static void st7789_img_test_task(void* arg) {
     (void)arg;
-    App_St7789_Img_Test_Init();
+    st7789_img_init();
     while (1) {
-        App_St7789_Img_Test_Loop();
+        st7789_img_loop();
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
-void St7789_Img_Test_Task_Def(void) { xTaskCreate(st7789_img_test_task, "ST7789_Img", 256, NULL, 1, NULL); }
+void Test_St7789_Img_Task_Def(void) { xTaskCreate(st7789_img_test_task, "ST7789_Img", 256, NULL, 1, NULL); }
