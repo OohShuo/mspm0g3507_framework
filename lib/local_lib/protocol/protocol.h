@@ -10,20 +10,6 @@ typedef enum {
     protocol_7d7e,
 } Protocol_type;
 
-// ── Tx side ────────────────────────────────────────────────────
-typedef struct Protocol_send_t {
-    uint8_t* txbuf;
-    uint16_t buf_size;
-    uint16_t tx_len;
-} Protocol_send;
-
-Protocol_send* Protocol_Send_Create(uint16_t max_payload);
-void Protocol_Send_Delete(Protocol_send* s);
-void Protocol_Send_Pack(Protocol_send* s, const uint8_t* data, uint16_t len);
-const uint8_t* Protocol_Send_Get_Buf(const Protocol_send* s);
-uint16_t Protocol_Send_Get_Len(const Protocol_send* s);
-
-// ── Rx side ────────────────────────────────────────────────────
 typedef void (*Protocol_on_chunk_t)(const uint8_t* data, uint16_t len, uint8_t flags, void* arg);
 
 typedef enum {
@@ -32,18 +18,40 @@ typedef enum {
     proto_7d7e_rx_state_escape,
 } Proto_7d7e_rx_state;
 
-typedef struct Protocol_recv_t {
-    uint8_t* decode_buf;
-    uint16_t buf_size;
-    uint16_t decoded_len;
-    Proto_7d7e_rx_state state;
+// ── Ops table (vtable) ─────────────────────────────────────────
+typedef struct Protocol_t Protocol;
+
+typedef struct {
+    void (*send_pack)(Protocol* p, const uint8_t* data, uint16_t len);
+    const uint8_t* (*send_get_buf)(const Protocol* p);
+    uint16_t (*send_get_len)(const Protocol* p);
+    void (*recv_feed)(Protocol* p, const uint8_t* data, uint16_t len);
+    void (*destroy)(Protocol* p);
+} Protocol_ops;
+
+// ── Unified Protocol struct ────────────────────────────────────
+struct Protocol_t {
+    const Protocol_ops* ops;
+
+    // Tx: 7d7e owns an escape buffer; none stores the original pointer
+    uint8_t* tx_buf;
+    uint16_t tx_buf_size;
+    uint16_t tx_len;
+
+    // Rx buffer (used by 7d7e decoder)
+    uint8_t* rx_buf;
+    uint16_t rx_buf_size;
+    uint16_t rx_len;
+
+    // 7d7e Rx state machine
+    Proto_7d7e_rx_state rx_state;
     uint8_t saw_start;
     uint8_t in_frame;
 
+    // Callback on decoded frame
     Protocol_on_chunk_t on_chunk;
     void* on_chunk_arg;
-} Protocol_recv;
+};
 
-Protocol_recv* Protocol_Recv_Create(uint16_t max_payload, Protocol_on_chunk_t on_chunk, void* arg);
-void Protocol_Recv_Delete(Protocol_recv* r);
-void Protocol_Recv_Feed(Protocol_recv* r, const uint8_t* data, uint16_t len);
+Protocol* Protocol_Create(Protocol_type type, uint16_t max_payload, Protocol_on_chunk_t on_chunk, void* arg);
+void Protocol_Destroy(Protocol* p);

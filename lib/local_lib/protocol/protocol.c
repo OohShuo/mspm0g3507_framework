@@ -11,147 +11,207 @@
 #define SLIP_ESC_END   0x01
 #define SLIP_ESC_ESC   0x00
 
-Protocol_send* Protocol_Send_Create(uint16_t max_payload) {
-    Protocol_send* s = (Protocol_send*)pvPortMalloc(sizeof(Protocol_send));
-    if (s == NULL) { return NULL; }
+// protocol_none  ops  (pass-through, DMA-safe copy)
 
-    s->buf_size = 2 * max_payload + 2;
-    s->txbuf = (uint8_t*)pvPortMalloc(s->buf_size);
-    if (s->txbuf == NULL) {
-        vPortFree(s);
-        return NULL;
+static void none_send_pack(Protocol* p, const uint8_t* data, uint16_t len) {
+    if (p == NULL || data == NULL) { return; }
+    uint16_t n = (len <= p->tx_buf_size) ? len : p->tx_buf_size;
+    memcpy(p->tx_buf, data, n);
+    p->tx_len = n;
+}
+
+static const uint8_t* none_send_get_buf(const Protocol* p) { return (p != NULL) ? p->tx_buf : NULL; }
+static uint16_t none_send_get_len(const Protocol* p) { return (p != NULL) ? p->tx_len : 0; }
+
+static void none_recv_feed(Protocol* p, const uint8_t* data, uint16_t len) {
+    if (p == NULL || data == NULL) { return; }
+    if (p->on_chunk != NULL) {
+        p->on_chunk(data, len, PROTOCOL_CHUNK_FIRST | PROTOCOL_CHUNK_LAST, p->on_chunk_arg);
     }
-    s->tx_len = 0;
-    return s;
 }
 
-void Protocol_Send_Delete(Protocol_send* s) {
-    if (s == NULL) { return; }
-    vPortFree(s->txbuf);
-    vPortFree(s);
+static void none_destroy(Protocol* p) {
+    if (p == NULL) { return; }
+    vPortFree(p->tx_buf);
+    vPortFree(p);
 }
 
-void Protocol_Send_Pack(Protocol_send* s, const uint8_t* data, uint16_t len) {
-    if (s == NULL || data == NULL) { return; }
+static const Protocol_ops g_protocol_none_ops = {
+    .send_pack = none_send_pack,
+    .send_get_buf = none_send_get_buf,
+    .send_get_len = none_send_get_len,
+    .recv_feed = none_recv_feed,
+    .destroy = none_destroy,
+};
 
-    uint8_t* p = s->txbuf;
+// protocol_7d7e  ops
+
+static void slip_send_pack(Protocol* p, const uint8_t* data, uint16_t len) {
+    if (p == NULL || data == NULL) { return; }
+
+    uint8_t* w = p->tx_buf;
+    uint8_t* end = p->tx_buf + p->tx_buf_size;
 
     // START marker
-    *p++ = SLIP_START;
+    if (w >= end) { return; }
+    *w++ = SLIP_START;
 
     // Escape payload
     for (uint16_t i = 0; i < len; i++) {
         uint8_t b = data[i];
         if (b == SLIP_START) {
-            *p++ = SLIP_ESC;
-            *p++ = SLIP_ESC_START;
+            if (w + 1 >= end) { break; }
+            *w++ = SLIP_ESC;
+            *w++ = SLIP_ESC_START;
         } else if (b == SLIP_END) {
-            *p++ = SLIP_ESC;
-            *p++ = SLIP_ESC_END;
+            if (w + 1 >= end) { break; }
+            *w++ = SLIP_ESC;
+            *w++ = SLIP_ESC_END;
         } else if (b == SLIP_ESC) {
-            *p++ = SLIP_ESC;
-            *p++ = SLIP_ESC_ESC;
+            if (w + 1 >= end) { break; }
+            *w++ = SLIP_ESC;
+            *w++ = SLIP_ESC_ESC;
         } else {
-            *p++ = b;
+            if (w >= end) { break; }
+            *w++ = b;
         }
     }
 
-    *p++ = SLIP_END;
+    // END marker
+    if (w >= end) { return; }
+    *w++ = SLIP_END;
 
-    s->tx_len = (uint16_t)(p - s->txbuf);
+    p->tx_len = (uint16_t)(w - p->tx_buf);
 }
 
-const uint8_t* Protocol_Send_Get_Buf(const Protocol_send* s) { return (s != NULL) ? s->txbuf : NULL; }
+static const uint8_t* slip_send_get_buf(const Protocol* p) { return (p != NULL) ? p->tx_buf : NULL; }
+static uint16_t slip_send_get_len(const Protocol* p) { return (p != NULL) ? p->tx_len : 0; }
 
-uint16_t Protocol_Send_Get_Len(const Protocol_send* s) { return (s != NULL) ? s->tx_len : 0; }
-
-// ── Receive side ────────────────────────────────────────────────────
-Protocol_recv* Protocol_Recv_Create(uint16_t max_payload, Protocol_on_chunk_t on_chunk, void* arg) {
-    Protocol_recv* r = (Protocol_recv*)pvPortMalloc(sizeof(Protocol_recv));
-    if (r == NULL) { return NULL; }
-
-    r->buf_size = max_payload;
-    r->decode_buf = (uint8_t*)pvPortMalloc(max_payload);
-    if (r->decode_buf == NULL) {
-        vPortFree(r);
-        return NULL;
-    }
-
-    r->decoded_len = 0;
-    r->state = proto_7d7e_rx_state_wait_start;
-    r->saw_start = 0;
-    r->in_frame = 0;
-    r->on_chunk = on_chunk;
-    r->on_chunk_arg = arg;
-    return r;
-}
-
-void Protocol_Recv_Delete(Protocol_recv* r) {
-    if (r == NULL) { return; }
-    vPortFree(r->decode_buf);
-    vPortFree(r);
-}
-
-static void protocol_flush(Protocol_recv* r, uint8_t is_last) {
-    if (r->on_chunk == NULL) { return; }
+static void slip_flush(Protocol* p, uint8_t is_last) {
+    if (p->on_chunk == NULL) { return; }
 
     uint8_t flags = 0;
-    if (r->saw_start) { flags |= PROTOCOL_CHUNK_FIRST; }
+    if (p->saw_start) { flags |= PROTOCOL_CHUNK_FIRST; }
     if (is_last) { flags |= PROTOCOL_CHUNK_LAST; }
 
-    r->on_chunk(r->decode_buf, r->decoded_len, flags, r->on_chunk_arg);
+    p->on_chunk(p->rx_buf, p->rx_len, flags, p->on_chunk_arg);
 
-    r->decoded_len = 0;
-    r->saw_start = 0;
+    p->rx_len = 0;
+    p->saw_start = 0;
 }
 
-void Protocol_Recv_Feed(Protocol_recv* r, const uint8_t* data, uint16_t len) {
-    if (r == NULL || data == NULL) { return; }
+static void slip_recv_feed(Protocol* p, const uint8_t* data, uint16_t len) {
+    if (p == NULL || data == NULL) { return; }
 
     uint8_t flushed = 0;
 
     for (uint16_t i = 0; i < len; i++) {
         uint8_t b = data[i];
 
-        switch (r->state) {
+        switch (p->rx_state) {
             case proto_7d7e_rx_state_wait_start:
                 if (b == SLIP_START) {
-                    r->state = proto_7d7e_rx_state_data;
-                    r->saw_start = 1;
-                    r->in_frame = 1;
+                    p->rx_state = proto_7d7e_rx_state_data;
+                    p->saw_start = 1;
+                    p->in_frame = 1;
                 }
                 break;
 
             case proto_7d7e_rx_state_data:
                 if (b == SLIP_END) {
-                    // Frame ends — flush with LAST flag.
-                    r->state = proto_7d7e_rx_state_wait_start;
-                    r->in_frame = 0;
-                    protocol_flush(r, 1);
+                    p->rx_state = proto_7d7e_rx_state_wait_start;
+                    p->in_frame = 0;
+                    slip_flush(p, 1);
                     flushed = 1;
                 } else if (b == SLIP_ESC) {
-                    r->state = proto_7d7e_rx_state_escape;
+                    p->rx_state = proto_7d7e_rx_state_escape;
                 } else {
-                    if (r->decoded_len < r->buf_size) { r->decode_buf[r->decoded_len++] = b; }
+                    if (p->rx_len < p->rx_buf_size) { p->rx_buf[p->rx_len++] = b; }
                 }
                 break;
 
             case proto_7d7e_rx_state_escape:
-                if (r->decoded_len < r->buf_size) {
+                if (p->rx_len < p->rx_buf_size) {
                     if (b == SLIP_ESC_END) {
-                        r->decode_buf[r->decoded_len++] = SLIP_END;
+                        p->rx_buf[p->rx_len++] = SLIP_END;
                     } else if (b == SLIP_ESC_ESC) {
-                        r->decode_buf[r->decoded_len++] = SLIP_ESC;
+                        p->rx_buf[p->rx_len++] = SLIP_ESC;
                     } else if (b == SLIP_ESC_START) {
-                        r->decode_buf[r->decoded_len++] = SLIP_START;
+                        p->rx_buf[p->rx_len++] = SLIP_START;
                     } else {
-                        r->decode_buf[r->decoded_len++] = b;
+                        p->rx_buf[p->rx_len++] = b;
                     }
                 }
-                r->state = proto_7d7e_rx_state_data;
+                p->rx_state = proto_7d7e_rx_state_data;
                 break;
         }
     }
 
-    if (!flushed && r->in_frame && (r->decoded_len > 0 || r->saw_start)) { protocol_flush(r, 0); }
+    if (!flushed && p->in_frame && (p->rx_len > 0 || p->saw_start)) { slip_flush(p, 0); }
+}
+
+static void slip_destroy(Protocol* p) {
+    if (p == NULL) { return; }
+    vPortFree(p->tx_buf);
+    vPortFree(p->rx_buf);
+    vPortFree(p);
+}
+
+static const Protocol_ops g_protocol_7d7e_ops = {
+    .send_pack = slip_send_pack,
+    .send_get_buf = slip_send_get_buf,
+    .send_get_len = slip_send_get_len,
+    .recv_feed = slip_recv_feed,
+    .destroy = slip_destroy,
+};
+
+// Public API
+
+Protocol* Protocol_Create(Protocol_type type, uint16_t max_payload, Protocol_on_chunk_t on_chunk, void* arg) {
+    Protocol* p = (Protocol*)pvPortMalloc(sizeof(Protocol));
+    if (p == NULL) { return NULL; }
+    memset(p, 0, sizeof(Protocol));
+
+    switch (type) {
+        case protocol_none:
+            p->ops = &g_protocol_none_ops;
+            p->tx_buf_size = max_payload;
+            p->tx_buf = (uint8_t*)pvPortMalloc(p->tx_buf_size);
+            if (p->tx_buf == NULL) {
+                vPortFree(p);
+                return NULL;
+            }
+            break;
+
+        case protocol_7d7e:
+            p->ops = &g_protocol_7d7e_ops;
+            // tx_buf sized for worst-case SLIP escaping
+            p->tx_buf_size = 2 * max_payload + 2;
+            p->tx_buf = (uint8_t*)pvPortMalloc(p->tx_buf_size);
+            if (p->tx_buf == NULL) {
+                vPortFree(p);
+                return NULL;
+            }
+            p->rx_buf_size = max_payload;
+            p->rx_buf = (uint8_t*)pvPortMalloc(p->rx_buf_size);
+            if (p->rx_buf == NULL) {
+                vPortFree(p->tx_buf);
+                vPortFree(p);
+                return NULL;
+            }
+            break;
+
+        default:
+            vPortFree(p);
+            return NULL;
+    }
+
+    p->on_chunk = on_chunk;
+    p->on_chunk_arg = arg;
+    return p;
+}
+
+void Protocol_Destroy(Protocol* p) {
+    if (p == NULL) { return; }
+    if (p->ops != NULL && p->ops->destroy != NULL) { p->ops->destroy(p); }
 }
