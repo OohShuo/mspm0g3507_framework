@@ -65,6 +65,7 @@ add_subdirectory(src/app)
 add_subdirectory(src/hal)
 add_subdirectory(src/bsp)
 add_subdirectory(src/syscall)
+add_subdirectory(src/test)
 
 target_link_options(${PROJECT_NAME}.elf PRIVATE
     ${CPU_FLAGS}
@@ -79,7 +80,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     # "-Wl,--print-gc-sections"
 )
 
-target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib syscall)
+target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib syscall test)
 
 add_custom_command(
     TARGET ${PROJECT_NAME}.elf POST_BUILD
