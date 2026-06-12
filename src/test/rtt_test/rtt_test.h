@@ -1,4 +1,3 @@
 #pragma once
 
-void Rtt_Test_Init(void);
-void Rtt_Test_Loop(void);
+void Rtt_Test_Task_Def(void);
