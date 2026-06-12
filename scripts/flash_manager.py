@@ -172,7 +172,7 @@ class FlashManager:
         self,
         port: str,
         baudrate: int = 115200,
-        timeout: float = 0.5,
+        timeout: float = 5.0,
         max_retries: int = 3,
     ):
         self._timeout = timeout
@@ -521,7 +521,7 @@ class FlashManager:
             return None
         payload_len = (len_bytes[0] << 8) | len_bytes[1]
 
-        if payload_len < 3 or payload_len > 515:
+        if payload_len < 3 or payload_len > 520:
             return None
 
         # ── Read payload: CMD(1) + SEQ(2) + data(N-3) ──────────
