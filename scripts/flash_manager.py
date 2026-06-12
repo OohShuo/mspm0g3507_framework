@@ -116,32 +116,34 @@ def crc16(data: bytes) -> int:
 # ── Frame helpers ────────────────────────────────────────────────────
 
 def build_frame(cmd: int, seq: int, data: bytes = b"") -> bytes:
-    """Build a protocol frame.
+    """Build a protocol_binary_frame.
 
-    Layout: SYNC0 SYNC1 CMD SEQ_H SEQ_L LEN_H LEN_L [DATA] CRCH CRCL
-    CRC covers CMD + SEQ(2) + LEN(2) + DATA.
+    Wire layout:  SYNC0 SYNC1 LEN_H LEN_L [PAYLOAD] CRCH CRCL
+    Payload:      CMD SEQ_H SEQ_L [DATA...]
+
+    CRC covers LEN(2) + PAYLOAD = 2 + 3 + len(data) bytes.
+    This matches protocol_binary.c:bin_send_pack.
     """
-    data_len = len(data)
-    if data_len > 512:
-        raise ValueError(f"Data too long: {data_len} > 512")
+    payload_len = 3 + len(data)          # CMD(1) + SEQ(2) + data
+    if payload_len > 515:
+        raise ValueError(f"Payload too long: {payload_len} > 515")
 
-    buf = bytearray(9 + data_len)
+    buf = bytearray(6 + payload_len + 2)  # SYNC(2) + LEN(2) + payload + CRC(2)
     buf[0] = SYNC0
     buf[1] = SYNC1
-    buf[2] = cmd
-    buf[3] = (seq >> 8) & 0xFF
-    buf[4] = seq & 0xFF
-    buf[5] = (data_len >> 8) & 0xFF
-    buf[6] = data_len & 0xFF
-    if data_len > 0:
-        buf[7 : 7 + data_len] = data
+    buf[2] = (payload_len >> 8) & 0xFF   # LEN_H
+    buf[3] = payload_len & 0xFF           # LEN_L
+    buf[4] = cmd
+    buf[5] = (seq >> 8) & 0xFF
+    buf[6] = seq & 0xFF
+    if data:
+        buf[7 : 7 + len(data)] = data
 
-    # CRC over CMD(1) + SEQ(2) + LEN(2) + DATA = 5 + data_len bytes
-    # Those bytes start at buf[2]
-    crc_span = memoryview(buf)[2 : 7 + data_len]
+    # CRC over LEN(2) + PAYLOAD = bytes at buf[2 .. 7+len(data))
+    crc_span = memoryview(buf)[2 : 7 + len(data)]
     crc = crc16(bytes(crc_span))
-    buf[7 + data_len] = (crc >> 8) & 0xFF
-    buf[8 + data_len] = crc & 0xFF
+    buf[7 + len(data)] = (crc >> 8) & 0xFF
+    buf[8 + len(data)] = crc & 0xFF
 
     return bytes(buf)
 
@@ -466,6 +468,8 @@ class FlashManager:
     def _recv_frame(self) -> Optional[Tuple[int, int, bytes]]:
         """Read and parse one frame from the serial port.
 
+        Wire format: SYNC0 SYNC1 LEN_H LEN_L [CMD SEQ_H SEQ_L DATA] CRCH CRCL
+
         Returns
         -------
         (cmd, seq, data) on success.
@@ -474,7 +478,7 @@ class FlashManager:
         """
         ser = self.ser
 
-        # ── Hunt for SYNC0 ──────────────────────────────────────
+        # ── Hunt for SYNC0 SYNC1 ────────────────────────────────
         while True:
             b = ser.read(1)
             if not b:
@@ -483,27 +487,26 @@ class FlashManager:
                 b2 = ser.read(1)
                 if b2 and b2[0] == SYNC1:
                     break
-                # If b2 is SYNC0, it could be 0xAA 0xAA 0x55 — handle by
-                # treating the second 0xAA as the new SYNC0 candidate.
                 if b2 and b2[0] == SYNC0:
-                    continue  # re-check for SYNC1
+                    continue  # 0xAA 0xAA 0x55 is valid
 
-        # ── Read header: CMD(1) + SEQ(2) + LEN(2) = 5 bytes ─────
-        header = ser.read(5)
-        if len(header) < 5:
+        # ── Read LEN (2 bytes, big-endian) ──────────────────────
+        len_bytes = ser.read(2)
+        if len(len_bytes) < 2:
+            return None
+        payload_len = (len_bytes[0] << 8) | len_bytes[1]
+
+        if payload_len < 3 or payload_len > 515:
             return None
 
-        cmd = header[0]
-        seq = (header[1] << 8) | header[2]
-        data_len = (header[3] << 8) | header[4]
-
-        if data_len > 512:
+        # ── Read payload: CMD(1) + SEQ(2) + data(N-3) ──────────
+        payload = ser.read(payload_len)
+        if len(payload) < payload_len:
             return None
 
-        # ── Read data ───────────────────────────────────────────
-        data = ser.read(data_len) if data_len > 0 else b""
-        if len(data) < data_len:
-            return None
+        cmd = payload[0]
+        seq = (payload[1] << 8) | payload[2]
+        data = payload[3:] if payload_len > 3 else b""
 
         # ── Read CRC ────────────────────────────────────────────
         crc_bytes = ser.read(2)
@@ -511,7 +514,8 @@ class FlashManager:
             return None
 
         expected_crc = (crc_bytes[0] << 8) | crc_bytes[1]
-        computed_crc = crc16(header + data)
+        # CRC covers LEN(2) + payload = len_bytes + payload
+        computed_crc = crc16(len_bytes + payload)
 
         if computed_crc != expected_crc:
             return ("crc_error", seq, None)

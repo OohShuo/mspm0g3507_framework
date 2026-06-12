@@ -6,9 +6,16 @@
 
 #include <stdint.h>
 
-#include "FreeRTOS.h"
-#include "queue.h"
-#include "semphr.h"
+/* ------------------------------------------------------------------ */
+/* Queue command descriptor — passed from UART callback to task        */
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+    uint8_t  cmd;
+    uint16_t seq;
+    uint16_t data_len;
+    uint8_t  data[512];
+} Flash_mgr_cmd;
 
 /* ------------------------------------------------------------------ */
 /* Protocol constants                                                   */
@@ -18,7 +25,7 @@
 #define FLASH_MGR_SYNC1         0x55u
 #define FLASH_MGR_CHUNK_SIZE    512u
 #define FLASH_MGR_PATH_MAX      255u
-#define FLASH_MGR_TX_BUF_SIZE   530u  /* 2(sync)+1(cmd)+2(seq)+2(len)+512(data)+2(crc)+9 */
+#define FLASH_MGR_TX_BUF_SIZE   530u  /* 2+1+2+2+512+2+9 headroom */
 
 /* ---- host → device commands --------------------------------------- */
 
@@ -52,22 +59,11 @@
 #define FLASH_MGR_ERR_IO         0x05u
 #define FLASH_MGR_ERR_CORRUPT    0x06u
 
-/* ---- file type codes (LIST_ITEM / INFO_RESP) ---------------------- */
+/* ---- file type codes ---------------------------------------------- */
 
 #define FLASH_MGR_TYPE_UNKNOWN   0x00u
 #define FLASH_MGR_TYPE_REG       0x01u
 #define FLASH_MGR_TYPE_DIR       0x02u
-
-/* ------------------------------------------------------------------ */
-/* Queue command descriptor                                             */
-/* ------------------------------------------------------------------ */
-
-typedef struct {
-    uint8_t  cmd;
-    uint16_t seq;
-    uint16_t data_len;
-    uint8_t  data[FLASH_MGR_CHUNK_SIZE];
-} Flash_mgr_cmd;
 
 /* ------------------------------------------------------------------ */
 /* Public API                                                           */
@@ -76,11 +72,12 @@ typedef struct {
 /**
  * @brief One-time initialisation of the Flash Manager subsystem.
  *
- * Creates the W25Q32 handle, lfs_port, FreeRTOS queue, mutex, com_uart
- * instance, and the flash_mgr task.  Must be called after Bsp_Init() /
- * Hal_Init() / Com_Uart_Init().
+ * Creates W25Q32 handle, lfs_port, SPI mutex, FreeRTOS queue,
+ * com_uart instance (with protocol_binary_frame), and flash_mgr task.
+ *
+ * Called from main.c.  Must run after Hal_Init().
  */
-void Flash_Mgr_Init(void);
+void flash_mgr_protocol_init(void);
 
 // clang-format on
 

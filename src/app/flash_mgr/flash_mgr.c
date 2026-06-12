@@ -14,7 +14,6 @@
 #include "lfs_port.h"
 #include "lfs.h"
 #include "rtt_log.h"
-#include "soft_crc.h"
 #include "w25q32.h"
 
 /* ------------------------------------------------------------------ */
@@ -28,19 +27,18 @@
 #define FLASH_MGR_LFS_SIZE   (2u * 1024u * 1024u)  /* 2 MiB             */
 
 /* ------------------------------------------------------------------ */
-/* UART config                                                          */
+/* UART / protocol config                                                */
 /*                                                                     */
-/* Reuses UART_DEBUG_IDX (UART0) that com_uart_test and slip_recv use. */
-/* RX buffer: 521 B max frame → 600 B to leave headroom.               */
-/* TX buffer: same size so the task can send a full response.           */
-/* Idle timeout: 5 ms — short enough to feel responsive, long enough    */
-/* that a 521-byte frame at 115200 bps (~45 ms) won't be split inside. */
+/* Uses protocol_binary_frame: SYNC+LEN+CRC framing provided by the    */
+/* protocol layer.  flash_mgr only sees [CMD][SEQ][payload].           */
+/* RX/TX buffers sized for max wire frame (~521 B).                    */
 /* ------------------------------------------------------------------ */
 
-#define FLASH_MGR_UART_IDX         0u
-#define FLASH_MGR_RX_MAX_LEN       600u
-#define FLASH_MGR_TX_MAX_LEN       600u
-#define FLASH_MGR_IDLE_TIMEOUT_MS  5u
+#define FLASH_MGR_UART_IDX            0u
+#define FLASH_MGR_RX_MAX_LEN          600u
+#define FLASH_MGR_TX_MAX_LEN          600u
+#define FLASH_MGR_IDLE_TIMEOUT_MS     5u
+#define FLASH_MGR_PROTO_MAX_PAYLOAD   515u  /* CMD(1)+SEQ(2)+data(512) */
 
 /* ------------------------------------------------------------------ */
 /* Task / queue config                                                  */
@@ -49,18 +47,6 @@
 #define FLASH_MGR_TASK_STACK_WORDS 768u
 #define FLASH_MGR_TASK_PRIORITY    2u
 #define FLASH_MGR_QUEUE_DEPTH      4u
-
-/* ------------------------------------------------------------------ */
-/* Frame-parser states                                                  */
-/* ------------------------------------------------------------------ */
-
-enum {
-    FRAME_STATE_SYNC0,
-    FRAME_STATE_SYNC1,
-    FRAME_STATE_HEADER,
-    FRAME_STATE_DATA,
-    FRAME_STATE_CRC,
-};
 
 /* ------------------------------------------------------------------ */
 /* Static module state                                                  */
@@ -73,23 +59,16 @@ static SemaphoreHandle_t g_spi_mutex = NULL;
 static QueueHandle_t g_cmd_queue    = NULL;
 static TaskHandle_t  g_task_handle  = NULL;
 
-/* ---- Frame parser state (only accessed from UART rx callback) ---- */
-
-static uint8_t  g_rx_state      = FRAME_STATE_SYNC0;
-static uint8_t  g_rx_header[5];           /* CMD(1) + SEQ(2) + LEN(2)  */
-static uint8_t  g_rx_header_pos = 0;
-static uint8_t  g_rx_data[FLASH_MGR_CHUNK_SIZE];
-static uint16_t g_rx_data_len   = 0;
-static uint16_t g_rx_data_pos   = 0;
-static uint8_t  g_rx_crc_buf[2];
-static uint8_t  g_rx_crc_pos    = 0;
-
 /* ---- Last-processed SEQ for duplicate detection ------------------- */
 
 static uint16_t g_last_seq     = 0;
 static uint8_t  g_has_last_seq = 0;
 
-/* ---- Response buffer (used by flash_mgr task) --------------------- */
+/* ---- Payload assembly buffer ---------------------------------------
+ *
+ * Com_Uart_Send → protocol_binary.send_pack wraps payload with
+ * SYNC+LEN+CRC.  g_tx_buf holds the application payload
+ * [CMD(1)][SEQ(2)][data(N)], max 3+512=515 B.                        */
 
 static uint8_t g_tx_buf[FLASH_MGR_TX_BUF_SIZE];
 
@@ -98,7 +77,8 @@ static uint8_t g_tx_buf[FLASH_MGR_TX_BUF_SIZE];
 /* ------------------------------------------------------------------ */
 
 static void flash_mgr_task(void* arg);
-static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, void* arg);
+static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
+                             uint8_t flags, void* arg);
 static void send_response(uint8_t cmd, uint16_t seq,
                           const uint8_t* data, uint16_t data_len);
 static void send_ack(uint16_t seq);
@@ -137,47 +117,29 @@ static uint8_t lfs_type_to_mgr_type(uint8_t lfs_type) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Frame building                                                       */
-/*                                                                     */
-/* Layout: SYNC0 SYNC1 CMD SEQ_H SEQ_L LEN_H LEN_L [DATA...] CRCH CRCL */
-/* CRC16 covers CMD + SEQ(2) + LEN(2) + DATA.                          */
-/* ------------------------------------------------------------------ */
-
-static uint32_t build_frame(uint8_t* buf, uint8_t cmd, uint16_t seq,
-                             const uint8_t* data, uint16_t data_len) {
-    buf[0] = FLASH_MGR_SYNC0;
-    buf[1] = FLASH_MGR_SYNC1;
-    buf[2] = cmd;
-    buf[3] = (uint8_t)(seq >> 8);
-    buf[4] = (uint8_t)(seq);
-    buf[5] = (uint8_t)(data_len >> 8);
-    buf[6] = (uint8_t)(data_len);
-
-    if (data_len > 0 && data != NULL) {
-        memcpy(buf + 7, data, data_len);
-    }
-
-    /* CRC over CMD(1) + SEQ(2) + LEN(2) + DATA(data_len) = 5 + data_len */
-    uint16_t crc = Soft_Crc16_Calc(soft_crc16_default, buf + 2, (uint32_t)(5 + data_len));
-    buf[7 + data_len]     = (uint8_t)(crc >> 8);
-    buf[8 + data_len] = (uint8_t)(crc);
-
-    return 9u + data_len;
-}
-
-/* ------------------------------------------------------------------ */
 /* Response helpers (called from flash_mgr task)                        */
+/*                                                                     */
+/* Each helper assembles [CMD][SEQ][data] into g_tx_buf and calls      */
+/* Com_Uart_Send, which invokes protocol_binary.send_pack to wrap it   */
+/* with SYNC+LEN+CRC.                                                  */
 /* ------------------------------------------------------------------ */
 
 static void send_response(uint8_t cmd, uint16_t seq,
                           const uint8_t* data, uint16_t data_len) {
     if (g_com_uart == NULL) { return; }
-    /* Wait for previous DMA transfer to finish so we don't overwrite
-     * the TX buffer while the UART is still reading from it.  Essential
-     * for LIST where multiple frames are sent back-to-back. */
+    /* Wait for previous DMA to finish — essential for LIST where
+     * multiple frames are sent back-to-back. */
     Bsp_Uart_Wait_For_Complete(g_com_uart->config.uart_idx);
-    uint32_t frame_len = build_frame(g_tx_buf, cmd, seq, data, data_len);
-    Com_Uart_Send(g_com_uart, g_tx_buf, frame_len);
+
+    /* Assemble application payload: [CMD(1)][SEQ(2)][data(N)] */
+    g_tx_buf[0] = cmd;
+    g_tx_buf[1] = (uint8_t)(seq >> 8);
+    g_tx_buf[2] = (uint8_t)(seq);
+    if (data_len > 0 && data != NULL) {
+        memcpy(g_tx_buf + 3, data, data_len);
+    }
+    /* protocol_binary.send_pack wraps g_tx_buf[0..3+data_len) */
+    Com_Uart_Send(g_com_uart, g_tx_buf, (uint32_t)(3u + data_len));
 }
 
 static void send_ack(uint16_t seq) {
@@ -196,131 +158,57 @@ static void send_nak(uint16_t seq, uint8_t err_code) {
 /* the FreeRTOS queue; on CRC failure, sends CRC_ERR directly.          */
 /* ------------------------------------------------------------------ */
 
-static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, void* arg) {
+/* ------------------------------------------------------------------ */
+/* UART RX callback                                                     */
+/*                                                                     */
+/* Called by com_uart → protocol_binary.recv_feed once per complete,   */
+/* CRC-verified frame.  data[] = [CMD(1)][SEQ(2)][payload(N)].         */
+/* We validate, deduplicate, and queue to the flash_mgr task.          */
+/* ------------------------------------------------------------------ */
+
+static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
+                             uint8_t flags, void* arg) {
     (void)obj;
     (void)arg;
+    (void)flags;  /* binary frames are always FIRST|LAST */
 
-    for (uint32_t i = 0; i < len; i++) {
-        uint8_t byte = data[i];
+    /* Minimum: CMD(1) + SEQ(2) */
+    if (len < 3) { return; }
 
-        switch (g_rx_state) {
+    uint8_t  cmd = data[0];
+    uint16_t seq = ((uint16_t)data[1] << 8) | data[2];
+    uint16_t payload_len = (uint16_t)(len - 3u);
 
-        case FRAME_STATE_SYNC0:
-            if (byte == FLASH_MGR_SYNC0) {
-                g_rx_state = FRAME_STATE_SYNC1;
-            }
-            break;
-
-        case FRAME_STATE_SYNC1:
-            if (byte == FLASH_MGR_SYNC1) {
-                g_rx_state       = FRAME_STATE_HEADER;
-                g_rx_header_pos  = 0;
-            } else if (byte != FLASH_MGR_SYNC0) {
-                g_rx_state = FRAME_STATE_SYNC0;
-            }
-            /* If byte == SYNC0, stay in SYNC1 (0xAA 0xAA 0x55 is valid) */
-            break;
-
-        case FRAME_STATE_HEADER:
-            g_rx_header[g_rx_header_pos++] = byte;
-            if (g_rx_header_pos >= 5) {
-                /* Parse LEN (big-endian) */
-                g_rx_data_len = ((uint16_t)g_rx_header[3] << 8) | g_rx_header[4];
-                if (g_rx_data_len > FLASH_MGR_CHUNK_SIZE) {
-                    /* Invalid length — reset */
-                    g_rx_state = FRAME_STATE_SYNC0;
-                } else if (g_rx_data_len == 0) {
-                    /* No data payload — go straight to CRC */
-                    g_rx_state    = FRAME_STATE_CRC;
-                    g_rx_crc_pos  = 0;
-                } else {
-                    g_rx_state    = FRAME_STATE_DATA;
-                    g_rx_data_pos = 0;
-                }
-            }
-            break;
-
-        case FRAME_STATE_DATA:
-            g_rx_data[g_rx_data_pos++] = byte;
-            if (g_rx_data_pos >= g_rx_data_len) {
-                g_rx_state   = FRAME_STATE_CRC;
-                g_rx_crc_pos = 0;
-            }
-            break;
-
-        case FRAME_STATE_CRC:
-            g_rx_crc_buf[g_rx_crc_pos++] = byte;
-            if (g_rx_crc_pos >= 2) {
-                /* ---- frame complete — verify CRC ---- */
-                g_rx_state = FRAME_STATE_SYNC0;  /* ready for next frame */
-
-                uint16_t seq    = ((uint16_t)g_rx_header[1] << 8) | g_rx_header[2];
-                uint8_t  cmd    = g_rx_header[0];
-
-                /* Build a temporary buffer for CRC calculation.
-                 * It must contain: CMD(1) + SEQ(2) + LEN(2) + DATA(data_len).
-                 * That's exactly the 6 header bytes + data. */
-                uint16_t expected_crc = ((uint16_t)g_rx_crc_buf[0] << 8) | g_rx_crc_buf[1];
-
-                /* CRC covers CMD(1)+SEQ(2)+LEN(2)+DATA(data_len).
-                 * Soft_Crc16_Calc is stateless (resets each call), so we
-                 * must feed header+data in a single contiguous call.
-                 * g_tx_buf (530 B) is free during the RX path — reuse it. */
-                uint16_t computed_crc;
-                uint32_t crc_span = 5u + g_rx_data_len;
-                memcpy(g_tx_buf, g_rx_header, 5);
-                if (g_rx_data_len > 0) {
-                    memcpy(g_tx_buf + 5, g_rx_data, g_rx_data_len);
-                }
-                computed_crc = Soft_Crc16_Calc(
-                    soft_crc16_default, g_tx_buf, crc_span);
-
-                if (computed_crc != expected_crc) {
-                    /* CRC mismatch — request retransmission */
-                    send_response(FLASH_MGR_RESP_CRC_ERR, seq, NULL, 0);
-                    break;
-                }
-
-                /* ---- CRC OK — dispatch ---- */
-
-                /* Duplicate detection: if SEQ matches last processed,
-                 * re-send ACK and drop.  This handles the case where our
-                 * response was lost and the host retransmitted. */
-                if (g_has_last_seq && seq == g_last_seq) {
-                    send_ack(seq);
-                    break;
-                }
-
-                /* Validate command byte */
-                if (cmd < FLASH_MGR_CMD_READ || cmd > FLASH_MGR_CMD_RESET) {
-                    send_nak(seq, FLASH_MGR_ERR_INVAL);
-                    break;
-                }
-
-                /* Copy to queue item and send to flash_mgr task */
-                Flash_mgr_cmd queue_item;
-                queue_item.cmd      = cmd;
-                queue_item.seq      = seq;
-                queue_item.data_len = g_rx_data_len;
-                if (g_rx_data_len > 0) {
-                    memcpy(queue_item.data, g_rx_data, g_rx_data_len);
-                }
-
-                if (g_cmd_queue != NULL) {
-                    BaseType_t ok = xQueueSendToBack(g_cmd_queue, &queue_item, 0);
-                    if (ok != pdPASS) {
-                        /* Queue full — device busy */
-                        send_response(FLASH_MGR_RESP_BUSY, seq, NULL, 0);
-                    }
-                }
-
-                /* Update last-processed SEQ */
-                g_last_seq     = seq;
-                g_has_last_seq = 1;
-            }
-            break;
-        } /* switch */
+    /* Duplicate detection */
+    if (g_has_last_seq && seq == g_last_seq) {
+        send_ack(seq);
+        return;
     }
+
+    /* Validate command byte */
+    if (cmd < FLASH_MGR_CMD_READ || cmd > FLASH_MGR_CMD_RESET) {
+        send_nak(seq, FLASH_MGR_ERR_INVAL);
+        return;
+    }
+
+    /* Queue to flash_mgr task */
+    Flash_mgr_cmd queue_item;
+    queue_item.cmd      = cmd;
+    queue_item.seq      = seq;
+    queue_item.data_len = payload_len;
+    if (payload_len > 0) {
+        memcpy(queue_item.data, data + 3, payload_len);
+    }
+
+    if (g_cmd_queue != NULL) {
+        BaseType_t ok = xQueueSendToBack(g_cmd_queue, &queue_item, 0);
+        if (ok != pdPASS) {
+            send_response(FLASH_MGR_RESP_BUSY, seq, NULL, 0);
+        }
+    }
+
+    g_last_seq     = seq;
+    g_has_last_seq = 1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -734,7 +622,7 @@ static void handle_format(const Flash_mgr_cmd* cmd) {
 /* Initialisation                                                        */
 /* ------------------------------------------------------------------ */
 
-void Flash_Mgr_Init(void) {
+void flash_mgr_protocol_init(void) {
     /* ---- 1. Create SPI mutex ---- */
     g_spi_mutex = xSemaphoreCreateMutex();
     configASSERT(g_spi_mutex != NULL);
@@ -773,14 +661,16 @@ void Flash_Mgr_Init(void) {
     g_cmd_queue = xQueueCreate(FLASH_MGR_QUEUE_DEPTH, sizeof(Flash_mgr_cmd));
     configASSERT(g_cmd_queue != NULL);
 
-    /* ---- 6. Create com_uart for protocol ---- */
+    /* ---- 6. Create com_uart with binary framing protocol ---- */
     static const Com_uart_config uart_cfg = {
-        .uart_idx       = FLASH_MGR_UART_IDX,
-        .idle_timeout_ms = FLASH_MGR_IDLE_TIMEOUT_MS,
-        .rx_max_len     = FLASH_MGR_RX_MAX_LEN,
-        .tx_max_len     = FLASH_MGR_TX_MAX_LEN,
-        .on_rx          = flash_mgr_on_rx,
-        .on_rx_arg      = NULL,
+        .uart_idx             = FLASH_MGR_UART_IDX,
+        .idle_timeout_ms      = FLASH_MGR_IDLE_TIMEOUT_MS,
+        .rx_max_len           = FLASH_MGR_RX_MAX_LEN,
+        .tx_max_len           = FLASH_MGR_TX_MAX_LEN,
+        .protocol_type        = protocol_binary_frame,
+        .protocol_max_payload = FLASH_MGR_PROTO_MAX_PAYLOAD,
+        .on_rx                = flash_mgr_on_rx,
+        .on_rx_arg            = NULL,
     };
     g_com_uart = Com_Uart_Create(&uart_cfg);
     configASSERT(g_com_uart != NULL);
@@ -802,6 +692,6 @@ void Flash_Mgr_Init(void) {
 
 #include <stddef.h>
 
-void Flash_Mgr_Init(void) { (void)0; }
+void flash_mgr_protocol_init(void) { (void)0; }
 
 #endif
