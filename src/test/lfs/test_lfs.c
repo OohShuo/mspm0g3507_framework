@@ -1,4 +1,4 @@
-#include "lfs_test.h"
+#include "test_lfs.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -44,7 +44,7 @@ static void record(const char* name, int err) {
 
 static void record_noerr(const char* name, uint8_t ok) { record(name, ok ? 0 : -1); }
 
-void App_Lfs_Test_Init(void) {
+static void lfs_init(void) {
     const W25q32_config cfg = {
         .spi_idx = SPI_LCD_IDX,
         .cs_gpio_idx = GPIO_SPI_CS_IDX,
@@ -226,22 +226,22 @@ void App_Lfs_Test_Init(void) {
         (unsigned)g_result_count);
 }
 
-void App_Lfs_Test_Loop(void) {}
+static void lfs_loop(void) {}
 
 #else
 
-void App_Lfs_Test_Init(void) {}
-void App_Lfs_Test_Loop(void) {}
+static void lfs_init(void) {}
+static void lfs_loop(void) {}
 
 #endif
 
 static void lfs_test_task(void* arg) {
     (void)arg;
-    App_Lfs_Test_Init();
+    lfs_init();
     while (1) {
-        App_Lfs_Test_Loop();
+        lfs_loop();
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
-void Lfs_Test_Task_Def(void) { xTaskCreate(lfs_test_task, "LFS_Test", 1024, NULL, 1, NULL); }
+void Test_Lfs_Task_Def(void) { xTaskCreate(lfs_test_task, "LFS_Test", 1024, NULL, 1, NULL); }
