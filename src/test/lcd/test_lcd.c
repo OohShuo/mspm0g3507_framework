@@ -1,4 +1,4 @@
-#include "lcd_test.h"
+#include "test_lcd.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -68,7 +68,7 @@ static void flush_done_cb(void* arg) {
     flush_cnt++;
 }
 
-void App_Lcd_Test_Init(void) {
+static void lcd_init(void) {
     const St7789_config lcd_cfg = {
         .spi_idx = SOFT_SPI_LCD_IDX,
         .cs_gpio_idx = (uint32_t)-1,
@@ -89,7 +89,7 @@ void App_Lcd_Test_Init(void) {
     g_status.init_done = 1;
 }
 
-void App_Lcd_Test_Loop(void) {
+static void lcd_loop(void) {
     if (g_lcd == NULL || !g_status.init_done) { return; }
 
     const uint32_t now = Bsp_Get_Tick_Ms();
@@ -106,11 +106,11 @@ const Lcd_test_status* App_Lcd_Test_Get_Status(void) { return &g_status; }
 
 static void lcd_test_task(void* arg) {
     (void)arg;
-    App_Lcd_Test_Init();
+    lcd_init();
     while (1) {
-        App_Lcd_Test_Loop();
+        lcd_loop();
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
-void Lcd_Test_Task_Def(void) { xTaskCreate(lcd_test_task, "LCD_Test", 256, NULL, 1, NULL); }
+void Test_Lcd_Task_Def(void) { xTaskCreate(lcd_test_task, "LCD_Test", 256, NULL, 1, NULL); }

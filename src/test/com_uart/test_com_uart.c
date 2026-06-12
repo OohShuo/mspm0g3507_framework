@@ -1,4 +1,4 @@
-#include "com_uart_test.h"
+#include "test_com_uart.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -93,6 +93,6 @@ static void com_uart_test_task(void* arg) {
     }
 }
 
-void Com_Uart_Test_Task_Def(void) {
+void Test_Com_Uart_Task_Def(void) {
     xTaskCreate(com_uart_test_task, "Com_UART_Test", 512, NULL, 1, &g_task_handle);
 }
