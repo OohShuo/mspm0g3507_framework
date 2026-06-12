@@ -11,13 +11,14 @@
 #define COM_UART_TEST_UART_IDX       0
 #define COM_UART_TEST_RX_MAX_LEN     253
 #define COM_UART_TEST_TX_MAX_LEN     253
-#define COM_UART_TEST_IDLE_TIMEOUT   5   // ms
+#define COM_UART_TEST_IDLE_TIMEOUT   5  // ms
 #define COM_UART_TEST_SEND_PERIOD_MS 1000
 
 static Com_uart* g_com = NULL;
 static uint32_t g_last_send_ms = 0;
 
-static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, void* arg) {
+static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flags, void* arg) {
+    (void)flags;
     (void)arg;
 
     char buf[129];
@@ -30,8 +31,7 @@ static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, void* arg) {
     // }
     // printf(" | ");
     for (uint32_t i = 0; i < n; i++) {
-        char c = (data[i] >= 32 && data[i] <= 126) ? (char)data[i]
-                                  : '.';
+        char c = (data[i] >= 32 && data[i] <= 126) ? (char)data[i] : '.';
         printf("%c", c);
     }
     printf("\n");
