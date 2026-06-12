@@ -1,4 +1,4 @@
-#include "w25q32_test.h"
+#include "test_w25q32.h"
 
 #include <string.h>
 
@@ -42,7 +42,7 @@ static void w25q32_record_raw(const char* name, uint8_t passed, uint8_t raw) {
     }
 }
 
-void App_W25q32_Test_Init(void) {
+static void w25q32_init(void) {
     const W25q32_config cfg = {
         .spi_idx = SPI_LCD_IDX,
         .cs_gpio_idx = GPIO_SPI_CS_IDX,
@@ -51,7 +51,7 @@ void App_W25q32_Test_Init(void) {
     g_w25q32_jedec_ok = W25q32_Init(g_w25q32);
 }
 
-void App_W25q32_Test_Loop(void) {
+static void w25q32_loop(void) {
     if (g_w25q32 == NULL) { return; }
 
     g_w25q32_result_count = 0;
@@ -124,11 +124,11 @@ uint8_t App_W25q32_Test_All_Passed(void) { return g_w25q32_all_passed; }
 
 static void w25q32_test_task(void* arg) {
     (void)arg;
-    App_W25q32_Test_Init();
+    w25q32_init();
     while (1) {
-        App_W25q32_Test_Loop();
+        w25q32_loop();
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 
-void W25q32_Test_Task_Def(void) { xTaskCreate(w25q32_test_task, "W25Q32_Test", 128, NULL, 1, NULL); }
+void Test_W25q32_Task_Def(void) { xTaskCreate(w25q32_test_task, "W25Q32_Test", 128, NULL, 1, NULL); }

@@ -1,4 +1,4 @@
-#include "slip_recv.h"
+#include "test_slip_recv.h"
 
 #include <stdint.h>
 
@@ -36,7 +36,7 @@ static void slip_on_chunk(Com_uart* obj, const uint8_t* data, uint32_t len, uint
     if (flags & PROTOCOL_CHUNK_LAST) { printf("end.\n"); }
 }
 
-void App_Slip_Recv_Init(void) {
+static void slip_recv_init(void) {
     static const Com_uart_config cfg = {
         .uart_idx = SLIP_UART_IDX,
         .idle_timeout_ms = SLIP_IDLE_TIMEOUT_MS,
@@ -50,12 +50,12 @@ void App_Slip_Recv_Init(void) {
     g_slip_uart = Com_Uart_Create(&cfg);
 }
 
-void App_Slip_Recv_Loop(void) {}
+static void slip_recv_loop(void) {}
 
 static void slip_recv_task(void* arg) {
     (void)arg;
-    App_Slip_Recv_Init();
-    while (1) { App_Slip_Recv_Loop(); }
+    slip_recv_init();
+    while (1) { slip_recv_loop(); }
 }
 
-void Slip_Recv_Test_Task_Def(void) { xTaskCreate(slip_recv_task, "SlipRecv", 256, NULL, 1, NULL); }
+void Test_Slip_Recv_Task_Def(void) { xTaskCreate(slip_recv_task, "SlipRecv", 256, NULL, 1, NULL); }
