@@ -1,3 +1,3 @@
 #pragma once
 
-void Test_Init(void);
+void Test_Task_Def(void);
