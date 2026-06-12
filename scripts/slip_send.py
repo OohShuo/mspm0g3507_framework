@@ -24,9 +24,9 @@ import time
 SLIP_START     = 0x7F
 SLIP_END       = 0x7E
 SLIP_ESC       = 0x7D
-SLIP_ESC_START = 0x02
-SLIP_ESC_END   = 0x01
-SLIP_ESC_ESC   = 0x00
+SLIP_ESC_START = 0x02  # 0x7F → 0x7D 0x02
+SLIP_ESC_END   = 0x01  # 0x7E → 0x7D 0x01
+SLIP_ESC_ESC   = 0x00  # 0x7D → 0x7D 0x00
 
 # ── Article (~8 KB) ───────────────────────────────────────────────
 ARTICLE_TXT = textwrap.dedent("""\
@@ -193,8 +193,19 @@ ARTICLE_TXT = textwrap.dedent("""\
 
 # Encode to bytes (ASCII-only, utf-8 is a no-op here)
 ARTICLE_BYTES = ARTICLE_TXT.encode("utf-8")
-assert 7500 <= len(ARTICLE_BYTES) <= 9000, \
-    f"Article is {len(ARTICLE_BYTES)} bytes, expected ~8K"
+
+# ── Escape test prefix ───────────────────────────────────────────────
+# Prepend a short sequence containing the three special bytes to verify
+# the round-trip escape logic on the board.
+ESCAPE_TEST = bytes([
+    0x00, SLIP_START, 0x01, SLIP_END, 0x02, SLIP_ESC, 0x03,
+    0x04, SLIP_ESC, SLIP_END, SLIP_START, 0x05,
+    0xFF, SLIP_START, SLIP_ESC, SLIP_END, 0xFE,
+])
+
+PAYLOAD = ESCAPE_TEST + ARTICLE_BYTES
+assert 7500 <= len(PAYLOAD) <= 9500, \
+    f"Payload is {len(PAYLOAD)} bytes, expected ~8K"
 
 
 def slip_escape(data: bytes) -> bytes:
@@ -292,7 +303,7 @@ def main() -> int:
     ser = serial.Serial(args.port, args.baud, timeout=1)
     time.sleep(0.1)  # let DTR/RTS settle
 
-    send_frame(ser, ARTICLE_BYTES, chunk_size=args.chunk_size, hz=args.hz)
+    send_frame(ser, PAYLOAD, chunk_size=args.chunk_size, hz=args.hz)
 
     ser.close()
     print("Done.")

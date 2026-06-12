@@ -15,6 +15,7 @@
 static Vector* com_uart_instances = NULL;
 
 static void com_uart_idle_cb(uint32_t idx, uint8_t* data, uint32_t len, void* arg);
+static void com_uart_proto_on_chunk(const uint8_t* data, uint16_t len, uint8_t flags, void* arg);
 
 void Com_Uart_Init(void) {
     if (com_uart_instances != NULL) { return; }
@@ -53,6 +54,11 @@ Com_uart* Com_Uart_Create(const Com_uart_config* config) {
         return NULL;
     }
 
+    if (config->protocol_type != protocol_none) {
+        obj->proto_send = Protocol_Send_Create(config->protocol_max_payload);
+        obj->proto_recv = Protocol_Recv_Create(config->protocol_max_payload, com_uart_proto_on_chunk, obj);
+    }
+
     Bsp_Uart_Register_Rx_Idle_Cb(config->uart_idx, com_uart_idle_cb, obj);
     Bsp_Uart_Start_Continuous_Rx(config->uart_idx, config->idle_timeout_ms, obj->rx_buf, config->rx_max_len);
 
@@ -62,10 +68,23 @@ Com_uart* Com_Uart_Create(const Com_uart_config* config) {
 
 void Com_Uart_Send(Com_uart* obj, const uint8_t* data, uint32_t len) {
     if (obj == NULL || data == NULL) { return; }
+
+    if (obj->proto_send != NULL) {
+        Protocol_Send_Pack(obj->proto_send, data, (uint16_t)len);
+        data = Protocol_Send_Get_Buf(obj->proto_send);
+        len = Protocol_Send_Get_Len(obj->proto_send);
+    }
+
     if (len == 0 || len > obj->config.tx_max_len) { return; }
 
     memcpy(obj->tx_buf, data, len);
     Bsp_Uart_Write(obj->config.uart_idx, obj->tx_buf, len);
+}
+
+static void com_uart_proto_on_chunk(const uint8_t* data, uint16_t len, uint8_t flags, void* arg) {
+    Com_uart* obj = (Com_uart*)arg;
+    if (obj == NULL) { return; }
+    if (obj->config.on_rx != NULL) { obj->config.on_rx(obj, data, len, flags, obj->config.on_rx_arg); }
 }
 
 static void com_uart_idle_cb(uint32_t idx, uint8_t* data, uint32_t len, void* arg) {
@@ -78,7 +97,11 @@ static void com_uart_idle_cb(uint32_t idx, uint8_t* data, uint32_t len, void* ar
     memcpy(obj->rx_data.data, data, len);
     obj->rx_update_flag = 1;
 
-    if (obj->config.on_rx != NULL) { obj->config.on_rx(obj, data, len, obj->config.on_rx_arg); }
+    if (obj->proto_recv != NULL) {
+        Protocol_Recv_Feed(obj->proto_recv, data, (uint16_t)len);
+    } else if (obj->config.on_rx != NULL) {
+        obj->config.on_rx(obj, data, len, 0, obj->config.on_rx_arg);
+    }
 }
 
 #else
