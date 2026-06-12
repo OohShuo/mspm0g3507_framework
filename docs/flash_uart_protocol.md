@@ -49,7 +49,7 @@
 
 ## 3. 帧格式 (protocol_binary_frame)
 
-```
+``` plain
 ┌────────┬────────┬────────┬────────┬──────────────────────────────────┬──────────┐
 │ SYNC0  │ SYNC1  │ LEN_H  │ LEN_L  │         PAYLOAD (LEN 字节)       │  CRC16   │
 │ 0xAA   │ 0x55   │ 1 Byte │ 1 Byte │         CMD+SEQ+DATA             │  2 Byte  │
