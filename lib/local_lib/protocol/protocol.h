@@ -57,25 +57,24 @@ struct Protocol_t {
     // ── 7d7e Rx state machine ──────────────────────────────────
 
     Proto_7d7e_rx_state rx_state;
-    uint8_t             saw_start;
-    uint8_t             in_frame;
+    uint8_t saw_start;
+    uint8_t in_frame;
 
     // ── Binary frame Rx state machine ──────────────────────────
 
-    Proto_bin_rx_state  bin_state;
-    uint8_t             bin_len_buf[2];   // accumulated LEN bytes
-    uint8_t             bin_len_pos;
-    uint16_t            bin_data_len;     // parsed LEN value
-    uint16_t            bin_data_pos;
-    uint8_t             bin_crc_buf[2];
-    uint8_t             bin_crc_pos;
+    Proto_bin_rx_state bin_state;
+    uint8_t bin_len_buf[2];  // accumulated LEN bytes
+    uint8_t bin_len_pos;
+    uint16_t bin_data_len;  // parsed LEN value
+    uint16_t bin_data_pos;
+    uint8_t bin_crc_buf[2];
+    uint8_t bin_crc_pos;
 
     // ── Callback ───────────────────────────────────────────────
 
     Protocol_on_chunk_t on_chunk;
-    void*               on_chunk_arg;
+    void* on_chunk_arg;
 };
 
-Protocol* Protocol_Create(Protocol_type type, uint16_t max_payload,
-                          Protocol_on_chunk_t on_chunk, void* arg);
+Protocol* Protocol_Create(Protocol_type type, uint16_t max_payload, Protocol_on_chunk_t on_chunk, void* arg);
 void Protocol_Destroy(Protocol* p);

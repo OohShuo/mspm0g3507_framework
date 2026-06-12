@@ -127,9 +127,7 @@ static int bd_read(
     const Lfs_port* self = (const Lfs_port*)c->context;
     uint32_t addr = self->port.start + block * LFS_PORT_BLOCK_SIZE + off;
 
-    mutex_take(self->port.spi_mutex);
     W25q32_Read(self->port.flash, addr, (uint8_t*)buffer, size);
-    mutex_give(self->port.spi_mutex);
 
     return 0;
 }
@@ -139,8 +137,6 @@ static int bd_prog(
     const void* buffer, lfs_size_t size) {
     const Lfs_port* self = (const Lfs_port*)c->context;
     uint32_t addr = self->port.start + block * LFS_PORT_BLOCK_SIZE + off;
-
-    mutex_take(self->port.spi_mutex);
 
     while (size > 0) {
         uint32_t page_off = addr & (LFS_PORT_PROG_SIZE - 1);
@@ -152,8 +148,6 @@ static int bd_prog(
         size   -= chunk;
     }
 
-    mutex_give(self->port.spi_mutex);
-
     return 0;
 }
 
@@ -161,9 +155,7 @@ static int bd_erase(const struct lfs_config* c, lfs_block_t block) {
     const Lfs_port* self = (const Lfs_port*)c->context;
     uint32_t addr = self->port.start + block * LFS_PORT_BLOCK_SIZE;
 
-    mutex_take(self->port.spi_mutex);
     W25q32_Sector_Erase(self->port.flash, addr);
-    mutex_give(self->port.spi_mutex);
 
     return 0;
 }

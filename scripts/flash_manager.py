@@ -128,7 +128,7 @@ def build_frame(cmd: int, seq: int, data: bytes = b"") -> bytes:
     if payload_len > 515:
         raise ValueError(f"Payload too long: {payload_len} > 515")
 
-    buf = bytearray(6 + payload_len + 2)  # SYNC(2) + LEN(2) + payload + CRC(2)
+    buf = bytearray(4 + payload_len + 2)  # SYNC(2) + LEN(2) + payload + CRC(2)
     buf[0] = SYNC0
     buf[1] = SYNC1
     buf[2] = (payload_len >> 8) & 0xFF   # LEN_H
