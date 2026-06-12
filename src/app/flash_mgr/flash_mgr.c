@@ -59,10 +59,6 @@ static SemaphoreHandle_t g_spi_mutex = NULL;
 static QueueHandle_t g_cmd_queue    = NULL;
 static TaskHandle_t  g_task_handle  = NULL;
 
-/* ---- Last-processed SEQ for duplicate detection ------------------- */
-
-static uint16_t g_last_seq     = 0;
-static uint8_t  g_has_last_seq = 0;
 
 /* ---- Payload assembly buffer ---------------------------------------
  *
@@ -163,7 +159,7 @@ static void send_nak(uint16_t seq, uint8_t err_code) {
 /*                                                                     */
 /* Called by com_uart → protocol_binary.recv_feed once per complete,   */
 /* CRC-verified frame.  data[] = [CMD(1)][SEQ(2)][payload(N)].         */
-/* We validate, deduplicate, and queue to the flash_mgr task.          */
+/* We validate and queue to the flash_mgr task.                        */
 /* ------------------------------------------------------------------ */
 
 static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
@@ -175,15 +171,17 @@ static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
     /* Minimum: CMD(1) + SEQ(2) */
     if (len < 3) { return; }
 
+    for (int i = 0; i < len; i++) {
+        printf("%02X ", data[i]);
+        if ((i + 1) % 16 == 0) {
+            printf("\n");
+        }
+    }
+    printf("\n");
+
     uint8_t  cmd = data[0];
     uint16_t seq = ((uint16_t)data[1] << 8) | data[2];
     uint16_t payload_len = (uint16_t)(len - 3u);
-
-    /* Duplicate detection */
-    if (g_has_last_seq && seq == g_last_seq) {
-        send_ack(seq);
-        return;
-    }
 
     /* Validate command byte */
     if (cmd < FLASH_MGR_CMD_READ || cmd > FLASH_MGR_CMD_RESET) {
@@ -195,6 +193,10 @@ static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
     Flash_mgr_cmd queue_item;
     queue_item.cmd      = cmd;
     queue_item.seq      = seq;
+    /* Clamp to struct buffer size */
+    if (payload_len > sizeof(queue_item.data)) {
+        payload_len = (uint16_t)sizeof(queue_item.data);
+    }
     queue_item.data_len = payload_len;
     if (payload_len > 0) {
         memcpy(queue_item.data, data + 3, payload_len);
@@ -209,8 +211,6 @@ static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 
-    g_last_seq     = seq;
-    g_has_last_seq = 1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -259,6 +259,8 @@ static void flash_mgr_task(void* arg) {
  */
 
 static void handle_read(const Flash_mgr_cmd* cmd) {
+    printf("handle_read: cmd->data_len=%u\n", cmd->data_len);
+
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
 
@@ -355,6 +357,8 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
  */
 
 static void handle_write(const Flash_mgr_cmd* cmd) {
+    printf("handle_write: cmd->data_len=%u\n", cmd->data_len);
+
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
 
@@ -439,6 +443,8 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
  */
 
 static void handle_delete(const Flash_mgr_cmd* cmd) {
+    printf("handle_delete: cmd->data_len=%u\n", cmd->data_len);
+    
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
 
@@ -477,6 +483,8 @@ static void handle_delete(const Flash_mgr_cmd* cmd) {
  */
 
 static void handle_list(const Flash_mgr_cmd* cmd) {
+    printf("handle_list: cmd->data_len=%u\n", cmd->data_len);
+
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
 
@@ -552,6 +560,8 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
  */
 
 static void handle_info(const Flash_mgr_cmd* cmd) {
+    printf("handle_info: cmd->data_len=%u\n", cmd->data_len);
+
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
 
@@ -598,9 +608,12 @@ static void handle_info(const Flash_mgr_cmd* cmd) {
  */
 
 static void handle_format(const Flash_mgr_cmd* cmd) {
+    printf("handle_format: cmd->data_len=%u\n", cmd->data_len);
+
     if (g_lfs_port == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
 
-    if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
+    /* Lfs_Port_Unmount / Format / Mount each take g_spi_mutex internally.
+     * Do NOT take it here — would deadlock (FreeRTOS mutex is non-recursive). */
 
     /* Unmount, format, remount */
     int err = Lfs_Port_Unmount(g_lfs_port);
@@ -610,8 +623,6 @@ static void handle_format(const Flash_mgr_cmd* cmd) {
     if (err >= 0) {
         err = Lfs_Port_Mount(g_lfs_port);
     }
-
-    if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
 
     if (err < 0) {
         send_nak(cmd->seq, map_lfs_error(err));

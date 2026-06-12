@@ -14,7 +14,7 @@ typedef struct {
     uint8_t  cmd;
     uint16_t seq;
     uint16_t data_len;
-    uint8_t  data[512];
+    uint8_t  data[517];  /* max payload (520) - CMD(1) - SEQ(2) */
 } Flash_mgr_cmd;
 
 /* ------------------------------------------------------------------ */
