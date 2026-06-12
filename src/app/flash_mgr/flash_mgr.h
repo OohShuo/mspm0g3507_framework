@@ -1,43 +1,42 @@
 #pragma once
 
+#define FLASH_MGR_ENABLE 1
+
+void Flash_Mgr_Init(void);
+void Flash_Mgr_Loop(void* arg);
+
 #if FRAMEWORK_USE_LFS
 
 // clang-format off
 
 #include <stdint.h>
 
-/* ------------------------------------------------------------------ */
-/* Queue command descriptor — passed from UART callback to task        */
-/* ------------------------------------------------------------------ */
-
 typedef struct {
-    uint8_t  cmd;
+    uint8_t cmd;
     uint16_t seq;
     uint16_t data_len;
-    uint8_t  data[517];  /* max payload (520) - CMD(1) - SEQ(2) */
+    uint8_t data[517]; /* max payload (520) - CMD(1) - SEQ(2) */
 } Flash_mgr_cmd;
 
-/* ------------------------------------------------------------------ */
-/* Protocol constants                                                   */
-/* ------------------------------------------------------------------ */
+// Protocol constants
 
-#define FLASH_MGR_SYNC0         0xAAu
-#define FLASH_MGR_SYNC1         0x55u
-#define FLASH_MGR_CHUNK_SIZE    512u
-#define FLASH_MGR_PATH_MAX      255u
-#define FLASH_MGR_TX_BUF_SIZE   530u  /* 2+1+2+2+512+2+9 headroom */
+#define FLASH_MGR_SYNC0          0xAAu
+#define FLASH_MGR_SYNC1          0x55u
+#define FLASH_MGR_CHUNK_SIZE     512u
+#define FLASH_MGR_PATH_MAX       255u
+#define FLASH_MGR_TX_BUF_SIZE    530u /* 2+1+2+2+512+2+9 headroom */
 
-/* ---- host → device commands --------------------------------------- */
+// host → device commands
 
-#define FLASH_MGR_CMD_READ      0x01u
-#define FLASH_MGR_CMD_WRITE     0x02u
-#define FLASH_MGR_CMD_DELETE    0x03u
-#define FLASH_MGR_CMD_LIST      0x04u
-#define FLASH_MGR_CMD_INFO      0x05u
-#define FLASH_MGR_CMD_FORMAT    0x06u
-#define FLASH_MGR_CMD_RESET     0x07u
+#define FLASH_MGR_CMD_READ       0x01u
+#define FLASH_MGR_CMD_WRITE      0x02u
+#define FLASH_MGR_CMD_DELETE     0x03u
+#define FLASH_MGR_CMD_LIST       0x04u
+#define FLASH_MGR_CMD_INFO       0x05u
+#define FLASH_MGR_CMD_FORMAT     0x06u
+#define FLASH_MGR_CMD_RESET      0x07u
 
-/* ---- device → host responses -------------------------------------- */
+// device → host responses
 
 #define FLASH_MGR_RESP_ACK       0x80u
 #define FLASH_MGR_RESP_NAK       0x81u
@@ -49,7 +48,7 @@ typedef struct {
 #define FLASH_MGR_RESP_LIST_END  0x87u
 #define FLASH_MGR_RESP_INFO_RESP 0x88u
 
-/* ---- NAK error codes ---------------------------------------------- */
+// NAK error codes
 
 #define FLASH_MGR_ERR_UNKNOWN    0x00u
 #define FLASH_MGR_ERR_NOENT      0x01u
@@ -59,26 +58,16 @@ typedef struct {
 #define FLASH_MGR_ERR_IO         0x05u
 #define FLASH_MGR_ERR_CORRUPT    0x06u
 
-/* ---- file type codes ---------------------------------------------- */
+// file type codes
 
 #define FLASH_MGR_TYPE_UNKNOWN   0x00u
 #define FLASH_MGR_TYPE_REG       0x01u
 #define FLASH_MGR_TYPE_DIR       0x02u
 
-/* ------------------------------------------------------------------ */
-/* Public API                                                           */
-/* ------------------------------------------------------------------ */
+// queue config
 
-/**
- * @brief One-time initialisation of the Flash Manager subsystem.
- *
- * Creates W25Q32 handle, lfs_port, SPI mutex, FreeRTOS queue,
- * com_uart instance (with protocol_binary_frame), and flash_mgr task.
- *
- * Called from main.c.  Must run after Hal_Init().
- */
-void Flash_Mgr_Init(void);
+#define FLASH_MGR_QUEUE_DEPTH    4u
 
 // clang-format on
 
-#endif
+#endif /* FRAMEWORK_USE_LFS */

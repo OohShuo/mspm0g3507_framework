@@ -6,7 +6,6 @@
 #include "FreeRTOS.h"
 #include "board_config.h"
 #include "bsp_gpio.h"
-#include "lfs.h"
 #include "lfs_port.h"
 #include "rtt_log.h"
 #include "task.h"
@@ -19,6 +18,12 @@
 #define LFS_TEST_RESULT_MAX  16
 
 #if FRAMEWORK_USE_LFS
+
+// clang-format off
+
+#include "lfs.h"
+
+// clang-format on
 
 typedef struct {
     const char* name;
