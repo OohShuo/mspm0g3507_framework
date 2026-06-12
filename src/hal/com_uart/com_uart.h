@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 
-#include "general_data.h"
 #include "protocol.h"
 
 typedef struct Com_uart_t Com_uart;
@@ -24,13 +23,9 @@ typedef struct {
 
 struct Com_uart_t {
     Com_uart_config config;
-    uint8_t* tx_buf;
     uint8_t* rx_buf;
-    General_data rx_data;
-    uint8_t rx_update_flag;
 
-    Protocol_send* proto_send;
-    Protocol_recv* proto_recv;
+    Protocol* proto;
 };
 
 void Com_Uart_Init(void);
