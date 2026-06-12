@@ -1,21 +1,27 @@
-#if FRAMEWORK_USE_LVGL
-
-// clang-format off
-
 #include "lvgl_hello.h"
 
 #include <stddef.h>
 #include <stdio.h>
 
+#include "FreeRTOS.h"
 #include "board_config.h"
 #include "bsp.h"
 #include "bsp_time.h"
-#include "lvgl.h"
 #include "st7789.h"
+#include "task.h"
 
-#define LCD_HOR_RES   240
-#define LCD_VER_RES   320
-#define LCD_BUF_LINES (LCD_VER_RES / 10 / 4)
+#define LCD_HOR_RES     240
+#define LCD_VER_RES     320
+#define LCD_BUF_LINES   (LCD_VER_RES / 10 / 4)
+#define LABEL_TOGGLE_MS 1000U
+#define BG_TOGGLE_MS    5000U
+#define BG_COLOR_COUNT  (sizeof(BG_COLORS) / sizeof(BG_COLORS[0]))
+
+#if FRAMEWORK_USE_LVGL
+
+// clang-format off
+#include "lvgl.h"
+// clang-format on
 
 static St7789* g_lcd = NULL;
 static lv_display_t* g_disp = NULL;
@@ -23,14 +29,11 @@ static lv_obj_t* g_label = NULL;
 
 static uint8_t g_render_buf[LCD_HOR_RES * LCD_BUF_LINES * 2];
 
-#define LABEL_TOGGLE_MS 1000U
 static uint32_t g_label_last_toggle_ms = 0;
 static uint8_t g_label_show_hello = 1;
 
-#define BG_TOGGLE_MS 5000U
 static uint32_t g_bg_last_toggle_ms = 0;
 static const uint32_t BG_COLORS[] = {0x0000ff, 0xff00ff};  // blue, magenta
-#define BG_COLOR_COUNT (sizeof(BG_COLORS) / sizeof(BG_COLORS[0]))
 static uint32_t g_bg_index = 0;
 
 static void lvgl_send_cmd_cb(
@@ -47,8 +50,6 @@ static void lvgl_send_color_cb(
 }
 
 static uint32_t lvgl_get_tick(void) { return Bsp_Get_Tick_Ms(); }
-
-// === Init / Loop ===
 
 void App_Lvgl_Hello_Init(void) {
     const St7789_config lcd_cfg = {
@@ -113,6 +114,16 @@ void App_Lvgl_Hello_Init(void) {}
 
 void App_Lvgl_Hello_Loop(void) {}
 
-// clang-format on
-
 #endif
+
+static void lvgl_hello_task(void* arg) {
+    (void)arg;
+    App_Lvgl_Hello_Init();
+    uint32_t tick = xTaskGetTickCount();
+    while (1) {
+        App_Lvgl_Hello_Loop();
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
+    }
+}
+
+void Lvgl_Hello_Test_Task_Def(void) { xTaskCreate(lvgl_hello_task, "LVGL_Hello", 1024, NULL, 1, NULL); }

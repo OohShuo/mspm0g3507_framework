@@ -9,46 +9,37 @@
 #include "st7789.h"
 #include "task.h"
 
-// === Panel geometry ===
-
 #define LCD_HOR_RES       240
 #define LCD_VER_RES       320
 #define LCD_LINE_BUF_SIZE (240 * 2)
 #define PATTERN_HOLD_MS   2000
 
-// === Module-private state ===
+typedef struct {
+    const char* pattern_name;
+    uint8_t pattern_idx;
+    uint8_t init_done;
+} Lcd_test_status;
 
 static St7789* g_lcd = NULL;
 static Lcd_test_status g_status = {0};
 static uint8_t g_line_buf[LCD_LINE_BUF_SIZE];
 static uint32_t g_last_pattern_change_ms = 0;
 
-// === Color helpers ===
-
-// RGB565 packs R5G6B5, MSB first on the wire (after the bswap in
-// St7789_Send_Color). The values here are the canonical "named" colors.
 #define COLOR_BLACK 0x0000
 #define COLOR_WHITE 0xFFFF
 #define COLOR_RED   0xF800
 #define COLOR_GREEN 0x07E0
 #define COLOR_BLUE  0x001F
 
-// === Patterns ===
-
-// Fill one row of the line buffer with `color` and flush it as a
-// 1-row window. The repeated call builds up a full-screen fill.
 static void flush_row(int32_t y, uint16_t color) {
     uint16_t* lb = (uint16_t*)g_line_buf;
     for (uint32_t i = 0; i < LCD_HOR_RES; i++) { lb[i] = color; }
     St7789_Flush(g_lcd, 0, y, (int32_t)(LCD_HOR_RES - 1), y, g_line_buf, LCD_HOR_RES * 2);
 }
 
-// Fill the entire screen with one color, one row at a time.
 static void pattern_solid(uint16_t color) {
     for (uint32_t y = 0; y < LCD_VER_RES; y++) { flush_row((int32_t)y, color); }
 }
-
-// === Pattern table ===
 
 static void p_solid_red(void) { pattern_solid(COLOR_RED); }
 static void p_solid_green(void) { pattern_solid(COLOR_GREEN); }
@@ -77,16 +68,7 @@ static void flush_done_cb(void* arg) {
     flush_cnt++;
 }
 
-// === Public API ===
-
 void App_Lcd_Test_Init(void) {
-    // Pin map matches the working 地猛星 reference (lcd_init.h):
-    //   RST = PA15  -> GPIO_1
-    //   DC  = PA16  -> GPIO_2
-    //   BLK = PA14  -> GPIO_3
-    // CS is hardwired on the panel; bsp_spi doesn't see it.
-    // The SDA pin is MOSI-only — no MISO, so we don't try to read back
-    // from the panel.
     const St7789_config lcd_cfg = {
         .spi_idx = SOFT_SPI_LCD_IDX,
         .cs_gpio_idx = (uint32_t)-1,
@@ -121,3 +103,14 @@ void App_Lcd_Test_Loop(void) {
 }
 
 const Lcd_test_status* App_Lcd_Test_Get_Status(void) { return &g_status; }
+
+static void lcd_test_task(void* arg) {
+    (void)arg;
+    App_Lcd_Test_Init();
+    while (1) {
+        App_Lcd_Test_Loop();
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+void Lcd_Test_Task_Def(void) { xTaskCreate(lcd_test_task, "LCD_Test", 256, NULL, 1, NULL); }

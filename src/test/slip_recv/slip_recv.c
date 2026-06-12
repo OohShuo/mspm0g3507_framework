@@ -2,14 +2,16 @@
 
 #include <stdint.h>
 
+#include "FreeRTOS.h"
 #include "com_uart.h"
 #include "rtt_log.h"
+#include "task.h"
 
 #define SLIP_UART_IDX        0
 #define SLIP_IDLE_TIMEOUT_MS 5
-#define SLIP_RX_DMA_BUF_LEN  512  // raw DMA buffer (one chunk)
-#define SLIP_TX_BUF_LEN      1    // unused (RX-only)
-#define SLIP_MAX_PAYLOAD     512  // decoded chunk buffer (matches DMA buf)
+#define SLIP_RX_DMA_BUF_LEN  512
+#define SLIP_TX_BUF_LEN      1
+#define SLIP_MAX_PAYLOAD     512
 
 static Com_uart* g_slip_uart = NULL;
 
@@ -31,7 +33,6 @@ static void slip_on_chunk(Com_uart* obj, const uint8_t* data, uint32_t len, uint
             printf(".");
         }
     }
-    printf("\n");
     if (flags & PROTOCOL_CHUNK_LAST) { printf("end.\n"); }
 }
 
@@ -41,7 +42,7 @@ void App_Slip_Recv_Init(void) {
         .idle_timeout_ms = SLIP_IDLE_TIMEOUT_MS,
         .rx_max_len = SLIP_RX_DMA_BUF_LEN,
         .tx_max_len = SLIP_TX_BUF_LEN,
-        .protocol_type = protocol_none,
+        .protocol_type = protocol_7d7e,
         .protocol_max_payload = SLIP_MAX_PAYLOAD,
         .on_rx = slip_on_chunk,
         .on_rx_arg = NULL,
@@ -49,7 +50,12 @@ void App_Slip_Recv_Init(void) {
     g_slip_uart = Com_Uart_Create(&cfg);
 }
 
-void App_Slip_Recv_Loop(void) {
-    // All work is done in the on_rx callback (ISR context).
-    // This task body just parks.
+void App_Slip_Recv_Loop(void) {}
+
+static void slip_recv_task(void* arg) {
+    (void)arg;
+    App_Slip_Recv_Init();
+    while (1) { App_Slip_Recv_Loop(); }
 }
+
+void Slip_Recv_Test_Task_Def(void) { xTaskCreate(slip_recv_task, "SlipRecv", 256, NULL, 1, NULL); }
