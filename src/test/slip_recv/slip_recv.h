@@ -1,4 +1,3 @@
 #pragma once
 
-void App_Slip_Recv_Init(void);
-void App_Slip_Recv_Loop(void);
+void Slip_Recv_Test_Task_Def(void);

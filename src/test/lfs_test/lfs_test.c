@@ -1,62 +1,35 @@
 #include "lfs_test.h"
 
+#include <stdint.h>
 #include <string.h>
 
-#if FRAMEWORK_USE_LFS
-
-// clang-format off
-
-/**
- * @file   lfs_test.c
- * @brief  Exercise the lfs port with the standard lfs smoke battery.
- *
- * Init runs a long, sequential sequence:
- *   1. bring up W25Q32 on the shared SPI bus
- *   2. format the chosen lfs region (destructive; do not ship pointing
- *      at flash that holds anything you want to keep)
- *   3. mount, then run the test battery
- *
- * The battery covers: open+write+read+close of a small file, dir listing,
- * stat, write a second file, re-mount to prove persistence across mount
- * cycles, then unlink one and re-list. Results are stored in a static
- * array that the host can pull via the Get_* accessors.
- *
- * Loop is intentionally a no-op: the test runs once in Init and the
- * results are stable. SPI bus sharing with the LCD still applies — the
- * lfs test owns the bus only during Init, then yields.
- */
-
-#include <stdint.h>
-
+#include "FreeRTOS.h"
 #include "board_config.h"
 #include "bsp_gpio.h"
 #include "lfs.h"
 #include "lfs_port.h"
 #include "rtt_log.h"
+#include "task.h"
 #include "w25q32.h"
-
-/* ------------------------------------------------------------------ */
-/* Region layout                                                       */
-/*                                                                     */
-/* Whole W25Q32 is 4 MiB; we use the upper 2 MiB for lfs so the lower  */
-/* half is left untouched for whatever other apps want to put there    */
-/* (asset blobs, log ring, future firmware A/B, ...).                  */
-/* ------------------------------------------------------------------ */
 
 #define LFS_TEST_FLASH_START (2u * 1024u * 1024u) /* 2 MiB */
 #define LFS_TEST_FLASH_SIZE  (2u * 1024u * 1024u) /* 2 MiB */
 
 #define LFS_TEST_PAYLOAD     "hello littlefs - tick=%u"
+#define LFS_TEST_RESULT_MAX  16
 
-/* ------------------------------------------------------------------ */
-/* Module state                                                        */
-/* ------------------------------------------------------------------ */
+#if FRAMEWORK_USE_LFS
+
+typedef struct {
+    const char* name;
+    uint8_t passed;
+    int lfs_err; /**< raw lfs error code (0 = ok) for diagnosis */
+} Lfs_test_result;
 
 static W25q32* g_flash = NULL;
 static Lfs_port* g_port = NULL;
 
-#define LFS_TEST_RESULT_MAX 16
-static Lfs_Test_Result g_results[LFS_TEST_RESULT_MAX];
+static Lfs_test_result g_results[LFS_TEST_RESULT_MAX];
 static uint8_t g_result_count = 0;
 static uint8_t g_all_passed = 0;
 
@@ -71,14 +44,7 @@ static void record(const char* name, int err) {
 
 static void record_noerr(const char* name, uint8_t ok) { record(name, ok ? 0 : -1); }
 
-/* ------------------------------------------------------------------ */
-/* Init                                                                */
-/* ------------------------------------------------------------------ */
-
 void App_Lfs_Test_Init(void) {
-    /* W25Q32 lives on the same SPI as the LCD; that bus is shared but
-     * the lfs test runs once during init, before the LVGL task takes
-     * over, so there's no contention here. */
     const W25q32_config cfg = {
         .spi_idx = SPI_LCD_IDX,
         .cs_gpio_idx = GPIO_SPI_CS_IDX,
@@ -111,9 +77,6 @@ void App_Lfs_Test_Init(void) {
 
     int err;
 
-    /* Always format — the test wants a known-clean region, and the
-     * upper 2 MiB is dedicated to lfs anyway. If you change that
-     * assumption, gate this on a "is the superblock sane" probe. */
     err = Lfs_Port_Format(g_port);
     record("format", err);
     if (err != 0) {
@@ -130,17 +93,12 @@ void App_Lfs_Test_Init(void) {
 
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_port);
 
-    /* ---- 1. write a small text file ---- */
     {
         lfs_file_t f;
         err = lfs_file_open(lfs, &f, "boot_count", LFS_O_WRONLY | LFS_O_CREAT);
         if (err == 0) {
             char buf[64];
             int n = snprintf(buf, sizeof(buf), LFS_TEST_PAYLOAD, 1u);
-            /* lfs_file_write returns bytes written (>=0) on success, or a
-             * negative lfs error code. We want to record an lfs-shaped
-             * error code, so map "all bytes written" to 0 and leave a
-             * negative return as-is. */
             lfs_ssize_t w = lfs_file_write(lfs, &f, buf, (lfs_size_t)n);
             err = (w == (lfs_ssize_t)n) ? 0 : (int)w;
             lfs_file_close(lfs, &f);
@@ -148,7 +106,6 @@ void App_Lfs_Test_Init(void) {
         record("write boot_count", err);
     }
 
-    /* ---- 2. read it back and compare ---- */
     {
         lfs_file_t f;
         err = lfs_file_open(lfs, &f, "boot_count", LFS_O_RDONLY);
@@ -166,7 +123,6 @@ void App_Lfs_Test_Init(void) {
         if (err != 0) { record("  (read)", err); }
     }
 
-    /* ---- 3. stat: file exists with non-zero size ---- */
     {
         struct lfs_info info;
         err = lfs_stat(lfs, "boot_count", &info);
@@ -175,7 +131,6 @@ void App_Lfs_Test_Init(void) {
         if (err == 0) { printf("       size=%lu type=%d\n", (unsigned long)info.size, (int)info.type); }
     }
 
-    /* ---- 4. write a second file ---- */
     {
         lfs_file_t f;
         err = lfs_file_open(lfs, &f, "config.txt", LFS_O_WRONLY | LFS_O_CREAT);
@@ -189,7 +144,6 @@ void App_Lfs_Test_Init(void) {
         record("write config.txt", err);
     }
 
-    /* ---- 5. dir listing: expect 2 entries ---- */
     {
         lfs_dir_t dir;
         err = lfs_dir_open(lfs, &dir, "/");
@@ -212,7 +166,6 @@ void App_Lfs_Test_Init(void) {
         record_noerr("dir list (2 files expected)", err == 0 && count == 2);
     }
 
-    /* ---- 6. unmount, remount, files must persist ---- */
     err = Lfs_Port_Unmount(g_port);
     record("unmount", err);
 
@@ -221,15 +174,12 @@ void App_Lfs_Test_Init(void) {
     if (err == 0) {
         lfs_t* lfs2 = Lfs_Port_Get_Lfs(g_port);
         struct lfs_info info;
-        uint8_t boot_ok =
-            (uint8_t)((lfs_stat(lfs2, "boot_count", &info) == 0) && (info.size > 0));
-        uint8_t cfg_ok =
-            (uint8_t)((lfs_stat(lfs2, "config.txt", &info) == 0) && (info.size > 0));
+        uint8_t boot_ok = (uint8_t)((lfs_stat(lfs2, "boot_count", &info) == 0) && (info.size > 0));
+        uint8_t cfg_ok = (uint8_t)((lfs_stat(lfs2, "config.txt", &info) == 0) && (info.size > 0));
         record_noerr("persisted boot_count", boot_ok);
         record_noerr("persisted config.txt", cfg_ok);
     }
 
-    /* ---- 7. unlink boot_count, list again ---- */
     {
         lfs_t* lfs3 = Lfs_Port_Get_Lfs(g_port);
         err = lfs_remove(lfs3, "boot_count");
@@ -252,7 +202,6 @@ void App_Lfs_Test_Init(void) {
         record_noerr("dir list after unlink (1 expected)", count == 1);
     }
 
-    /* ---- aggregate ---- */
     g_all_passed = 1;
     for (uint8_t i = 0; i < g_result_count; i++) {
         if (!g_results[i].passed) {
@@ -261,14 +210,8 @@ void App_Lfs_Test_Init(void) {
         }
     }
 
-    /* Visual cue: drive the LCD backlight pin the way w25q32_test does. */
     Bsp_Gpio_Write(GPIO_TFT_BLK_IDX, g_all_passed ? bsp_gpio_state_set : bsp_gpio_state_reset);
 
-    /* Print a single paste-friendly block of all results so the user can
-     * copy/paste the whole list back to the host for analysis without
-     * having to scroll the RTT log. The per-test `[OK]/[FAIL]` lines
-     * above are interleaved with trace spam; this block is the canonical
-     * summary. */
     printf("\n========== lfs_test results (paste this) ==========\n");
     uint8_t passed = 0;
     for (uint8_t i = 0; i < g_result_count; i++) {
@@ -283,18 +226,22 @@ void App_Lfs_Test_Init(void) {
         (unsigned)g_result_count);
 }
 
-void App_Lfs_Test_Loop(void) { /* Test runs once in Init; the loop is intentionally a no-op. */ }
-
-const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return g_results; }
-uint8_t App_Lfs_Test_Get_Result_Count(void) { return g_result_count; }
-uint8_t App_Lfs_Test_All_Passed(void) { return g_all_passed; }
+void App_Lfs_Test_Loop(void) {}
 
 #else
 
-void App_Lfs_Test_Init(void) {  }
-void App_Lfs_Test_Loop(void) { /* no-op */ }
-const Lfs_Test_Result* App_Lfs_Test_Get_Results(void) { return NULL; }
-uint8_t App_Lfs_Test_Get_Result_Count(void) { return 0; }
-uint8_t App_Lfs_Test_All_Passed(void) { return 0; }
+void App_Lfs_Test_Init(void) {}
+void App_Lfs_Test_Loop(void) {}
 
 #endif
+
+static void lfs_test_task(void* arg) {
+    (void)arg;
+    App_Lfs_Test_Init();
+    while (1) {
+        App_Lfs_Test_Loop();
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+void Lfs_Test_Task_Def(void) { xTaskCreate(lfs_test_task, "LFS_Test", 1024, NULL, 1, NULL); }

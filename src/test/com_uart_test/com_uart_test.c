@@ -32,10 +32,9 @@ static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flag
     buf[n] = '\0';
 
     for (uint32_t i = 0; i < n; i++) {
-        char c = (data[i] >= 32 && data[i] <= 126) ? (char)data[i] : '.';
+        char c = ((data[i] >= 32 && data[i] <= 126) || data[i] == '\n') ? (char)data[i] : '.';
         printf("%c", c);
     }
-    printf("\n");
 
     Com_Uart_Send(obj, data, len);
 }
@@ -46,6 +45,8 @@ static void com_uart_test_init(void) {
         .idle_timeout_ms = COM_UART_TEST_IDLE_TIMEOUT,
         .rx_max_len = COM_UART_TEST_RX_MAX_LEN,
         .tx_max_len = COM_UART_TEST_TX_MAX_LEN,
+        .protocol_type = protocol_none,
+        .protocol_max_payload = COM_UART_TEST_RX_MAX_LEN,
         .on_rx = on_rx,
         .on_rx_arg = NULL,
     };
