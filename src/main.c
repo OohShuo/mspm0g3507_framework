@@ -19,6 +19,7 @@ TaskHandle_t rtt_test_task_handle = NULL;
 TaskHandle_t lfs_test_task_handle = NULL;
 TaskHandle_t com_uart_test_task_handle = NULL;
 TaskHandle_t slip_recv_task_handle = NULL;
+TaskHandle_t flash_mgr_task_handle = NULL;
 
 extern void App_Lcd_Test_Init(void);
 extern void App_Lcd_Test_Loop(void);
@@ -38,6 +39,7 @@ extern void App_Com_Uart_Test_Init(void);
 extern void App_Com_Uart_Test_Loop(void);
 extern void App_Slip_Recv_Init(void);
 extern void App_Slip_Recv_Loop(void);
+extern void Flash_Mgr_Init(void);
 
 #define LCD_TEST_ENABLE        0
 #define ST7789_IMG_TEST_ENABLE 1
@@ -47,7 +49,8 @@ extern void App_Slip_Recv_Loop(void);
 #define RTT_TEST_ENABLE        0
 #define LFS_TEST_ENABLE        0
 #define COM_UART_TEST_ENABLE   0
-#define SLIP_RECV_ENABLE       1
+#define SLIP_RECV_ENABLE       0
+#define FLASH_MGR_ENABLE       1
 
 static void task_gpio(void* arg) {
     uint32_t tick = xTaskGetTickCount();
@@ -242,6 +245,10 @@ int main(void) {
 #if SLIP_RECV_ENABLE
     // All work is in the idle_cb, so the task body just parks cheaply.
     xTaskCreate(task_slip_recv, "SlipRecv", 256, NULL, 1, &slip_recv_task_handle);
+#endif
+#if FLASH_MGR_ENABLE
+    // Flash_Mgr_Init creates its own task internally, so no xTaskCreate here.
+    Flash_Mgr_Init();
 #endif
 
     vTaskStartScheduler();

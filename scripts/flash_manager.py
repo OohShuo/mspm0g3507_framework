@@ -1,0 +1,674 @@
+#!/usr/bin/env python3
+"""
+FlashManager — PC-side client for the Flash UART passthrough protocol.
+
+Manages the MPU's LittleFS filesystem on W25Q32 external Flash over a
+serial UART link.  Supports chunked upload/download with CRC verification,
+automatic retry on timeout/CRC errors, and directory listing.
+
+Usage:
+    from flash_manager import FlashManager
+
+    fm = FlashManager("/dev/ttyUSB0")
+    fm.upload_file("firmware.bin", "/fw.bin")
+    fm.list_dir("/")
+    fm.download_file("/fw.bin", "fw_backup.bin")
+    fm.close()
+"""
+
+import os
+import struct
+import time
+from typing import Callable, List, Optional, Tuple, Union
+
+import serial
+
+
+# ── Protocol constants (must match flash_mgr.h) ──────────────────────
+
+SYNC0 = 0xAA
+SYNC1 = 0x55
+
+# Host → Device commands
+CMD_READ   = 0x01
+CMD_WRITE  = 0x02
+CMD_DELETE = 0x03
+CMD_LIST   = 0x04
+CMD_INFO   = 0x05
+CMD_FORMAT = 0x06
+CMD_RESET  = 0x07
+
+# Device → Host responses
+RESP_ACK       = 0x80
+RESP_NAK       = 0x81
+RESP_CRC_ERR   = 0x82
+RESP_BUSY      = 0x83
+RESP_CHUNK     = 0x84
+RESP_EOF       = 0x85
+RESP_LIST_ITEM = 0x86
+RESP_LIST_END  = 0x87
+RESP_INFO_RESP = 0x88
+
+# NAK error codes
+ERR_UNKNOWN = 0x00
+ERR_NOENT   = 0x01
+ERR_NOSPC   = 0x02
+ERR_INVAL   = 0x03
+ERR_EXIST   = 0x04
+ERR_IO      = 0x05
+ERR_CORRUPT = 0x06
+
+# File type codes
+TYPE_UNKNOWN = 0x00
+TYPE_REG     = 0x01
+TYPE_DIR     = 0x02
+
+_ERROR_NAMES = {
+    ERR_UNKNOWN: "unknown error",
+    ERR_NOENT:   "file not found",
+    ERR_NOSPC:   "no space left on device",
+    ERR_INVAL:   "invalid argument",
+    ERR_EXIST:   "file already exists",
+    ERR_IO:      "I/O error",
+    ERR_CORRUPT: "filesystem corruption",
+}
+
+_TYPE_NAMES = {
+    TYPE_UNKNOWN: "?",
+    TYPE_REG:     "file",
+    TYPE_DIR:     "dir",
+}
+
+# ── CRC16 (matches MCU Soft_Crc16_Calc, poly=0x1021, init=0xFFFF) ──
+
+_CRC16_TABLE = None
+
+
+def _make_crc16_table() -> List[int]:
+    """Build CRC-16/CCITT-FALSE lookup table, bit-reversed like the C code."""
+    poly_rev = 0x8408  # bit_reverse_u16(0x1021)
+    table = []
+    for i in range(256):
+        crc = 0
+        c = i
+        for _ in range(8):
+            if (crc ^ c) & 1:
+                crc = (crc >> 1) ^ poly_rev
+            else:
+                crc >>= 1
+            c >>= 1
+        table.append(crc)
+    return table
+
+
+def crc16(data: bytes) -> int:
+    """CRC-16/CCITT-FALSE — byte-exact match of Soft_Crc16_Calc."""
+    global _CRC16_TABLE
+    if _CRC16_TABLE is None:
+        _CRC16_TABLE = _make_crc16_table()
+
+    crc = 0xFFFF
+    for byte in data:
+        crc = (crc >> 8) ^ _CRC16_TABLE[(crc ^ byte) & 0xFF]
+    return crc
+
+
+# ── Frame helpers ────────────────────────────────────────────────────
+
+def build_frame(cmd: int, seq: int, data: bytes = b"") -> bytes:
+    """Build a protocol frame.
+
+    Layout: SYNC0 SYNC1 CMD SEQ_H SEQ_L LEN_H LEN_L [DATA] CRCH CRCL
+    CRC covers CMD + SEQ(2) + LEN(2) + DATA.
+    """
+    data_len = len(data)
+    if data_len > 512:
+        raise ValueError(f"Data too long: {data_len} > 512")
+
+    buf = bytearray(9 + data_len)
+    buf[0] = SYNC0
+    buf[1] = SYNC1
+    buf[2] = cmd
+    buf[3] = (seq >> 8) & 0xFF
+    buf[4] = seq & 0xFF
+    buf[5] = (data_len >> 8) & 0xFF
+    buf[6] = data_len & 0xFF
+    if data_len > 0:
+        buf[7 : 7 + data_len] = data
+
+    # CRC over CMD(1) + SEQ(2) + LEN(2) + DATA = 5 + data_len bytes
+    # Those bytes start at buf[2]
+    crc_span = memoryview(buf)[2 : 7 + data_len]
+    crc = crc16(bytes(crc_span))
+    buf[7 + data_len] = (crc >> 8) & 0xFF
+    buf[8 + data_len] = crc & 0xFF
+
+    return bytes(buf)
+
+
+# ── FlashManager ─────────────────────────────────────────────────────
+
+class FlashManager:
+    """Serial Flash file manager for the MPU LittleFS partition.
+
+    Parameters
+    ----------
+    port : str
+        Serial device path, e.g. ``/dev/ttyUSB0`` or ``COM3``.
+    baudrate : int
+        Baud rate (default 115200).
+    timeout : float
+        Per-byte read timeout in seconds (default 0.5).
+    max_retries : int
+        Max retransmissions per chunk (default 3).
+    """
+
+    CHUNK_SIZE = 512
+    PATH_MAX   = 255
+
+    def __init__(
+        self,
+        port: str,
+        baudrate: int = 115200,
+        timeout: float = 0.5,
+        max_retries: int = 3,
+    ):
+        self._timeout = timeout
+        self._max_retries = max_retries
+        self._seq = 0
+        self.ser = serial.Serial(
+            port=port,
+            baudrate=baudrate,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            timeout=timeout,
+        )
+        time.sleep(0.05)  # let DTR/RTS settle
+
+    # ── Public API ───────────────────────────────────────────────
+
+    def close(self):
+        """Close the serial port."""
+        if self.ser and self.ser.is_open:
+            self.ser.close()
+
+    def upload_file(
+        self,
+        local_path: str,
+        remote_path: str,
+        progress_cb: Optional[Callable[[int, int], None]] = None,
+    ) -> bool:
+        """Upload a local file to the device.
+
+        The file is split into 512-byte chunks.  Each chunk is sent in a
+        self-contained WRITE frame (open → seek → write → close on the MCU
+        side), so transmission can be safely resumed from any chunk boundary.
+
+        Parameters
+        ----------
+        local_path : str
+            Path to the local file to read.
+        remote_path : str
+            Destination path on the device (must start with ``/``).
+        progress_cb : callable(int sent, int total) or None
+            Called after each successful chunk write.
+
+        Returns
+        -------
+        bool
+            True if the entire file was uploaded successfully.
+        """
+        if not os.path.isfile(local_path):
+            raise FileNotFoundError(local_path)
+
+        file_size = os.path.getsize(local_path)
+        offset = 0
+        path_bytes = remote_path.encode("utf-8")
+        if len(path_bytes) > self.PATH_MAX:
+            raise ValueError(f"Remote path too long: {len(path_bytes)} > {self.PATH_MAX}")
+
+        with open(local_path, "rb") as f:
+            while offset < file_size:
+                chunk = f.read(self.CHUNK_SIZE)
+
+                # Build WRITE payload:
+                #   [path_len:1B][path:N][offset:4B LE][data:M]
+                payload = (
+                    bytes([len(path_bytes)])
+                    + path_bytes
+                    + struct.pack("<I", offset)
+                    + chunk
+                )
+
+                resp = self._transact(CMD_WRITE, payload, {RESP_ACK, RESP_NAK})
+                if resp is None:
+                    return False
+
+                resp_cmd, _, resp_data = resp
+                if resp_cmd == RESP_NAK:
+                    err = resp_data[0] if resp_data else ERR_UNKNOWN
+                    print(f"WRITE NAK at offset {offset}: {_ERROR_NAMES.get(err, err)}")
+                    return False
+
+                offset += len(chunk)
+                if progress_cb:
+                    progress_cb(offset, file_size)
+
+        return True
+
+    def download_file(
+        self,
+        remote_path: str,
+        local_path: str,
+        progress_cb: Optional[Callable[[int, Optional[int]], None]] = None,
+    ) -> bool:
+        """Download a file from the device.
+
+        The file is read in 512-byte chunks using READ requests.
+        Each READ is idempotent (carries an absolute offset), so a lost
+        chunk is recovered by re-requesting the same offset.
+
+        Parameters
+        ----------
+        remote_path : str
+            Source path on the device.
+        local_path : str
+            Destination path on the PC.
+        progress_cb : callable(int received, int total_or_None) or None
+            Called after each chunk.  ``total`` is None until EOF.
+
+        Returns
+        -------
+        bool
+            True on success.
+        """
+        path_bytes = remote_path.encode("utf-8")
+        if len(path_bytes) > self.PATH_MAX:
+            raise ValueError(f"Remote path too long: {len(path_bytes)} > {self.PATH_MAX}")
+
+        offset = 0
+
+        with open(local_path, "wb") as f:
+            while True:
+                # Build READ payload:
+                #   [path_len:1B][path:N][offset:4B LE]
+                payload = (
+                    bytes([len(path_bytes)])
+                    + path_bytes
+                    + struct.pack("<I", offset)
+                )
+
+                resp = self._transact(
+                    CMD_READ, payload, {RESP_CHUNK, RESP_EOF, RESP_NAK}
+                )
+                if resp is None:
+                    return False
+
+                resp_cmd, _, resp_data = resp
+
+                if resp_cmd == RESP_NAK:
+                    err = resp_data[0] if resp_data else ERR_UNKNOWN
+                    print(f"READ NAK at offset {offset}: {_ERROR_NAMES.get(err, err)}")
+                    return False
+
+                if resp_cmd == RESP_EOF:
+                    file_size = struct.unpack("<I", resp_data[:4])[0]
+                    if progress_cb:
+                        progress_cb(file_size, file_size)
+                    return True
+
+                if resp_cmd == RESP_CHUNK:
+                    # CHUNK payload: [offset:4B LE][data:M]
+                    if len(resp_data) < 4:
+                        print("CHUNK response too short")
+                        return False
+                    chunk_offset = struct.unpack("<I", resp_data[:4])[0]
+                    chunk_data = resp_data[4:]
+                    f.seek(chunk_offset)
+                    f.write(chunk_data)
+                    offset = chunk_offset + len(chunk_data)
+                    if progress_cb:
+                        progress_cb(offset, None)
+
+        return True  # unreachable, but keeps type checkers happy
+
+    def delete(self, remote_path: str) -> bool:
+        """Delete a file or empty directory on the device.
+
+        Returns True on success, False if the file doesn't exist or
+        another error occurs.
+        """
+        path_bytes = remote_path.encode("utf-8")
+        if len(path_bytes) > self.PATH_MAX:
+            raise ValueError(f"Remote path too long: {len(path_bytes)} > {self.PATH_MAX}")
+
+        payload = bytes([len(path_bytes)]) + path_bytes
+        resp = self._transact(CMD_DELETE, payload, {RESP_ACK, RESP_NAK})
+        if resp is None:
+            return False
+        resp_cmd, _, resp_data = resp
+        if resp_cmd == RESP_NAK:
+            err = resp_data[0] if resp_data else ERR_UNKNOWN
+            print(f"DELETE NAK: {_ERROR_NAMES.get(err, err)}")
+            return False
+        return True
+
+    def list_dir(self, remote_path: str = "/") -> List[dict]:
+        """List the contents of a directory.
+
+        Returns a list of dicts::
+
+            {"name": str, "type": "file"|"dir"|"?", "size": int}
+
+        Raises OSError on communication failure.
+        """
+        path_bytes = remote_path.encode("utf-8")
+        if len(path_bytes) > self.PATH_MAX:
+            raise ValueError(f"Remote path too long: {len(path_bytes)} > {self.PATH_MAX}")
+
+        payload = bytes([len(path_bytes)]) + path_bytes
+        entries: List[dict] = []
+
+        # LIST uses a unique sequence number for the request; all responses
+        # share that seq.  We send once, then collect until LIST_END.
+        seq = self._next_seq()
+        frame = build_frame(CMD_LIST, seq, payload)
+
+        for retry in range(self._max_retries + 1):
+            self.ser.write(frame)
+            self.ser.flush()
+
+            while True:
+                parsed = self._recv_frame()
+                if parsed is None:
+                    # timeout — abort this retry
+                    break
+
+                resp_cmd, resp_seq, resp_data = parsed
+                if resp_seq != seq:
+                    continue  # stale
+
+                if resp_cmd == RESP_CRC_ERR:
+                    break  # retry the whole LIST
+
+                if resp_cmd == RESP_LIST_ITEM:
+                    if len(resp_data) < 2:
+                        continue
+                    ftype = resp_data[0]
+                    name_len = resp_data[1]
+                    name = resp_data[2 : 2 + name_len].decode("utf-8", errors="replace")
+                    size_bytes = resp_data[2 + name_len : 2 + name_len + 4]
+                    size = struct.unpack("<I", size_bytes)[0] if len(size_bytes) == 4 else 0
+                    entries.append({
+                        "name": name,
+                        "type": _TYPE_NAMES.get(ftype, "?"),
+                        "size": size,
+                    })
+
+                elif resp_cmd == RESP_LIST_END:
+                    # success — count is in resp_data[0:2] (LE), but we
+                    # already have the entries list
+                    return entries
+
+                elif resp_cmd == RESP_NAK:
+                    err = resp_data[0] if resp_data else ERR_UNKNOWN
+                    raise OSError(f"LIST failed: {_ERROR_NAMES.get(err, err)}")
+
+        raise OSError("LIST: no response from device")
+
+    def get_info(self, remote_path: str) -> Optional[dict]:
+        """Get file/directory info.
+
+        Returns ``{"type": "file"|"dir"|"?", "size": int}`` or None on error.
+        """
+        path_bytes = remote_path.encode("utf-8")
+        if len(path_bytes) > self.PATH_MAX:
+            raise ValueError(f"Remote path too long: {len(path_bytes)} > {self.PATH_MAX}")
+
+        payload = bytes([len(path_bytes)]) + path_bytes
+        resp = self._transact(CMD_INFO, payload, {RESP_INFO_RESP, RESP_NAK})
+        if resp is None:
+            return None
+        resp_cmd, _, resp_data = resp
+        if resp_cmd == RESP_NAK:
+            return None
+        if len(resp_data) < 5:
+            return None
+        ftype = resp_data[0]
+        size = struct.unpack("<I", resp_data[1:5])[0]
+        return {"type": _TYPE_NAMES.get(ftype, "?"), "size": size}
+
+    def format(self) -> bool:
+        """Format the LittleFS partition. **Destroys all data.**"""
+        resp = self._transact(CMD_FORMAT, b"", {RESP_ACK, RESP_NAK})
+        if resp is None:
+            return False
+        resp_cmd, _, resp_data = resp
+        if resp_cmd == RESP_NAK:
+            err = resp_data[0] if resp_data else ERR_UNKNOWN
+            print(f"FORMAT NAK: {_ERROR_NAMES.get(err, err)}")
+            return False
+        return True
+
+    def reset(self) -> bool:
+        """Send a soft-reset request to the device."""
+        resp = self._transact(CMD_RESET, b"", {RESP_ACK})
+        return resp is not None
+
+    # ── Protocol internals ───────────────────────────────────────
+
+    def _next_seq(self) -> int:
+        seq = self._seq
+        self._seq = (self._seq + 1) & 0xFFFF
+        return seq
+
+    def _recv_frame(self) -> Optional[Tuple[int, int, bytes]]:
+        """Read and parse one frame from the serial port.
+
+        Returns
+        -------
+        (cmd, seq, data) on success.
+        ("crc_error", seq, None) if frame has bad CRC.
+        None on timeout or framing error.
+        """
+        ser = self.ser
+
+        # ── Hunt for SYNC0 ──────────────────────────────────────
+        while True:
+            b = ser.read(1)
+            if not b:
+                return None
+            if b[0] == SYNC0:
+                b2 = ser.read(1)
+                if b2 and b2[0] == SYNC1:
+                    break
+                # If b2 is SYNC0, it could be 0xAA 0xAA 0x55 — handle by
+                # treating the second 0xAA as the new SYNC0 candidate.
+                if b2 and b2[0] == SYNC0:
+                    continue  # re-check for SYNC1
+
+        # ── Read header: CMD(1) + SEQ(2) + LEN(2) = 5 bytes ─────
+        header = ser.read(5)
+        if len(header) < 5:
+            return None
+
+        cmd = header[0]
+        seq = (header[1] << 8) | header[2]
+        data_len = (header[3] << 8) | header[4]
+
+        if data_len > 512:
+            return None
+
+        # ── Read data ───────────────────────────────────────────
+        data = ser.read(data_len) if data_len > 0 else b""
+        if len(data) < data_len:
+            return None
+
+        # ── Read CRC ────────────────────────────────────────────
+        crc_bytes = ser.read(2)
+        if len(crc_bytes) < 2:
+            return None
+
+        expected_crc = (crc_bytes[0] << 8) | crc_bytes[1]
+        computed_crc = crc16(header + data)
+
+        if computed_crc != expected_crc:
+            return ("crc_error", seq, None)
+
+        return (cmd, seq, data)
+
+    def _transact(
+        self,
+        cmd: int,
+        data: bytes,
+        accept_responses: set,
+    ) -> Optional[Tuple[int, int, bytes]]:
+        """Send a frame and wait for an accepted response.
+
+        Retries on timeout or CRC_ERR up to ``max_retries`` times.
+        NAK is returned to the caller (it is always "accepted" as a
+        terminal response).
+
+        Returns ``(cmd, seq, data)`` or ``None`` if all retries are
+        exhausted.
+        """
+        for retry in range(self._max_retries + 1):
+            seq = self._next_seq()
+            frame = build_frame(cmd, seq, data)
+            self.ser.write(frame)
+            self.ser.flush()
+
+            deadline = time.monotonic() + self._timeout * 3
+            while time.monotonic() < deadline:
+                parsed = self._recv_frame()
+                if parsed is None:
+                    # timeout — break out of recv loop, go to retry
+                    break
+
+                resp_cmd, resp_seq, resp_data = parsed
+
+                if resp_cmd == "crc_error":
+                    # MCU sent a frame with bad CRC — ignore, keep reading
+                    continue
+
+                if resp_cmd == RESP_CRC_ERR:
+                    # MCU says our frame had bad CRC — retry
+                    break
+
+                if resp_seq != seq:
+                    # Stale response from a previous transaction
+                    continue
+
+                if resp_cmd in accept_responses:
+                    return (resp_cmd, resp_seq, resp_data)
+
+                # NAK is always accepted
+                if resp_cmd == RESP_NAK:
+                    return (resp_cmd, resp_seq, resp_data)
+
+                if resp_cmd == RESP_BUSY:
+                    # Device busy — wait a bit, then retry
+                    time.sleep(0.1)
+                    break
+
+                # Unexpected response — ignore
+                continue
+
+            if retry < self._max_retries:
+                time.sleep(0.05)
+
+        return None
+
+
+# ── CLI ──────────────────────────────────────────────────────────────
+
+def _main() -> int:
+    """Minimal CLI for quick testing."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Flash UART passthrough file manager")
+    parser.add_argument("port", help="Serial port, e.g. /dev/ttyUSB0")
+    parser.add_argument("--baud", type=int, default=115200)
+    sub = parser.add_subparsers(dest="action", required=True)
+
+    sub.add_parser("list", help="List root directory")
+
+    p_upload = sub.add_parser("upload", help="Upload a file")
+    p_upload.add_argument("local", help="Local file path")
+    p_upload.add_argument("remote", help="Remote path (e.g. /data.bin)")
+
+    p_dl = sub.add_parser("download", help="Download a file")
+    p_dl.add_argument("remote", help="Remote path")
+    p_dl.add_argument("local", help="Local file path")
+
+    p_del = sub.add_parser("delete", help="Delete a file")
+    p_del.add_argument("remote", help="Remote path")
+
+    p_info = sub.add_parser("info", help="Get file info")
+    p_info.add_argument("remote", help="Remote path")
+
+    sub.add_parser("format", help="Format the filesystem (DESTRUCTIVE)")
+
+    args = parser.parse_args()
+
+    def _progress(sent: int, total: Optional[int]) -> None:
+        if total:
+            pct = sent * 100 // total
+            print(f"\r  {sent}/{total} ({pct}%)", end="", flush=True)
+        else:
+            print(f"\r  {sent} bytes", end="", flush=True)
+
+    fm = FlashManager(args.port, baudrate=args.baud)
+
+    try:
+        if args.action == "list":
+            entries = fm.list_dir("/")
+            print(f"{'Type':<6} {'Size':>10}  Name")
+            print("-" * 50)
+            for e in entries:
+                print(f"{e['type']:<6} {e['size']:>10}  {e['name']}")
+            print(f"\n{len(entries)} entries")
+
+        elif args.action == "upload":
+            print(f"Uploading {args.local} → {args.remote}")
+            ok = fm.upload_file(args.local, args.remote,
+                                progress_cb=_progress)
+            print()
+            print("OK" if ok else "FAILED")
+
+        elif args.action == "download":
+            print(f"Downloading {args.remote} → {args.local}")
+            ok = fm.download_file(args.remote, args.local,
+                                  progress_cb=_progress)
+            print()
+            print("OK" if ok else "FAILED")
+
+        elif args.action == "delete":
+            ok = fm.delete(args.remote)
+            print("OK" if ok else "FAILED")
+
+        elif args.action == "info":
+            info = fm.get_info(args.remote)
+            if info:
+                print(f"  type: {info['type']}")
+                print(f"  size: {info['size']}")
+            else:
+                print("Not found")
+                return 1
+
+        elif args.action == "format":
+            print("Formatting...")
+            ok = fm.format()
+            print("OK" if ok else "FAILED")
+
+    finally:
+        fm.close()
+
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(_main())
