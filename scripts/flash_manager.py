@@ -230,9 +230,15 @@ class FlashManager:
         if len(path_bytes) > self.PATH_MAX:
             raise ValueError(f"Remote path too long: {len(path_bytes)} > {self.PATH_MAX}")
 
+        # Max data bytes in a frame: 515 (max payload) - 3 (CMD+SEQ) = 512.
+        # WRITE payload overhead: 1 (path_len) + len(path) + 4 (offset).
+        max_chunk = 512 - 1 - len(path_bytes) - 4
+        if max_chunk <= 0:
+            raise ValueError(f"Remote path too long for any data: {len(path_bytes)}")
+
         with open(local_path, "rb") as f:
             while offset < file_size:
-                chunk = f.read(self.CHUNK_SIZE)
+                chunk = f.read(max_chunk)
 
                 # Build WRITE payload:
                 #   [path_len:1B][path:N][offset:4B LE][data:M]
@@ -256,6 +262,25 @@ class FlashManager:
                 offset += len(chunk)
                 if progress_cb:
                     progress_cb(offset, file_size)
+
+            # Send a zero-length WRITE at file_size to truncate.
+            # This ensures the file has the correct size — essential when
+            # overwriting a larger file with smaller data, and for
+            # recovering from partial/interrupted writes.
+            trunc_payload = (
+                bytes([len(path_bytes)])
+                + path_bytes
+                + struct.pack("<I", file_size)
+                # no data → truncate at offset on the device side
+            )
+            resp = self._transact(CMD_WRITE, trunc_payload, {RESP_ACK, RESP_NAK})
+            if resp is None:
+                return False
+            resp_cmd, _, resp_data = resp
+            if resp_cmd == RESP_NAK:
+                err = resp_data[0] if resp_data else ERR_UNKNOWN
+                print(f"WRITE truncate NAK: {_ERROR_NAMES.get(err, err)}")
+                return False
 
         return True
 
@@ -391,7 +416,7 @@ class FlashManager:
                 if resp_seq != seq:
                     continue  # stale
 
-                if resp_cmd == RESP_CRC_ERR:
+                if resp_cmd == "crc_error" or resp_cmd == RESP_CRC_ERR:
                     break  # retry the whole LIST
 
                 if resp_cmd == RESP_LIST_ITEM:
