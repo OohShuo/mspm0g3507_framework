@@ -4,9 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "FreeRTOS.h"
 #include "bsp_time.h"
 #include "com_uart.h"
+#include "freertos_alloc.h"
 #include "rtt_log.h"
+#include "task.h"
 
 #define COM_UART_TEST_UART_IDX       0
 #define COM_UART_TEST_RX_MAX_LEN     253
@@ -17,6 +20,8 @@
 static Com_uart* g_com = NULL;
 static uint32_t g_last_send_ms = 0;
 
+static TaskHandle_t g_task_handle = NULL;
+
 static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flags, void* arg) {
     (void)flags;
     (void)arg;
@@ -25,11 +30,7 @@ static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flag
     uint32_t n = (len < sizeof(buf) - 1) ? len : (uint32_t)(sizeof(buf) - 1);
     memcpy(buf, data, n);
     buf[n] = '\0';
-    // printf("[com_uart_test] RX (%u):\n", (unsigned)len);
-    // for (uint32_t i = 0; i < n; i++) {
-    //     printf("%02X ", data[i]);
-    // }
-    // printf(" | ");
+
     for (uint32_t i = 0; i < n; i++) {
         char c = (data[i] >= 32 && data[i] <= 126) ? (char)data[i] : '.';
         printf("%c", c);
@@ -39,7 +40,7 @@ static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flag
     Com_Uart_Send(obj, data, len);
 }
 
-void App_Com_Uart_Test_Init(void) {
+static void com_uart_test_init(void) {
     static const Com_uart_config cfg = {
         .uart_idx = COM_UART_TEST_UART_IDX,
         .idle_timeout_ms = COM_UART_TEST_IDLE_TIMEOUT,
@@ -52,7 +53,7 @@ void App_Com_Uart_Test_Init(void) {
     g_last_send_ms = Bsp_Get_Tick_Ms();
 }
 
-void App_Com_Uart_Test_Loop(void) {
+static void com_uart_test_loop(void) {
     if (g_com == NULL) { return; }
 
     const uint32_t now_ms = Bsp_Get_Tick_Ms();
@@ -76,4 +77,21 @@ void App_Com_Uart_Test_Loop(void) {
     static uint32_t payload_idx = 0;
     Com_Uart_Send(g_com, (const uint8_t*)payloads[payload_idx], (uint32_t)strlen(payloads[payload_idx]));
     payload_idx = (payload_idx + 1) % (sizeof(payloads) / sizeof(payloads[0]));
+}
+
+static void com_uart_test_task(void* arg) {
+    (void)arg;
+
+    uint32_t tick = xTaskGetTickCount();
+
+    com_uart_test_init();
+
+    while (1) {
+        com_uart_test_loop();
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(10));
+    }
+}
+
+void Com_Uart_Test_Task_Def(void) {
+    xTaskCreate(com_uart_test_task, "Com_UART_Test", 512, NULL, 1, &g_task_handle);
 }

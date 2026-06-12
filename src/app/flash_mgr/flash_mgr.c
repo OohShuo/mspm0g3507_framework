@@ -48,17 +48,18 @@
 #define FLASH_MGR_TASK_PRIORITY    1u
 #define FLASH_MGR_QUEUE_DEPTH      4u
 
+// clang-format on
+
 /* ------------------------------------------------------------------ */
 /* Static module state                                                  */
 /* ------------------------------------------------------------------ */
 
-static Com_uart*     g_com_uart     = NULL;
-static W25q32*       g_flash        = NULL;
-static Lfs_port*     g_lfs_port     = NULL;
+static Com_uart* g_com_uart = NULL;
+static W25q32* g_flash = NULL;
+static Lfs_port* g_lfs_port = NULL;
 static SemaphoreHandle_t g_spi_mutex = NULL;
-static QueueHandle_t g_cmd_queue    = NULL;
-static TaskHandle_t  g_task_handle  = NULL;
-
+static QueueHandle_t g_cmd_queue = NULL;
+static TaskHandle_t g_task_handle = NULL;
 
 /* ---- Payload assembly buffer ---------------------------------------
  *
@@ -73,10 +74,8 @@ static uint8_t g_tx_buf[FLASH_MGR_TX_BUF_SIZE];
 /* ------------------------------------------------------------------ */
 
 static void flash_mgr_task(void* arg);
-static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
-                             uint8_t flags, void* arg);
-static void send_response(uint8_t cmd, uint16_t seq,
-                          const uint8_t* data, uint16_t data_len);
+static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flags, void* arg);
+static void send_response(uint8_t cmd, uint16_t seq, const uint8_t* data, uint16_t data_len);
 static void send_ack(uint16_t seq);
 static void send_nak(uint16_t seq, uint8_t err_code);
 
@@ -95,14 +94,22 @@ static void handle_format(const Flash_mgr_cmd* cmd);
 
 static uint8_t map_lfs_error(int lfs_err) {
     switch (lfs_err) {
-        case 0:                     return 0;
-        case LFS_ERR_NOENT:         return FLASH_MGR_ERR_NOENT;
-        case LFS_ERR_NOSPC:         return FLASH_MGR_ERR_NOSPC;
-        case LFS_ERR_IO:            return FLASH_MGR_ERR_IO;
-        case LFS_ERR_CORRUPT:       return FLASH_MGR_ERR_CORRUPT;
-        case LFS_ERR_EXIST:         return FLASH_MGR_ERR_EXIST;
-        case LFS_ERR_INVAL:         return FLASH_MGR_ERR_INVAL;
-        default:                    return FLASH_MGR_ERR_UNKNOWN;
+        case 0:
+            return 0;
+        case LFS_ERR_NOENT:
+            return FLASH_MGR_ERR_NOENT;
+        case LFS_ERR_NOSPC:
+            return FLASH_MGR_ERR_NOSPC;
+        case LFS_ERR_IO:
+            return FLASH_MGR_ERR_IO;
+        case LFS_ERR_CORRUPT:
+            return FLASH_MGR_ERR_CORRUPT;
+        case LFS_ERR_EXIST:
+            return FLASH_MGR_ERR_EXIST;
+        case LFS_ERR_INVAL:
+            return FLASH_MGR_ERR_INVAL;
+        default:
+            return FLASH_MGR_ERR_UNKNOWN;
     }
 }
 
@@ -120,8 +127,7 @@ static uint8_t lfs_type_to_mgr_type(uint8_t lfs_type) {
 /* with SYNC+LEN+CRC.                                                  */
 /* ------------------------------------------------------------------ */
 
-static void send_response(uint8_t cmd, uint16_t seq,
-                          const uint8_t* data, uint16_t data_len) {
+static void send_response(uint8_t cmd, uint16_t seq, const uint8_t* data, uint16_t data_len) {
     if (g_com_uart == NULL) { return; }
     /* Wait for previous DMA to finish — essential for LIST where
      * multiple frames are sent back-to-back. */
@@ -131,20 +137,14 @@ static void send_response(uint8_t cmd, uint16_t seq,
     g_tx_buf[0] = cmd;
     g_tx_buf[1] = (uint8_t)(seq >> 8);
     g_tx_buf[2] = (uint8_t)(seq);
-    if (data_len > 0 && data != NULL) {
-        memcpy(g_tx_buf + 3, data, data_len);
-    }
+    if (data_len > 0 && data != NULL) { memcpy(g_tx_buf + 3, data, data_len); }
     /* protocol_binary.send_pack wraps g_tx_buf[0..3+data_len) */
     Com_Uart_Send(g_com_uart, g_tx_buf, (uint32_t)(3u + data_len));
 }
 
-static void send_ack(uint16_t seq) {
-    send_response(FLASH_MGR_RESP_ACK, seq, NULL, 0);
-}
+static void send_ack(uint16_t seq) { send_response(FLASH_MGR_RESP_ACK, seq, NULL, 0); }
 
-static void send_nak(uint16_t seq, uint8_t err_code) {
-    send_response(FLASH_MGR_RESP_NAK, seq, &err_code, 1);
-}
+static void send_nak(uint16_t seq, uint8_t err_code) { send_response(FLASH_MGR_RESP_NAK, seq, &err_code, 1); }
 
 /* ------------------------------------------------------------------ */
 /* UART RX callback — frame parser state machine                        */
@@ -162,24 +162,21 @@ static void send_nak(uint16_t seq, uint8_t err_code) {
 /* We validate and queue to the flash_mgr task.                        */
 /* ------------------------------------------------------------------ */
 
-static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
-                             uint8_t flags, void* arg) {
+static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flags, void* arg) {
     (void)obj;
     (void)arg;
-    (void)flags;  /* binary frames are always FIRST|LAST */
+    (void)flags; /* binary frames are always FIRST|LAST */
 
     /* Minimum: CMD(1) + SEQ(2) */
     if (len < 3) { return; }
 
     for (int i = 0; i < len; i++) {
         printf("%02X ", data[i]);
-        if ((i + 1) % 16 == 0) {
-            printf("\n");
-        }
+        if ((i + 1) % 16 == 0) { printf("\n"); }
     }
     printf("\n");
 
-    uint8_t  cmd = data[0];
+    uint8_t cmd = data[0];
     uint16_t seq = ((uint16_t)data[1] << 8) | data[2];
     uint16_t payload_len = (uint16_t)(len - 3u);
 
@@ -191,26 +188,19 @@ static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len,
 
     /* Queue to flash_mgr task */
     Flash_mgr_cmd queue_item;
-    queue_item.cmd      = cmd;
-    queue_item.seq      = seq;
+    queue_item.cmd = cmd;
+    queue_item.seq = seq;
     /* Clamp to struct buffer size */
-    if (payload_len > sizeof(queue_item.data)) {
-        payload_len = (uint16_t)sizeof(queue_item.data);
-    }
+    if (payload_len > sizeof(queue_item.data)) { payload_len = (uint16_t)sizeof(queue_item.data); }
     queue_item.data_len = payload_len;
-    if (payload_len > 0) {
-        memcpy(queue_item.data, data + 3, payload_len);
-    }
+    if (payload_len > 0) { memcpy(queue_item.data, data + 3, payload_len); }
 
     if (g_cmd_queue != NULL) {
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;  // NOLINT (readability-identifier-naming)
         BaseType_t ok = xQueueSendToBackFromISR(g_cmd_queue, &queue_item, &xHigherPriorityTaskWoken);
-        if (ok != pdPASS) {
-            send_response(FLASH_MGR_RESP_BUSY, seq, NULL, 0);
-        }
+        if (ok != pdPASS) { send_response(FLASH_MGR_RESP_BUSY, seq, NULL, 0); }
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
-
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,17 +214,27 @@ static void flash_mgr_task(void* arg) {
 
     while (1) {
         /* Block until a command arrives */
-        if (xQueueReceive(g_cmd_queue, &cmd, portMAX_DELAY) != pdTRUE) {
-            continue;
-        }
+        if (xQueueReceive(g_cmd_queue, &cmd, portMAX_DELAY) != pdTRUE) { continue; }
 
         switch (cmd.cmd) {
-            case FLASH_MGR_CMD_READ:    handle_read(&cmd);    break;
-            case FLASH_MGR_CMD_WRITE:   handle_write(&cmd);   break;
-            case FLASH_MGR_CMD_DELETE:  handle_delete(&cmd);  break;
-            case FLASH_MGR_CMD_LIST:    handle_list(&cmd);    break;
-            case FLASH_MGR_CMD_INFO:    handle_info(&cmd);    break;
-            case FLASH_MGR_CMD_FORMAT:  handle_format(&cmd);  break;
+            case FLASH_MGR_CMD_READ:
+                handle_read(&cmd);
+                break;
+            case FLASH_MGR_CMD_WRITE:
+                handle_write(&cmd);
+                break;
+            case FLASH_MGR_CMD_DELETE:
+                handle_delete(&cmd);
+                break;
+            case FLASH_MGR_CMD_LIST:
+                handle_list(&cmd);
+                break;
+            case FLASH_MGR_CMD_INFO:
+                handle_info(&cmd);
+                break;
+            case FLASH_MGR_CMD_FORMAT:
+                handle_format(&cmd);
+                break;
             case FLASH_MGR_CMD_RESET:
                 /* Soft reset: just ACK; the host may follow with a
                  * hardware reset or the task can trigger a system reset. */
@@ -262,19 +262,22 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
     printf("handle_read: cmd->data_len=%u\n", cmd->data_len);
 
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
-    if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
+    if (lfs == NULL) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
+        return;
+    }
 
     /* Validate minimum payload: path_len(1) + offset(4) = 5 bytes */
-    if (cmd->data_len < 5) { send_nak(cmd->seq, FLASH_MGR_ERR_INVAL); return; }
+    if (cmd->data_len < 5) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
+        return;
+    }
 
-    uint8_t  path_len = cmd->data[0];
-    uint32_t offset   = (uint32_t)cmd->data[1 + path_len]
-                      | ((uint32_t)cmd->data[2 + path_len] << 8)
-                      | ((uint32_t)cmd->data[3 + path_len] << 16)
-                      | ((uint32_t)cmd->data[4 + path_len] << 24);
+    uint8_t path_len = cmd->data[0];
+    uint32_t offset = (uint32_t)cmd->data[1 + path_len] | ((uint32_t)cmd->data[2 + path_len] << 8) |
+                      ((uint32_t)cmd->data[3 + path_len] << 16) | ((uint32_t)cmd->data[4 + path_len] << 24);
 
-    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX ||
-        (uint32_t)(1 + path_len + 4) > cmd->data_len) {
+    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX || (uint32_t)(1 + path_len + 4) > cmd->data_len) {
         send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
         return;
     }
@@ -342,8 +345,7 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
         chunk_resp[3] = (uint8_t)(offset >> 24);
         memcpy(chunk_resp + 4, chunk_buf, (size_t)nread);
 
-        send_response(FLASH_MGR_RESP_CHUNK, cmd->seq, chunk_resp,
-                      (uint16_t)(4 + nread));
+        send_response(FLASH_MGR_RESP_CHUNK, cmd->seq, chunk_resp, (uint16_t)(4 + nread));
     }
 }
 
@@ -360,27 +362,30 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
     printf("handle_write: cmd->data_len=%u\n", cmd->data_len);
 
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
-    if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
+    if (lfs == NULL) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
+        return;
+    }
 
     /* Minimum: path_len(1) + offset(4) = 5 bytes.  Data may be 0 bytes
      * (truncate at offset). */
-    if (cmd->data_len < 5) { send_nak(cmd->seq, FLASH_MGR_ERR_INVAL); return; }
-
-    uint8_t  path_len = cmd->data[0];
-
-    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX ||
-        (uint32_t)(1 + path_len + 4) > cmd->data_len) {
+    if (cmd->data_len < 5) {
         send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
         return;
     }
 
-    uint32_t offset = (uint32_t)cmd->data[1 + path_len]
-                    | ((uint32_t)cmd->data[2 + path_len] << 8)
-                    | ((uint32_t)cmd->data[3 + path_len] << 16)
-                    | ((uint32_t)cmd->data[4 + path_len] << 24);
+    uint8_t path_len = cmd->data[0];
+
+    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX || (uint32_t)(1 + path_len + 4) > cmd->data_len) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
+        return;
+    }
+
+    uint32_t offset = (uint32_t)cmd->data[1 + path_len] | ((uint32_t)cmd->data[2 + path_len] << 8) |
+                      ((uint32_t)cmd->data[3 + path_len] << 16) | ((uint32_t)cmd->data[4 + path_len] << 24);
 
     uint16_t header_size = (uint16_t)(1 + path_len + 4);
-    uint16_t chunk_len   = cmd->data_len - header_size;
+    uint16_t chunk_len = cmd->data_len - header_size;
 
     /* Extract path */
     char path[FLASH_MGR_PATH_MAX + 1];
@@ -392,8 +397,7 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
     if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
 
     lfs_file_t f;
-    int err = lfs_file_open(lfs, &f, path,
-                            LFS_O_WRONLY | LFS_O_CREAT);
+    int err = lfs_file_open(lfs, &f, path, LFS_O_WRONLY | LFS_O_CREAT);
     if (err < 0) {
         if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
         send_nak(cmd->seq, map_lfs_error(err));
@@ -444,15 +448,20 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
 
 static void handle_delete(const Flash_mgr_cmd* cmd) {
     printf("handle_delete: cmd->data_len=%u\n", cmd->data_len);
-    
-    lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
-    if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
 
-    if (cmd->data_len < 1) { send_nak(cmd->seq, FLASH_MGR_ERR_INVAL); return; }
+    lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
+    if (lfs == NULL) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
+        return;
+    }
+
+    if (cmd->data_len < 1) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
+        return;
+    }
 
     uint8_t path_len = cmd->data[0];
-    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX ||
-        (uint32_t)(1 + path_len) > cmd->data_len) {
+    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX || (uint32_t)(1 + path_len) > cmd->data_len) {
         send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
         return;
     }
@@ -486,21 +495,24 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
     printf("handle_list: cmd->data_len=%u\n", cmd->data_len);
 
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
-    if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
+    if (lfs == NULL) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
+        return;
+    }
 
-    if (cmd->data_len < 1) { send_nak(cmd->seq, FLASH_MGR_ERR_INVAL); return; }
+    if (cmd->data_len < 1) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
+        return;
+    }
 
     uint8_t path_len = cmd->data[0];
-    if (path_len > FLASH_MGR_PATH_MAX ||
-        (uint32_t)(1 + path_len) > cmd->data_len) {
+    if (path_len > FLASH_MGR_PATH_MAX || (uint32_t)(1 + path_len) > cmd->data_len) {
         send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
         return;
     }
 
     char path[FLASH_MGR_PATH_MAX + 1];
-    if (path_len > 0) {
-        memcpy(path, cmd->data + 1, path_len);
-    }
+    if (path_len > 0) { memcpy(path, cmd->data + 1, path_len); }
     path[path_len] = '\0';
 
     if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
@@ -516,13 +528,11 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
     uint16_t count = 0;
     struct lfs_info info;
     /* Static buffer for LIST_ITEM payload */
-    static uint8_t list_buf[1 + 1 + LFS_NAME_MAX + 4];  /* type + name_len + name + size */
+    static uint8_t list_buf[1 + 1 + LFS_NAME_MAX + 4]; /* type + name_len + name + size */
 
     while (lfs_dir_read(lfs, &dir, &info) > 0) {
         /* Skip "." and ".." */
-        if (info.name[0] == '.' &&
-            (info.name[1] == '\0' ||
-             (info.name[1] == '.' && info.name[2] == '\0'))) {
+        if (info.name[0] == '.' && (info.name[1] == '\0' || (info.name[1] == '.' && info.name[2] == '\0'))) {
             continue;
         }
 
@@ -532,13 +542,12 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
         list_buf[0] = lfs_type_to_mgr_type(info.type);
         list_buf[1] = name_len;
         memcpy(list_buf + 2, info.name, name_len);
-        list_buf[2 + name_len]     = (uint8_t)(info.size);
+        list_buf[2 + name_len] = (uint8_t)(info.size);
         list_buf[3 + name_len] = (uint8_t)(info.size >> 8);
         list_buf[4 + name_len] = (uint8_t)(info.size >> 16);
         list_buf[5 + name_len] = (uint8_t)(info.size >> 24);
 
-        send_response(FLASH_MGR_RESP_LIST_ITEM, cmd->seq,
-                      list_buf, (uint16_t)(2 + name_len + 4));
+        send_response(FLASH_MGR_RESP_LIST_ITEM, cmd->seq, list_buf, (uint16_t)(2 + name_len + 4));
         count++;
     }
 
@@ -563,13 +572,18 @@ static void handle_info(const Flash_mgr_cmd* cmd) {
     printf("handle_info: cmd->data_len=%u\n", cmd->data_len);
 
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
-    if (lfs == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
+    if (lfs == NULL) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
+        return;
+    }
 
-    if (cmd->data_len < 1) { send_nak(cmd->seq, FLASH_MGR_ERR_INVAL); return; }
+    if (cmd->data_len < 1) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
+        return;
+    }
 
     uint8_t path_len = cmd->data[0];
-    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX ||
-        (uint32_t)(1 + path_len) > cmd->data_len) {
+    if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX || (uint32_t)(1 + path_len) > cmd->data_len) {
         send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
         return;
     }
@@ -610,19 +624,18 @@ static void handle_info(const Flash_mgr_cmd* cmd) {
 static void handle_format(const Flash_mgr_cmd* cmd) {
     printf("handle_format: cmd->data_len=%u\n", cmd->data_len);
 
-    if (g_lfs_port == NULL) { send_nak(cmd->seq, FLASH_MGR_ERR_IO); return; }
+    if (g_lfs_port == NULL) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
+        return;
+    }
 
     /* Lfs_Port_Unmount / Format / Mount each take g_spi_mutex internally.
      * Do NOT take it here — would deadlock (FreeRTOS mutex is non-recursive). */
 
     /* Unmount, format, remount */
     int err = Lfs_Port_Unmount(g_lfs_port);
-    if (err >= 0) {
-        err = Lfs_Port_Format(g_lfs_port);
-    }
-    if (err >= 0) {
-        err = Lfs_Port_Mount(g_lfs_port);
-    }
+    if (err >= 0) { err = Lfs_Port_Format(g_lfs_port); }
+    if (err >= 0) { err = Lfs_Port_Mount(g_lfs_port); }
 
     if (err < 0) {
         send_nak(cmd->seq, map_lfs_error(err));
@@ -635,14 +648,14 @@ static void handle_format(const Flash_mgr_cmd* cmd) {
 /* Initialisation                                                        */
 /* ------------------------------------------------------------------ */
 
-void flash_mgr_protocol_init(void) {
+void Flash_Mgr_Init(void) {
     /* ---- 1. Create SPI mutex ---- */
     g_spi_mutex = xSemaphoreCreateMutex();
     configASSERT(g_spi_mutex != NULL);
 
     /* ---- 2. Init W25Q32 ---- */
     const W25q32_config flash_cfg = {
-        .spi_idx     = SPI_LCD_IDX,
+        .spi_idx = SPI_LCD_IDX,
         .cs_gpio_idx = GPIO_SPI_CS_IDX,
     };
     g_flash = W25q32_Create(&flash_cfg);
@@ -651,9 +664,9 @@ void flash_mgr_protocol_init(void) {
 
     /* ---- 3. Create lfs_port ---- */
     const Lfs_port_config port_cfg = {
-        .flash     = g_flash,
-        .start     = FLASH_MGR_LFS_START,
-        .size      = FLASH_MGR_LFS_SIZE,
+        .flash = g_flash,
+        .start = FLASH_MGR_LFS_START,
+        .size = FLASH_MGR_LFS_SIZE,
         .spi_mutex = g_spi_mutex,
     };
     g_lfs_port = Lfs_Port_Create(&port_cfg);
@@ -664,9 +677,7 @@ void flash_mgr_protocol_init(void) {
     if (err != 0) {
         /* First boot or corrupted — format and mount */
         err = Lfs_Port_Format(g_lfs_port);
-        if (err == 0) {
-            err = Lfs_Port_Mount(g_lfs_port);
-        }
+        if (err == 0) { err = Lfs_Port_Mount(g_lfs_port); }
         configASSERT(err == 0);
     }
 
@@ -676,30 +687,23 @@ void flash_mgr_protocol_init(void) {
 
     /* ---- 6. Create com_uart with binary framing protocol ---- */
     static const Com_uart_config uart_cfg = {
-        .uart_idx             = FLASH_MGR_UART_IDX,
-        .idle_timeout_ms      = FLASH_MGR_IDLE_TIMEOUT_MS,
-        .rx_max_len           = FLASH_MGR_RX_MAX_LEN,
-        .tx_max_len           = FLASH_MGR_TX_MAX_LEN,
-        .protocol_type        = protocol_binary_frame,
+        .uart_idx = FLASH_MGR_UART_IDX,
+        .idle_timeout_ms = FLASH_MGR_IDLE_TIMEOUT_MS,
+        .rx_max_len = FLASH_MGR_RX_MAX_LEN,
+        .tx_max_len = FLASH_MGR_TX_MAX_LEN,
+        .protocol_type = protocol_binary_frame,
         .protocol_max_payload = FLASH_MGR_PROTO_MAX_PAYLOAD,
-        .on_rx                = flash_mgr_on_rx,
-        .on_rx_arg            = NULL,
+        .on_rx = flash_mgr_on_rx,
+        .on_rx_arg = NULL,
     };
     g_com_uart = Com_Uart_Create(&uart_cfg);
     configASSERT(g_com_uart != NULL);
 
     /* ---- 7. Create flash_mgr task ---- */
-    BaseType_t ret = xTaskCreate(
-        flash_mgr_task,
-        "FlashMgr",
-        FLASH_MGR_TASK_STACK_WORDS,
-        NULL,
-        FLASH_MGR_TASK_PRIORITY,
-        &g_task_handle);
+    BaseType_t ret = xTaskCreate(flash_mgr_task, "FlashMgr", FLASH_MGR_TASK_STACK_WORDS, NULL,
+        FLASH_MGR_TASK_PRIORITY, &g_task_handle);
     configASSERT(ret == pdPASS);
 }
-
-// clang-format on
 
 #else
 

@@ -5,6 +5,7 @@
 #include "local_lib.h"
 #include "retarget.h"
 #include "task.h"
+#include "test.h"
 #include "ti_msp_dl_config.h"
 
 TaskHandle_t main_task_handle = NULL;
@@ -17,7 +18,7 @@ TaskHandle_t lvgl_ball_task_handle = NULL;
 TaskHandle_t w25q32_test_task_handle = NULL;
 TaskHandle_t rtt_test_task_handle = NULL;
 TaskHandle_t lfs_test_task_handle = NULL;
-TaskHandle_t com_uart_test_task_handle = NULL;
+// TaskHandle_t com_uart_test_task_handle = NULL;
 TaskHandle_t slip_recv_task_handle = NULL;
 TaskHandle_t flash_mgr_init_task_handle = NULL;
 
@@ -35,11 +36,11 @@ extern void Rtt_Test_Init(void);
 extern void Rtt_Test_Loop(void);
 extern void App_Lfs_Test_Init(void);
 extern void App_Lfs_Test_Loop(void);
-extern void App_Com_Uart_Test_Init(void);
-extern void App_Com_Uart_Test_Loop(void);
+// extern void App_Com_Uart_Test_Init(void);
+// extern void App_Com_Uart_Test_Loop(void);
 extern void App_Slip_Recv_Init(void);
 extern void App_Slip_Recv_Loop(void);
-extern void flash_mgr_protocol_init(void);
+extern void Flash_Mgr_Init(void);
 
 #define LCD_TEST_ENABLE        0
 #define ST7789_IMG_TEST_ENABLE 0
@@ -48,7 +49,7 @@ extern void flash_mgr_protocol_init(void);
 #define W25Q32_TEST_ENABLE     0
 #define RTT_TEST_ENABLE        0
 #define LFS_TEST_ENABLE        0
-#define COM_UART_TEST_ENABLE   0
+// #define COM_UART_TEST_ENABLE   0
 #define SLIP_RECV_ENABLE       0
 #define FLASH_MGR_ENABLE       1
 
@@ -208,7 +209,7 @@ static void task_slip_recv(void* arg) {
 #if FLASH_MGR_ENABLE
 static void task_flash_mgr_init(void* arg) {
     (void)arg;
-    flash_mgr_protocol_init();
+    Flash_Mgr_Init();
     vTaskDelete(NULL);
 }
 #endif
@@ -222,6 +223,8 @@ int main(void) {
     Bsp_Init();
     Hal_Init();
     App_Init();
+
+    Test_Init();
 
     xTaskCreate(task_gpio, "Gpio_Task", 64, NULL, 1, &main_task_handle);
     xTaskCreate(task_app, "APP_Task", 64, NULL, 1, &app_task_handle);
