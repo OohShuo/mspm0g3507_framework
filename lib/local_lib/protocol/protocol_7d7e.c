@@ -1,8 +1,7 @@
-#include "protocol.h"
-
 #include <string.h>
 
 #include "freertos_alloc.h"
+#include "protocol.h"
 
 /* ------------------------------------------------------------------ */
 /* protocol_7d7e — SLIP framing (RFC 1055 variant)                     */
@@ -26,7 +25,7 @@
 static void slip_send_pack(Protocol* p, const uint8_t* data, uint16_t len) {
     if (p == NULL || data == NULL) { return; }
 
-    uint8_t* w   = p->tx_buf;
+    uint8_t* w = p->tx_buf;
     uint8_t* end = p->tx_buf + p->tx_buf_size;
 
     if (w >= end) { return; }
@@ -36,13 +35,16 @@ static void slip_send_pack(Protocol* p, const uint8_t* data, uint16_t len) {
         uint8_t b = data[i];
         if (b == SLIP_START) {
             if (w + 1 >= end) { break; }
-            *w++ = SLIP_ESC; *w++ = SLIP_ESC_START;
+            *w++ = SLIP_ESC;
+            *w++ = SLIP_ESC_START;
         } else if (b == SLIP_END) {
             if (w + 1 >= end) { break; }
-            *w++ = SLIP_ESC; *w++ = SLIP_ESC_END;
+            *w++ = SLIP_ESC;
+            *w++ = SLIP_ESC_END;
         } else if (b == SLIP_ESC) {
             if (w + 1 >= end) { break; }
-            *w++ = SLIP_ESC; *w++ = SLIP_ESC_ESC;
+            *w++ = SLIP_ESC;
+            *w++ = SLIP_ESC_ESC;
         } else {
             if (w >= end) { break; }
             *w++ = b;
@@ -55,13 +57,9 @@ static void slip_send_pack(Protocol* p, const uint8_t* data, uint16_t len) {
     p->tx_len = (uint16_t)(w - p->tx_buf);
 }
 
-static const uint8_t* slip_send_get_buf(const Protocol* p) {
-    return (p != NULL) ? p->tx_buf : NULL;
-}
+static const uint8_t* slip_send_get_buf(const Protocol* p) { return (p != NULL) ? p->tx_buf : NULL; }
 
-static uint16_t slip_send_get_len(const Protocol* p) {
-    return (p != NULL) ? p->tx_len : 0;
-}
+static uint16_t slip_send_get_len(const Protocol* p) { return (p != NULL) ? p->tx_len : 0; }
 
 /* ---- receive ------------------------------------------------------ */
 
@@ -70,11 +68,11 @@ static void slip_flush(Protocol* p, uint8_t is_last) {
 
     uint8_t flags = 0;
     if (p->saw_start) { flags |= PROTOCOL_CHUNK_FIRST; }
-    if (is_last)    { flags |= PROTOCOL_CHUNK_LAST;  }
+    if (is_last) { flags |= PROTOCOL_CHUNK_LAST; }
 
     p->on_chunk(p->rx_buf, p->rx_len, flags, p->on_chunk_arg);
 
-    p->rx_len   = 0;
+    p->rx_len = 0;
     p->saw_start = 0;
 }
 
@@ -87,45 +85,46 @@ static void slip_recv_feed(Protocol* p, const uint8_t* data, uint16_t len) {
         uint8_t b = data[i];
 
         switch (p->rx_state) {
-        case proto_7d7e_rx_state_wait_start:
-            if (b == SLIP_START) {
-                p->rx_state  = proto_7d7e_rx_state_data;
-                p->saw_start = 1;
-                p->in_frame  = 1;
-            }
-            break;
-
-        case proto_7d7e_rx_state_data:
-            if (b == SLIP_END) {
-                p->rx_state = proto_7d7e_rx_state_wait_start;
-                p->in_frame = 0;
-                slip_flush(p, 1);
-                flushed = 1;
-            } else if (b == SLIP_ESC) {
-                p->rx_state = proto_7d7e_rx_state_escape;
-            } else {
-                if (p->rx_len < p->rx_buf_size) {
-                    p->rx_buf[p->rx_len++] = b;
+            case proto_7d7e_rx_state_wait_start:
+                if (b == SLIP_START) {
+                    p->rx_state = proto_7d7e_rx_state_data;
+                    p->saw_start = 1;
+                    p->in_frame = 1;
                 }
-            }
-            break;
+                break;
 
-        case proto_7d7e_rx_state_escape:
-            if (p->rx_len < p->rx_buf_size) {
-                if (b == SLIP_ESC_END)        { p->rx_buf[p->rx_len++] = SLIP_END;  }
-                else if (b == SLIP_ESC_ESC)   { p->rx_buf[p->rx_len++] = SLIP_ESC;  }
-                else if (b == SLIP_ESC_START) { p->rx_buf[p->rx_len++] = SLIP_START; }
-                else                          { p->rx_buf[p->rx_len++] = b;          }
-            }
-            p->rx_state = proto_7d7e_rx_state_data;
-            break;
+            case proto_7d7e_rx_state_data:
+                if (b == SLIP_END) {
+                    p->rx_state = proto_7d7e_rx_state_wait_start;
+                    p->in_frame = 0;
+                    slip_flush(p, 1);
+                    flushed = 1;
+                } else if (b == SLIP_ESC) {
+                    p->rx_state = proto_7d7e_rx_state_escape;
+                } else {
+                    if (p->rx_len < p->rx_buf_size) { p->rx_buf[p->rx_len++] = b; }
+                }
+                break;
+
+            case proto_7d7e_rx_state_escape:
+                if (p->rx_len < p->rx_buf_size) {
+                    if (b == SLIP_ESC_END) {
+                        p->rx_buf[p->rx_len++] = SLIP_END;
+                    } else if (b == SLIP_ESC_ESC) {
+                        p->rx_buf[p->rx_len++] = SLIP_ESC;
+                    } else if (b == SLIP_ESC_START) {
+                        p->rx_buf[p->rx_len++] = SLIP_START;
+                    } else {
+                        p->rx_buf[p->rx_len++] = b;
+                    }
+                }
+                p->rx_state = proto_7d7e_rx_state_data;
+                break;
         }
     }
 
     /* Partial flush: data arrived but no END marker yet */
-    if (!flushed && p->in_frame && (p->rx_len > 0 || p->saw_start)) {
-        slip_flush(p, 0);
-    }
+    if (!flushed && p->in_frame && (p->rx_len > 0 || p->saw_start)) { slip_flush(p, 0); }
 }
 
 /* ---- destroy ------------------------------------------------------ */
@@ -138,9 +137,9 @@ static void slip_destroy(Protocol* p) {
 }
 
 const Protocol_ops g_protocol_7d7e_ops = {
-    .send_pack    = slip_send_pack,
+    .send_pack = slip_send_pack,
     .send_get_buf = slip_send_get_buf,
     .send_get_len = slip_send_get_len,
-    .recv_feed    = slip_recv_feed,
-    .destroy      = slip_destroy,
+    .recv_feed = slip_recv_feed,
+    .destroy = slip_destroy,
 };
