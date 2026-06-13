@@ -8,7 +8,7 @@
 #define Bsp_Spi_Write Bsp_Soft_Spi_Write
 
 static void busy_wait_ms(uint32_t ms) {
-    volatile uint32_t cycles = ms * 32U * 1000U;
+    volatile uint32_t cycles = ms * 80U * 1000U;
     while (cycles--) { (void)cycles; }
 }
 

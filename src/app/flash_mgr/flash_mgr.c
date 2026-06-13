@@ -1,8 +1,11 @@
-#if FRAMEWORK_USE_LFS
-
 // clang-format off
 
 #include "flash_mgr.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+#if FRAMEWORK_USE_LFS
 
 #include <stddef.h>
 #include <string.h>
@@ -24,8 +27,6 @@
 #define FLASH_MGR_TX_MAX_LEN        600u
 #define FLASH_MGR_IDLE_TIMEOUT_MS   5u
 #define FLASH_MGR_PROTO_MAX_PAYLOAD 520u /* CMD(1)+SEQ(2)+data(512)+offset(4) max = 519 */
-
-#if FLASH_MGR_ENABLE
 
 // clang-format on
 
@@ -98,12 +99,6 @@ static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, ui
 
     if (len < 3) { return; }
 
-    for (int i = 0; i < len; i++) {
-        printf("%02X ", data[i]);
-        if ((i + 1) % 16 == 0) { printf("\n"); }
-    }
-    printf("\n");
-
     uint8_t cmd = data[0];
     uint16_t seq = ((uint16_t)data[1] << 8) | data[2];
     uint16_t payload_len = (uint16_t)(len - 3u);
@@ -129,7 +124,7 @@ static void flash_mgr_on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, ui
     }
 }
 
-void Flash_Mgr_Loop(void* arg) {
+static void flash_mgr_loop(void* arg) {
     (void)arg;
 
     Flash_mgr_cmd cmd;
@@ -489,7 +484,7 @@ static void handle_format(const Flash_mgr_cmd* cmd) {
     }
 }
 
-void Flash_Mgr_Init(void) {
+static void flash_mgr_init(void) {
     g_spi_mutex = xSemaphoreCreateMutex();
     configASSERT(g_spi_mutex != NULL);
 
@@ -534,22 +529,29 @@ void Flash_Mgr_Init(void) {
     configASSERT(g_com_uart != NULL);
 }
 
-    // clang-format off
-    
-#else
+static void flash_mgr_task(void* arg) {
+    flash_mgr_init();
+    uint32_t tick = xTaskGetTickCount();
+    while (1) {
+        flash_mgr_loop(arg);
 
-void Flash_Mgr_Init(void) {}
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(10));
+    }
+}
 
-void Flash_Mgr_Loop(void* arg) { (void)arg; }
+#else /* !FRAMEWORK_USE_LFS */
 
-#endif
+static void flash_mgr_task(void* arg) {
+    uint32_t tick = xTaskGetTickCount();
+    while (1) {
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(5000));
+    }
+}
 
-// clang-format on
+#endif /* FRAMEWORK_USE_LFS */
 
-#else
+void Flash_Mgr_Task_Def(void) {
+    BaseType_t ret = xTaskCreate(flash_mgr_task, "FlashMgr", 1024, NULL, 1, NULL);
+    configASSERT(ret == pdPASS);
+}
 
-void Flash_Mgr_Init(void) {}
-
-void Flash_Mgr_Loop(void* arg) { (void)arg; }
-
-#endif

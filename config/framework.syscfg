@@ -187,7 +187,8 @@ SYSTICK.period          = 80000;
 TIMER1.$name              = "TIMER_0";
 TIMER1.timerPeriod        = "1 ms";
 TIMER1.interrupts         = ["ZERO"];
-TIMER1.timerClkPrescale   = 64;
+TIMER1.timerClkPrescale   = 40;
+TIMER1.timerClkDiv        = 2;
 TIMER1.peripheral.$assign = "TIMA1";
 
 UART1.$name                             = "UART_0";
