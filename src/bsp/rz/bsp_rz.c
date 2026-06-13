@@ -113,6 +113,15 @@ void Bsp_Rz_Set_Config(uint32_t idx, Bsp_rz_config* config) {
     r->period_cnt = (uint32_t)((uint64_t)r->config.period_ns * r->clk_freq / 1000000000ULL);
     r->one_code_ccr = (uint32_t)((uint64_t)r->config.one_code.high_ns * r->clk_freq / 1000000000ULL);
     r->zero_code_ccr = (uint32_t)((uint64_t)r->config.zero_code.high_ns * r->clk_freq / 1000000000ULL);
+
+    /*
+     *  RZ encoding: output must start HIGH (coded pulse) then go LOW at CCR
+     *  (return to zero). Syscfg defaults to INIT_VAL_LOW — override here.
+     */
+    // DL_Timer_setCaptureCompareOutCtl(r->timer, DL_TIMER_CC_OCTL_INIT_VAL_HIGH,
+    //                                   DL_TIMER_CC_OCTL_INV_OUT_DISABLED,
+    //                                   DL_TIMER_CC_OCTL_SRC_FUNCVAL,
+    //                                   r->pwm_channel);
 }
 
 void Bsp_Rz_Start(uint32_t idx, uint8_t* data, uint32_t len) {
@@ -152,6 +161,11 @@ void Bsp_Rz_Start(uint32_t idx, uint8_t* data, uint32_t len) {
     DL_Timer_startCounter(r->timer);
 }
 
+uint8_t Bsp_Rz_Is_Busy(uint32_t idx) {
+    if (idx >= RZ_NUM) return 0;
+    return bsp_rz_instances[idx].tx_in_progress;
+}
+
 void Bsp_Rz_Dma_IRQHandler(uint32_t dma_channel) {
     for (uint32_t i = 0; i < RZ_NUM; i++) {
         struct Bsp_rz_instances_t* r = &bsp_rz_instances[i];
@@ -182,8 +196,6 @@ void Bsp_Rz_Dma_IRQHandler(uint32_t dma_channel) {
             uint8_t* consumed_num = (next_inx == 0) ? &r->ccr_arr1_num : &r->ccr_arr0_num;
             fill_ccr_buffer(r, consumed_arr, consumed_num);
         } else {
-            /* Transmission done — stop timer (output goes low for reset),
-             * record the tick so Bsp_Rz_Start can enforce reset time. */
             DL_Timer_stopCounter(r->timer);
             r->last_done_tick = xTaskGetTickCountFromISR();
             r->tx_in_progress = 0;
@@ -207,5 +219,10 @@ void Bsp_Rz_Start(uint32_t idx, uint8_t* data, uint32_t len) {
 }
 
 void Bsp_Rz_Dma_IRQHandler(uint32_t dma_channel) { (void)dma_channel; }
+
+uint8_t Bsp_Rz_Is_Busy(uint32_t idx) {
+    (void)idx;
+    return 0;
+}
 
 #endif
