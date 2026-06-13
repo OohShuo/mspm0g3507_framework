@@ -78,18 +78,7 @@ ADC121.adcPin1Config.$name               = "ti_driverlib_gpio_GPIOPinGeneric2";
 
 const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 
-DMA.subscriberIndex                             = ["0"];
-DMA.sub0ChanID                                  = 1;
-DMA.associatedChannels.create(1);
-DMA.associatedChannels[0].$name                 = "DMA_CH5";
-DMA.associatedChannels[0].srcLength             = "HALF_WORD";
-DMA.associatedChannels[0].dstLength             = "HALF_WORD";
-DMA.associatedChannels[0].addressMode           = "b2f";
-DMA.associatedChannels[0].triggerSelectInternal = "5";
-DMA.associatedChannels[0].triggerSelect         = "FSUB_0";
-DMA.associatedChannels[0].enableInterrupt       = true;
-DMA.associatedChannels[0].configureTransferSize = true;
-DMA.associatedChannels[0].peripheral.$assign    = "DMA_CH5";
+DMA.sub0ChanID = 1;
 
 GPIO1.$name                              = "GPIO_GRP_0";
 GPIO1.port                               = "PORTA";
@@ -169,8 +158,8 @@ PWM2.PWM_CHANNEL_1.dutyCycle    = 50;
 PWM3.$name                       = "PWM_2";
 PWM3.ccIndex                     = [1];
 PWM3.timerCount                  = 100;
-PWM3.event1PublisherChannel      = 1;
 PWM3.event1ControllerInterruptEn = ["ZERO_EVENT"];
+PWM3.interrupts                  = ["ZERO_EVENT"];
 PWM3.ccp1PinConfig.$name         = "ti_driverlib_gpio_GPIOPinGeneric11";
 PWM3.peripheral.$assign          = "TIMG7";
 PWM3.peripheral.ccp1Pin.$assign  = "PA7";
