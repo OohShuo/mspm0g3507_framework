@@ -9,7 +9,7 @@
 #define Bsp_Spi_Read  Bsp_Hard_Spi_Read_Blocking
 
 static void busy_wait_us(uint32_t us) {
-    volatile uint32_t cycles = us * 32;
+    volatile uint32_t cycles = us * 80;
     while (cycles--) { (void)cycles; }
 }
 
