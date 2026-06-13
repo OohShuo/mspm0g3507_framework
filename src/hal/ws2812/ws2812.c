@@ -3,24 +3,16 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "FreeRTOS.h"
 #include "board_config.h"
 #include "bsp_rz.h"
 #include "freertos_alloc.h"
+#include "task.h"
 
-/*
- *  WS2812 timing — all values in nanoseconds.
- *
- *    T0H = 0.35µs  T0L = 0.8µs   → 0-code period  1150 ns
- *    T1H = 0.70µs  T1L = 0.6µs   → 1-code period  1300 ns
- *
- *  The BSP uses a single period_ns; 1250 ns centres both codes.
- *    period  1250 ns  →  0-code low = 1250 -  350 = 900 ns  (spec 800±150 ✓)
- *                    →  1-code low = 1250 -  700 = 550 ns  (spec 600±150 ✓)
- */
 static const Bsp_rz_config ws2812_timing = {
-    .period_ns         = 1250,
-    .one_code          = {.high_ns = 700, .low_ns = 550},
-    .zero_code         = {.high_ns = 350, .low_ns = 900},
+    .period_ns = 1250,
+    .one_code = {.high_ns = 700, .low_ns = 550},
+    .zero_code = {.high_ns = 350, .low_ns = 900},
     .reset_required_us = 100,
 };
 
@@ -75,6 +67,8 @@ void Ws2812_Set_Serial(Ws2812* obj, const uint8_t* color_arr, const uint8_t* idx
 
 void Ws2812_Update(Ws2812* obj) {
     if (obj == NULL) return;
+
+    while (Bsp_Rz_Is_Busy(obj->config.rz_idx)) { taskYIELD(); }
 
     Bsp_Rz_Start(obj->config.rz_idx, obj->pixel_data, (uint32_t)obj->config.led_count * 3);
 }
