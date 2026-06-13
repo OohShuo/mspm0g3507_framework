@@ -162,8 +162,6 @@ static void flash_mgr_loop(void* arg) {
 }
 
 static void handle_read(const Flash_mgr_cmd* cmd) {
-    printf("handle_read: cmd->data_len=%u\n", cmd->data_len);
-
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
@@ -239,8 +237,6 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_write(const Flash_mgr_cmd* cmd) {
-    printf("handle_write: cmd->data_len=%u\n", cmd->data_len);
-
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
@@ -317,8 +313,6 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_delete(const Flash_mgr_cmd* cmd) {
-    printf("handle_delete: cmd->data_len=%u\n", cmd->data_len);
-
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
@@ -352,8 +346,6 @@ static void handle_delete(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_list(const Flash_mgr_cmd* cmd) {
-    printf("handle_list: cmd->data_len=%u\n", cmd->data_len);
-
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
@@ -420,8 +412,6 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_info(const Flash_mgr_cmd* cmd) {
-    printf("handle_info: cmd->data_len=%u\n", cmd->data_len);
-
     lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
@@ -466,8 +456,6 @@ static void handle_info(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_format(const Flash_mgr_cmd* cmd) {
-    printf("handle_format: cmd->data_len=%u\n", cmd->data_len);
-
     if (g_lfs_port == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
         return;

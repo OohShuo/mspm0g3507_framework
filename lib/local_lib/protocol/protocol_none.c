@@ -3,14 +3,6 @@
 #include "freertos_alloc.h"
 #include "protocol.h"
 
-/* ------------------------------------------------------------------ */
-/* protocol_none — pass-through, DMA-safe copy                        */
-/*                                                                     */
-/* send_pack:  memcpy into tx_buf                                     */
-/* recv_feed:  forward directly to on_chunk callback                  */
-/* destroy:    free tx_buf + self                                     */
-/* ------------------------------------------------------------------ */
-
 static void none_send_pack(Protocol* p, const uint8_t* data, uint16_t len) {
     if (p == NULL || data == NULL) { return; }
     uint16_t n = (len <= p->tx_buf_size) ? len : p->tx_buf_size;
