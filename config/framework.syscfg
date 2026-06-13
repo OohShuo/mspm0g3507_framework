@@ -31,6 +31,25 @@ const UART1   = UART.addInstance();
 /**
  * Write custom configuration values to the imported modules.
  */
+const divider9       = system.clockTree["UDIV"];
+divider9.divideValue = 2;
+
+const mux4       = system.clockTree["EXHFMUX"];
+mux4.inputSelect = "EXHFMUX_XTAL";
+
+const mux8       = system.clockTree["HSCLKMUX"];
+mux8.inputSelect = "HSCLKMUX_SYSPLL2X";
+
+const mux12       = system.clockTree["SYSPLLMUX"];
+mux12.inputSelect = "zSYSPLLMUX_HFCLK";
+
+const pinFunction4                        = system.clockTree["HFXT"];
+pinFunction4.inputFreq                    = 40;
+pinFunction4.enable                       = true;
+pinFunction4.peripheral.$assign           = "SYSCTL";
+pinFunction4.peripheral.hfxInPin.$assign  = "PA5";
+pinFunction4.peripheral.hfxOutPin.$assign = "PA6";
+
 ADC121.$name                             = "ADC12_0";
 ADC121.sampClkDiv                        = "DL_ADC12_CLOCK_DIVIDE_8";
 ADC121.configureDMA                      = true;
@@ -112,20 +131,21 @@ GPIO3.associatedPins[4].$name        = "PIN_BLK";
 GPIO3.associatedPins[4].pin.$assign  = "PA14";
 
 PWM1.$name                      = "PWM_0";
-PWM1.clockDivider               = 8;
 PWM1.ccIndex                    = [3];
 PWM1.timerCount                 = 4000;
 PWM1.pwmMode                    = "EDGE_ALIGN_UP";
+PWM1.clockDivider               = 2;
+PWM1.clockPrescale              = 10;
 PWM1.peripheral.ccp3Pin.$assign = "PA12";
 PWM1.PWM_CHANNEL_3.$name        = "ti_driverlib_pwm_PWMTimerCC0";
 PWM1.PWM_CHANNEL_3.dutyCycle    = 50;
 PWM1.ccp3PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric0";
 
 PWM2.$name                      = "PWM_1";
-PWM2.clockDivider               = 8;
 PWM2.timerCount                 = 4000;
 PWM2.ccIndex                    = [1];
 PWM2.pwmMode                    = "EDGE_ALIGN_UP";
+PWM2.clockPrescale              = 10;
 PWM2.ccp1PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric7";
 PWM2.peripheral.$assign         = "TIMG0";
 PWM2.peripheral.ccp1Pin.$assign = "PA13";
@@ -161,8 +181,8 @@ SYSCTL.forceDefaultClkConfig = true;
 SYSCTL.clockTreeEn           = true;
 
 SYSTICK.periodEnable    = true;
-SYSTICK.period          = 32000;
 SYSTICK.interruptEnable = true;
+SYSTICK.period          = 80000;
 
 TIMER1.$name              = "TIMER_0";
 TIMER1.timerPeriod        = "1 ms";
