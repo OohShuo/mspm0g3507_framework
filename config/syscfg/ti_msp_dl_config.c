@@ -444,12 +444,10 @@ SYSCONFIG_WEAK void SYSCFG_DL_PWM_2_init(void) {
     DL_TimerG_setCaptureCompareValue(PWM_2_INST, 29, DL_TIMER_CC_1_INDEX);
 
     DL_TimerG_enableClock(PWM_2_INST);
-    DL_TimerG_enableEvent(PWM_2_INST, DL_TIMERG_EVENT_ROUTE_1, (DL_TIMERG_EVENT_ZERO_EVENT));
-
-    DL_TimerG_setPublisherChanID(PWM_2_INST, DL_TIMERG_PUBLISHER_INDEX_0, PWM_2_INST_PUB_0_CH);
 
 
-    
+    DL_TimerG_enableInterrupt(PWM_2_INST , DL_TIMER_INTERRUPT_ZERO_EVENT);
+
     DL_TimerG_setCCPDirection(PWM_2_INST , DL_TIMER_CC1_OUTPUT );
 
 
@@ -633,24 +631,6 @@ SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH0_init(void)
     DL_DMA_setTransferSize(DMA, DMA_CH0_CHAN_ID, 10);
     DL_DMA_initChannel(DMA, DMA_CH0_CHAN_ID , (DL_DMA_Config *) &gDMA_CH0Config);
 }
-static const DL_DMA_Config gDMA_CH5Config = {
-    .transferMode   = DL_DMA_SINGLE_TRANSFER_MODE,
-    .extendedMode   = DL_DMA_NORMAL_MODE,
-    .destIncrement  = DL_DMA_ADDR_UNCHANGED,
-    .srcIncrement   = DL_DMA_ADDR_INCREMENT,
-    .destWidth      = DL_DMA_WIDTH_HALF_WORD,
-    .srcWidth       = DL_DMA_WIDTH_HALF_WORD,
-    .trigger        = DMA_CH5_TRIGGER_SEL_FSUB_0,
-    .triggerType    = DL_DMA_TRIGGER_TYPE_EXTERNAL,
-};
-
-SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH5_init(void)
-{
-    DL_DMA_clearInterruptStatus(DMA, DL_DMA_INTERRUPT_CHANNEL5);
-    DL_DMA_enableInterrupt(DMA, DL_DMA_INTERRUPT_CHANNEL5);
-    DL_DMA_setTransferSize(DMA, DMA_CH5_CHAN_ID, 1);
-    DL_DMA_initChannel(DMA, DMA_CH5_CHAN_ID , (DL_DMA_Config *) &gDMA_CH5Config);
-}
 static const DL_DMA_Config gDMA_CH1Config = {
     .transferMode   = DL_DMA_SINGLE_TRANSFER_MODE,
     .extendedMode   = DL_DMA_NORMAL_MODE,
@@ -712,9 +692,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH4_init(void)
     DL_DMA_initChannel(DMA, DMA_CH4_CHAN_ID , (DL_DMA_Config *) &gDMA_CH4Config);
 }
 SYSCONFIG_WEAK void SYSCFG_DL_DMA_init(void){
-    DL_DMA_setSubscriberChanID(DMA, DL_DMA_SUBSCRIBER_INDEX_0, 1);
     SYSCFG_DL_DMA_CH0_init();
-    SYSCFG_DL_DMA_CH5_init();
     SYSCFG_DL_DMA_CH1_init();
     SYSCFG_DL_DMA_CH2_init();
     SYSCFG_DL_DMA_CH3_init();

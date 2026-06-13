@@ -163,18 +163,15 @@
 
 /* rz */
 
-#define RZ_0_DMA_INT_MASK(x)         DL_DMA_INTERRUPT_CHANNEL##x
 
 #define RZ_NUM                       1
 
 #define RZ_0_PWM_TIMER               TIMG7
 #define RZ_0_PWM_CHANNEL             DL_TIMER_CC_1_INDEX
 #define RZ_0_PWM_CLK_FREQ            80000000
-#define RZ_0_DMA_CHANNEL             5
 
 #define RZ_PWM_TIMERS                {RZ_0_PWM_TIMER}
 #define RZ_PWM_CHANNELS              {RZ_0_PWM_CHANNEL}
 #define RZ_PWM_CLK_FREQS             {RZ_0_PWM_CLK_FREQ}
-#define RZ_DMA_CHANNELS              {RZ_0_DMA_CHANNEL}
 
 #define RZ_WS2812_IDX                0
