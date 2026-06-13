@@ -1,3 +1,3 @@
 #pragma once
 
-#define FLASH_MGR_ENABLE 0
+#define FLASH_MGR_ENABLE 1
