@@ -1,5 +1,6 @@
 #include "FreeRTOS.h"
 #include "bsp_adc.h"
+#include "bsp_rz.h"
 #include "bsp_spi.h"
 #include "bsp_uart.h"
 #include "rtt_log.h"
@@ -11,6 +12,8 @@ void ADC12_0_INST_IRQHandler(void) { Bsp_Adc_Irq_Handler(ADC0); }
 void SPI1_IRQHandler(void) { Bsp_Hard_Spi_Irq_Handler(SPI1); }
 
 void UART0_IRQHandler(void) { Bsp_Uart_Irq_Handler(UART0); }
+
+void DMA_IRQHandler(void) { Bsp_Rz_Dma_IRQHandler(5); }
 
 void TIMA1_IRQHandler(void) {
     switch (DL_TimerA_getPendingInterrupt(TIMA1)) {
