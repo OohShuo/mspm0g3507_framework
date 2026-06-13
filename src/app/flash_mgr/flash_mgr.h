@@ -1,14 +1,5 @@
 #pragma once
 
-#define FLASH_MGR_ENABLE 1
-
-void Flash_Mgr_Init(void);
-void Flash_Mgr_Loop(void* arg);
-
-#if FRAMEWORK_USE_LFS
-
-// clang-format off
-
 #include <stdint.h>
 
 typedef struct {
@@ -68,6 +59,4 @@ typedef struct {
 
 #define FLASH_MGR_QUEUE_DEPTH    4u
 
-// clang-format on
-
-#endif /* FRAMEWORK_USE_LFS */
+void Flash_Mgr_Task_Def(void);
