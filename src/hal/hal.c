@@ -25,8 +25,8 @@ void Hal_Init(void) {
 }
 
 void Hal_Task_Def(void) {
-    xTaskCreate(task_gpio, "Gpio_Task", 64, NULL, 1, &task_gpio_handle);
-    xTaskCreate(task_buzzer, "Buzzer_Task", 64, NULL, 1, &task_buzzer_handle);
+    xTaskCreate(task_gpio, "Gpio_Task", 128, NULL, 1, &task_gpio_handle);
+    xTaskCreate(task_buzzer, "Buzzer_Task", 128, NULL, 1, &task_buzzer_handle);
 }
 
 static void task_gpio(void* arg) {
