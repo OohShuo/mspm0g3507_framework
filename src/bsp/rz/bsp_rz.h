@@ -19,3 +19,4 @@ void Bsp_Rz_Set_Config(uint32_t idx, Bsp_rz_config* config);
 void Bsp_Rz_Start(uint32_t idx, uint8_t* data, uint32_t len);
 
 void Bsp_Rz_Dma_IRQHandler(uint32_t dma_channel);
+uint8_t Bsp_Rz_Is_Busy(uint32_t idx);
