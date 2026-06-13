@@ -48,7 +48,7 @@ void lv_freertos_task_switch_out(void);
 /* Hardware description related definitions. **********************************/
 /******************************************************************************/
 
-#define configCPU_CLOCK_HZ                           ((unsigned long)32000000)
+#define configCPU_CLOCK_HZ                           ((unsigned long)80000000)
 
 /******************************************************************************/
 /* Scheduling behaviour related definitions. **********************************/

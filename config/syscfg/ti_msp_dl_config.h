@@ -73,9 +73,20 @@ extern "C" {
 #define POWER_STARTUP_DELAY                                                (16)
 
 
+#define GPIO_HFXT_PORT                                                     GPIOA
+#define GPIO_HFXIN_PIN                                             DL_GPIO_PIN_5
+#define GPIO_HFXIN_IOMUX                                         (IOMUX_PINCM10)
+#define GPIO_HFXOUT_PIN                                            DL_GPIO_PIN_6
+#define GPIO_HFXOUT_IOMUX                                        (IOMUX_PINCM11)
+#define CPUCLK_FREQ                                                     80000000
+/* Defines for SYSPLL_ERR_01 Workaround */
+/* Represent 1.000 as 1000 */
+#define FLOAT_TO_INT_SCALE                                               (1000U)
+#define FCC_EXPECTED_RATIO                                                  2000
+#define FCC_UPPER_BOUND                       (FCC_EXPECTED_RATIO * (1 + 0.003))
+#define FCC_LOWER_BOUND                       (FCC_EXPECTED_RATIO * (1 - 0.003))
 
-#define CPUCLK_FREQ                                                     32000000
-
+bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 
 
 /* Defines for PWM_0 */
@@ -108,13 +119,13 @@ extern "C" {
 #define TIMER_0_INST                                                     (TIMA1)
 #define TIMER_0_INST_IRQHandler                                 TIMA1_IRQHandler
 #define TIMER_0_INST_INT_IRQN                                   (TIMA1_INT_IRQn)
-#define TIMER_0_INST_LOAD_VALUE                                           (499U)
+#define TIMER_0_INST_LOAD_VALUE                                          (1249U)
 
 
 
 /* Defines for UART_0 */
 #define UART_0_INST                                                        UART0
-#define UART_0_INST_FREQUENCY                                           32000000
+#define UART_0_INST_FREQUENCY                                           40000000
 #define UART_0_INST_IRQHandler                                  UART0_IRQHandler
 #define UART_0_INST_INT_IRQN                                      UART0_INT_IRQn
 #define GPIO_UART_0_RX_PORT                                                GPIOA
@@ -126,8 +137,8 @@ extern "C" {
 #define GPIO_UART_0_IOMUX_RX_FUNC                      IOMUX_PINCM22_PF_UART0_RX
 #define GPIO_UART_0_IOMUX_TX_FUNC                      IOMUX_PINCM21_PF_UART0_TX
 #define UART_0_BAUD_RATE                                                (115200)
-#define UART_0_IBRD_32_MHZ_115200_BAUD                                      (17)
-#define UART_0_FBRD_32_MHZ_115200_BAUD                                      (23)
+#define UART_0_IBRD_40_MHZ_115200_BAUD                                      (21)
+#define UART_0_FBRD_40_MHZ_115200_BAUD                                      (45)
 
 
 
@@ -251,6 +262,8 @@ void SYSCFG_DL_init(void);
 void SYSCFG_DL_initPower(void);
 void SYSCFG_DL_GPIO_init(void);
 void SYSCFG_DL_SYSCTL_init(void);
+
+bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 void SYSCFG_DL_PWM_0_init(void);
 void SYSCFG_DL_PWM_1_init(void);
 void SYSCFG_DL_TIMER_0_init(void);
