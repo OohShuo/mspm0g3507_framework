@@ -125,6 +125,9 @@ SYSCONFIG_WEAK void SYSCFG_DL_initPower(void)
 SYSCONFIG_WEAK void SYSCFG_DL_GPIO_init(void)
 {
 
+    DL_GPIO_initPeripheralAnalogFunction(GPIO_HFXIN_IOMUX);
+    DL_GPIO_initPeripheralAnalogFunction(GPIO_HFXOUT_IOMUX);
+
     DL_GPIO_initPeripheralOutputFunction(GPIO_PWM_0_C3_IOMUX,GPIO_PWM_0_C3_IOMUX_FUNC);
     DL_GPIO_enableOutput(GPIO_PWM_0_C3_PORT, GPIO_PWM_0_C3_PIN);
     DL_GPIO_initPeripheralOutputFunction(GPIO_PWM_1_C1_IOMUX,GPIO_PWM_1_C1_IOMUX_FUNC);
@@ -196,31 +199,126 @@ SYSCONFIG_WEAK void SYSCFG_DL_GPIO_init(void)
 }
 
 
+static const DL_SYSCTL_SYSPLLConfig gSYSPLLConfig = {
+    .inputFreq              = DL_SYSCTL_SYSPLL_INPUT_FREQ_32_48_MHZ,
+	.rDivClk2x              = 1,
+	.rDivClk1               = 0,
+	.rDivClk0               = 0,
+	.enableCLK2x            = DL_SYSCTL_SYSPLL_CLK2X_ENABLE,
+	.enableCLK1             = DL_SYSCTL_SYSPLL_CLK1_DISABLE,
+	.enableCLK0             = DL_SYSCTL_SYSPLL_CLK0_DISABLE,
+	.sysPLLMCLK             = DL_SYSCTL_SYSPLL_MCLK_CLK2X,
+	.sysPLLRef              = DL_SYSCTL_SYSPLL_REF_HFCLK,
+	.qDiv                   = 1,
+	.pDiv                   = DL_SYSCTL_SYSPLL_PDIV_1
+};
 
+SYSCONFIG_WEAK bool SYSCFG_DL_SYSCTL_SYSPLL_init(void)
+{
+    bool fFCCRatioStatus = false;
+    uint32_t fFCCSysoscCount;
+    uint32_t fFCCPllCount;
+    uint32_t fFCCRatio;
+    uint32_t fccTimeOutCounter;
+
+    DL_SYSCTL_setFCCPeriods( DL_SYSCTL_FCC_TRIG_CNT_01 );
+
+    /* Measuring PLL. */
+    DL_SYSCTL_configFCC(DL_SYSCTL_FCC_TRIG_TYPE_RISE_RISE,
+                        DL_SYSCTL_FCC_TRIG_SOURCE_LFCLK,
+                        DL_SYSCTL_FCC_CLOCK_SOURCE_SYSPLLCLK2X);
+    /* Get SYSPLL frequency using FCC */
+    fccTimeOutCounter = 0;
+    DL_SYSCTL_startFCC();
+    while (DL_SYSCTL_isFCCDone() == 0) {
+        delay_cycles(977);  /* 1x LFCLK cycle = 32MHz/32.768kHz = 977, 30.5us */
+        fccTimeOutCounter++;
+        if(fccTimeOutCounter > 65){
+            /* Timeout set to approximately 2ms (user-customizable) */
+            break;
+        }
+    }
+
+    /* get measA= SYSPLLCLK2X freq wrt LFOSC*/
+    fFCCPllCount = DL_SYSCTL_readFCC();
+
+    /* Measuring SYSPLL Source */
+    DL_SYSCTL_configFCC(DL_SYSCTL_FCC_TRIG_TYPE_RISE_RISE,
+                        DL_SYSCTL_FCC_TRIG_SOURCE_LFCLK,
+                        DL_SYSCTL_FCC_CLOCK_SOURCE_HFCLK);
+    /* Get SYSPLL frequency using FCC */
+    fccTimeOutCounter = 0;
+    DL_SYSCTL_startFCC();
+    while (DL_SYSCTL_isFCCDone() == 0) {
+        delay_cycles(977);  /* 1x LFCLK cycle = 32MHz/32.768kHz = 977, 30.5us */
+        fccTimeOutCounter++;
+        if(fccTimeOutCounter > 65){
+            /* Timeout set to approximately 2ms (user-customizable) */
+            break;
+        }
+    }
+
+    /* get measB= SYSOSC freq wrt LFOSC*/
+    fFCCSysoscCount = DL_SYSCTL_readFCC();
+
+    /* Get ratio of both measurements*/
+    fFCCRatio = (fFCCPllCount * FLOAT_TO_INT_SCALE) / fFCCSysoscCount;
+    /* Check ratio is within bounds*/
+    if ((FCC_LOWER_BOUND <  fFCCRatio) && (fFCCRatio < FCC_UPPER_BOUND))
+    {
+        /* ratio is good for proceeding into application code. */
+        fFCCRatioStatus = true;
+    }
+
+    return fFCCRatioStatus;
+}
 SYSCONFIG_WEAK void SYSCFG_DL_SYSCTL_init(void)
 {
 
 	//Low Power Mode is configured to be SLEEP0
     DL_SYSCTL_setBORThreshold(DL_SYSCTL_BOR_THRESHOLD_LEVEL_0);
+    DL_SYSCTL_setFlashWaitState(DL_SYSCTL_FLASH_WAIT_STATE_2);
 
     
 	DL_SYSCTL_setSYSOSCFreq(DL_SYSCTL_SYSOSC_FREQ_BASE);
 	/* Set default configuration */
 	DL_SYSCTL_disableHFXT();
 	DL_SYSCTL_disableSYSPLL();
+    DL_SYSCTL_setHFCLKSourceHFXTParams(DL_SYSCTL_HFXT_RANGE_32_48_MHZ,0, false);
+    DL_SYSCTL_configSYSPLL((DL_SYSCTL_SYSPLLConfig *) &gSYSPLLConfig);
+
+    /*
+     * [SYSPLL_ERR_01]
+     * PLL Incorrect locking WA start.
+     * Insert after every PLL enable.
+     * This can lead an infinite loop if the condition persists
+     * and can block entry to the application code.
+     */
+
+    while (SYSCFG_DL_SYSCTL_SYSPLL_init() == false)
+    {
+        /* Toggle SYSPLL enable to re-enable SYSPLL and re-check incorrect locking */
+        DL_SYSCTL_disableSYSPLL();
+        DL_SYSCTL_enableSYSPLL();
+
+        /* Wait until SYSPLL startup is stabilized*/
+        while ((DL_SYSCTL_getClockStatus() & SYSCTL_CLKSTATUS_SYSPLLGOOD_MASK) != DL_SYSCTL_CLK_STATUS_SYSPLL_GOOD){}
+    }
+    DL_SYSCTL_setULPCLKDivider(DL_SYSCTL_ULPCLK_DIV_2);
+    DL_SYSCTL_setMCLKSource(SYSOSC, HSCLK, DL_SYSCTL_HSCLK_SOURCE_SYSPLL);
 
 }
 
 
 /*
- * Timer clock configuration to be sourced by  / 8 (4000000 Hz)
+ * Timer clock configuration to be sourced by  / 2 (40000000 Hz)
  * timerClkFreq = (timerClkSrc / (timerClkDivRatio * (timerClkPrescale + 1)))
- *   4000000 Hz = 4000000 Hz / (8 * (0 + 1))
+ *   4000000 Hz = 40000000 Hz / (2 * (9 + 1))
  */
 static const DL_TimerA_ClockConfig gPWM_0ClockConfig = {
     .clockSel = DL_TIMER_CLOCK_BUSCLK,
-    .divideRatio = DL_TIMER_CLOCK_DIVIDE_8,
-    .prescale = 0U
+    .divideRatio = DL_TIMER_CLOCK_DIVIDE_2,
+    .prescale = 9U
 };
 
 static const DL_TimerA_PWMConfig gPWM_0Config = {
@@ -257,14 +355,14 @@ SYSCONFIG_WEAK void SYSCFG_DL_PWM_0_init(void) {
 
 }
 /*
- * Timer clock configuration to be sourced by  / 8 (4000000 Hz)
+ * Timer clock configuration to be sourced by  / 1 (40000000 Hz)
  * timerClkFreq = (timerClkSrc / (timerClkDivRatio * (timerClkPrescale + 1)))
- *   4000000 Hz = 4000000 Hz / (8 * (0 + 1))
+ *   4000000 Hz = 40000000 Hz / (1 * (9 + 1))
  */
 static const DL_TimerG_ClockConfig gPWM_1ClockConfig = {
     .clockSel = DL_TIMER_CLOCK_BUSCLK,
-    .divideRatio = DL_TIMER_CLOCK_DIVIDE_8,
-    .prescale = 0U
+    .divideRatio = DL_TIMER_CLOCK_DIVIDE_1,
+    .prescale = 9U
 };
 
 static const DL_TimerG_PWMConfig gPWM_1Config = {
@@ -304,9 +402,9 @@ SYSCONFIG_WEAK void SYSCFG_DL_PWM_1_init(void) {
 
 
 /*
- * Timer clock configuration to be sourced by BUSCLK /  (32000000 Hz)
+ * Timer clock configuration to be sourced by BUSCLK /  (80000000 Hz)
  * timerClkFreq = (timerClkSrc / (timerClkDivRatio * (timerClkPrescale + 1)))
- *   500000 Hz = 32000000 Hz / (1 * (63 + 1))
+ *   1250000 Hz = 80000000 Hz / (1 * (63 + 1))
  */
 static const DL_TimerA_ClockConfig gTIMER_0ClockConfig = {
     .clockSel    = DL_TIMER_CLOCK_BUSCLK,
@@ -316,7 +414,7 @@ static const DL_TimerA_ClockConfig gTIMER_0ClockConfig = {
 
 /*
  * Timer load value (where the counter starts from) is calculated as (timerPeriod * timerClockFreq) - 1
- * TIMER_0_INST_LOAD_VALUE = (1 ms * 500000 Hz) - 1
+ * TIMER_0_INST_LOAD_VALUE = (1 ms * 1250000 Hz) - 1
  */
 static const DL_TimerA_TimerConfig gTIMER_0TimerConfig = {
     .period     = TIMER_0_INST_LOAD_VALUE,
@@ -363,10 +461,10 @@ SYSCONFIG_WEAK void SYSCFG_DL_UART_0_init(void)
     /*
      * Configure baud rate by setting oversampling and baud rate divisors.
      *  Target baud rate: 115200
-     *  Actual baud rate: 115211.52
+     *  Actual baud rate: 115190.78
      */
     DL_UART_Main_setOversampling(UART_0_INST, DL_UART_OVERSAMPLING_RATE_16X);
-    DL_UART_Main_setBaudRateDivisor(UART_0_INST, UART_0_IBRD_32_MHZ_115200_BAUD, UART_0_FBRD_32_MHZ_115200_BAUD);
+    DL_UART_Main_setBaudRateDivisor(UART_0_INST, UART_0_IBRD_40_MHZ_115200_BAUD, UART_0_FBRD_40_MHZ_115200_BAUD);
 
 
     /* Configure Interrupts */
@@ -411,9 +509,9 @@ SYSCONFIG_WEAK void SYSCFG_DL_SPI_0_init(void) {
     /*
      * Set the bit rate clock divider to generate the serial output clock
      *     outputBitRate = (spiInputClock) / ((1 + SCR) * 2)
-     *     8000000 = (32000000)/((1 + 1) * 2)
+     *     8000000 = (80000000)/((1 + 4) * 2)
      */
-    DL_SPI_setBitRateSerialClockDivider(SPI_0_INST, 1);
+    DL_SPI_setBitRateSerialClockDivider(SPI_0_INST, 4);
 
     /* Enable SPI TX interrupt as a trigger for DMA */
     DL_SPI_enableDMATransmitEvent(SPI_0_INST);
@@ -551,7 +649,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_DMA_init(void){
 SYSCONFIG_WEAK void SYSCFG_DL_SYSTICK_init(void)
 {
     /* Initialize the period to 1.00 ms */
-    DL_SYSTICK_init(32000);
+    DL_SYSTICK_init(80000);
     DL_SYSTICK_enableInterrupt();
 }
 
