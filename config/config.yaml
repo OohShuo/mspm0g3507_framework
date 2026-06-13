@@ -1,7 +1,7 @@
 build:
-  build_type: RelWithDebInfo          # Debug | Release | RelWithDebInfo | MinSizeRel
-  generator: ninja             # ninja | make | auto
-  graphviz: ON                 # ON | OFF — appends --graphviz=framework.dot
+  build_type: RelWithDebInfo # Debug | Release | RelWithDebInfo | MinSizeRel
+  generator: ninja # ninja | make | auto
+  graphviz: ON # ON | OFF — appends --graphviz=framework.dot
 
   FRAMEWORK_USE_FREERTOS: ON
   FRAMEWORK_USE_RTT: ON
