@@ -4,7 +4,7 @@
 #define TEST_BUZZER_ENABLE        0
 #define TEST_COM_UART_ENABLE      0
 #define TEST_JOYSTICK_ENABLE      0
-#define TEST_LCD_ENABLE           1
+#define TEST_LCD_ENABLE           0
 #define TEST_LED_BREATH_ENABLE    0
 #define TEST_LED_SIMPLE_ENABLE    0
 #define TEST_LFS_ENABLE           0

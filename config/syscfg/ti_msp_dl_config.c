@@ -402,19 +402,19 @@ SYSCONFIG_WEAK void SYSCFG_DL_PWM_1_init(void) {
 
 
 /*
- * Timer clock configuration to be sourced by BUSCLK /  (80000000 Hz)
+ * Timer clock configuration to be sourced by BUSCLK /  (40000000 Hz)
  * timerClkFreq = (timerClkSrc / (timerClkDivRatio * (timerClkPrescale + 1)))
- *   1250000 Hz = 80000000 Hz / (1 * (63 + 1))
+ *   1000000 Hz = 40000000 Hz / (2 * (39 + 1))
  */
 static const DL_TimerA_ClockConfig gTIMER_0ClockConfig = {
     .clockSel    = DL_TIMER_CLOCK_BUSCLK,
-    .divideRatio = DL_TIMER_CLOCK_DIVIDE_1,
-    .prescale    = 63U,
+    .divideRatio = DL_TIMER_CLOCK_DIVIDE_2,
+    .prescale    = 39U,
 };
 
 /*
  * Timer load value (where the counter starts from) is calculated as (timerPeriod * timerClockFreq) - 1
- * TIMER_0_INST_LOAD_VALUE = (1 ms * 1250000 Hz) - 1
+ * TIMER_0_INST_LOAD_VALUE = (1 ms * 1000000 Hz) - 1
  */
 static const DL_TimerA_TimerConfig gTIMER_0TimerConfig = {
     .period     = TIMER_0_INST_LOAD_VALUE,
