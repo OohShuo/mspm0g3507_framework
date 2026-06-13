@@ -113,6 +113,21 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 #define GPIO_PWM_1_C1_IOMUX_FUNC                     IOMUX_PINCM35_PF_TIMG0_CCP1
 #define GPIO_PWM_1_C1_IDX                                    DL_TIMER_CC_1_INDEX
 
+/* Defines for PWM_2 */
+#define PWM_2_INST                                                         TIMG7
+#define PWM_2_INST_IRQHandler                                   TIMG7_IRQHandler
+#define PWM_2_INST_INT_IRQN                                     (TIMG7_INT_IRQn)
+#define PWM_2_INST_CLK_FREQ                                             80000000
+/* GPIO defines for channel 1 */
+#define GPIO_PWM_2_C1_PORT                                                 GPIOA
+#define GPIO_PWM_2_C1_PIN                                          DL_GPIO_PIN_7
+#define GPIO_PWM_2_C1_IOMUX                                      (IOMUX_PINCM14)
+#define GPIO_PWM_2_C1_IOMUX_FUNC                     IOMUX_PINCM14_PF_TIMG7_CCP1
+#define GPIO_PWM_2_C1_IDX                                    DL_TIMER_CC_1_INDEX
+
+/* Publisher defines */
+#define PWM_2_INST_PUB_0_CH                                                  (1)
+
 
 
 /* Defines for TIMER_0 */
@@ -191,6 +206,9 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 /* Defines for DMA_CH0 */
 #define DMA_CH0_CHAN_ID                                                      (0)
 #define ADC12_0_INST_DMA_TRIGGER                      (DMA_ADC0_EVT_GEN_BD_TRIG)
+/* Defines for DMA_CH5 */
+#define DMA_CH5_CHAN_ID                                                      (5)
+#define DMA_CH5_TRIGGER_SEL_FSUB_0                       (DMA_GENERIC_SUB0_TRIG)
 /* Defines for DMA_CH1 */
 #define DMA_CH1_CHAN_ID                                                      (2)
 #define SPI_0_INST_DMA_TRIGGER_0                              (DMA_SPI1_RX_TRIG)
@@ -266,6 +284,7 @@ void SYSCFG_DL_SYSCTL_init(void);
 bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 void SYSCFG_DL_PWM_0_init(void);
 void SYSCFG_DL_PWM_1_init(void);
+void SYSCFG_DL_PWM_2_init(void);
 void SYSCFG_DL_TIMER_0_init(void);
 void SYSCFG_DL_UART_0_init(void);
 void SYSCFG_DL_SPI_0_init(void);
