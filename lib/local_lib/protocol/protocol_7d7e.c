@@ -3,16 +3,6 @@
 #include "freertos_alloc.h"
 #include "protocol.h"
 
-/* ------------------------------------------------------------------ */
-/* protocol_7d7e — SLIP framing (RFC 1055 variant)                     */
-/*                                                                     */
-/* Frame:  START(0x7F) [escaped payload] END(0x7E)                    */
-/* Escape: 0x7F→0x7D 0x02  0x7E→0x7D 0x01  0x7D→0x7D 0x00           */
-/*                                                                     */
-/* tx_buf is sized for worst-case payload (2× expansion + 2 delims).  */
-/* rx_buf accumulates decoded data; on_chunk fires per SLIP frame.    */
-/* ------------------------------------------------------------------ */
-
 #define SLIP_START     0x7F
 #define SLIP_END       0x7E
 #define SLIP_ESC       0x7D
@@ -123,7 +113,6 @@ static void slip_recv_feed(Protocol* p, const uint8_t* data, uint16_t len) {
         }
     }
 
-    /* Partial flush: data arrived but no END marker yet */
     if (!flushed && p->in_frame && (p->rx_len > 0 || p->saw_start)) { slip_flush(p, 0); }
 }
 
