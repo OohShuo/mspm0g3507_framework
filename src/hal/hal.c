@@ -8,6 +8,7 @@
 #include "led_breath.h"
 #include "led_simple.h"
 #include "task.h"
+#include "ws2812.h"
 
 static TaskHandle_t task_gpio_handle = NULL;
 static TaskHandle_t task_buzzer_handle = NULL;
@@ -22,6 +23,7 @@ void Hal_Init(void) {
     Joystick_Init();
     Buzzer_Init();
     Com_Uart_Init();
+    Ws2812_Init();
 }
 
 void Hal_Task_Def(void) {

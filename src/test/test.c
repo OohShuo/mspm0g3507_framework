@@ -15,6 +15,7 @@
 #include "st7789_img/test_st7789_img.h"
 #include "test_config.h"
 #include "w25q32/test_w25q32.h"
+#include "ws2812/test_ws2812.h"
 
 void Test_Task_Def(void) {
 #if TEST_BUTTON_ENABLE
@@ -55,5 +56,8 @@ void Test_Task_Def(void) {
 #endif
 #if TEST_W25Q32_ENABLE
     Test_W25q32_Task_Def();
+#endif
+#if TEST_WS2812_ENABLE
+    Test_Ws2812_Task_Def();
 #endif
 }

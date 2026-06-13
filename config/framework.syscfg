@@ -176,6 +176,7 @@ PWM3.peripheral.$assign          = "TIMG7";
 PWM3.peripheral.ccp1Pin.$assign  = "PA7";
 PWM3.PWM_CHANNEL_1.$name         = "ti_driverlib_pwm_PWMTimerCC2";
 PWM3.PWM_CHANNEL_1.ccValue       = 29;
+PWM3.PWM_CHANNEL_1.initVal       = "HIGH";
 
 SPI1.$name                                 = "SPI_0";
 SPI1.rxFifoThreshold                       = "DL_SPI_RX_FIFO_LEVEL_ONE_FRAME";
