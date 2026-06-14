@@ -67,8 +67,8 @@
 | 0 | ADC0 |
 | 1 | SPI1 TX |
 | 2 | SPI1 RX |
-| 3 | UART0 RX |
-| 4 | UART0 TX |
+| 3 | UART0 TX |
+| 4 | UART0 RX |
 
 ## 引脚总览（按端口分组）
 
