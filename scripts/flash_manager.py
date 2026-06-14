@@ -18,10 +18,97 @@ Usage:
 
 import os
 import struct
+import tempfile
 import time
 from typing import Callable, List, Optional, Tuple, Union
 
-import serial
+try:
+    import serial
+except ImportError:
+    serial = None
+
+IMAGE_MAGIC = b"R565"
+IMAGE_VERSION = 1
+IMAGE_FLAG_MASK = 0x01
+IMAGE_HEADER_SIZE = 16
+
+
+def pack_image_asset(
+    source_path: str,
+    output_path: str,
+    width: int,
+    height: int,
+    fit: str = "cover",
+    with_mask: bool = False,
+) -> None:
+    """Convert a JPG/PNG into the MCU's streaming RGB565 image format."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError as exc:
+        raise RuntimeError("Pillow is required: pip install pillow") from exc
+
+    if width <= 0 or height <= 0 or width > 0xFFFF or height > 0xFFFF:
+        raise ValueError("Image dimensions must be in the range 1..65535")
+
+    image = ImageOps.exif_transpose(Image.open(source_path)).convert("RGBA")
+    target_size = (width, height)
+    if fit == "cover":
+        image = ImageOps.fit(image, target_size, method=Image.Resampling.LANCZOS)
+    elif fit == "contain":
+        contained = ImageOps.contain(image, target_size, method=Image.Resampling.LANCZOS)
+        image = Image.new("RGBA", target_size, (0, 0, 0, 0))
+        image.alpha_composite(
+            contained, ((width - contained.width) // 2, (height - contained.height) // 2)
+        )
+    elif fit == "stretch":
+        image = image.resize(target_size, Image.Resampling.LANCZOS)
+    else:
+        raise ValueError(f"Unknown fit mode: {fit}")
+
+    pixel_data = bytearray(width * height * 2)
+    mask_stride = (width + 7) // 8
+    mask_data = bytearray(mask_stride * height) if with_mask else bytearray()
+    pixels = image.load()
+
+    output_index = 0
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if with_mask:
+                blend = alpha / 255.0
+                red = round(red * blend)
+                green = round(green * blend)
+                blue = round(blue * blend)
+                if alpha >= 40:
+                    mask_data[y * mask_stride + x // 8] |= 1 << (x & 7)
+            else:
+                red = (red * alpha) // 255
+                green = (green * alpha) // 255
+                blue = (blue * alpha) // 255
+
+            rgb565 = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3)
+            pixel_data[output_index] = rgb565 & 0xFF
+            pixel_data[output_index + 1] = rgb565 >> 8
+            output_index += 2
+
+    flags = IMAGE_FLAG_MASK if with_mask else 0
+    header = struct.pack(
+        "<4sBBHHHI",
+        IMAGE_MAGIC,
+        IMAGE_VERSION,
+        flags,
+        width,
+        height,
+        0,
+        len(pixel_data),
+    )
+    if len(header) != IMAGE_HEADER_SIZE:
+        raise AssertionError("Unexpected image header size")
+
+    with open(output_path, "wb") as output:
+        output.write(header)
+        output.write(pixel_data)
+        output.write(mask_data)
 
 
 # ── Protocol constants (must match flash_mgr.h) ──────────────────────
@@ -175,6 +262,8 @@ class FlashManager:
         timeout: float = 5.0,
         max_retries: int = 3,
     ):
+        if serial is None:
+            raise RuntimeError("pyserial is required for UART access: pip install pyserial")
         self._timeout = timeout
         self._max_retries = max_retries
         self._seq = 0
@@ -283,6 +372,35 @@ class FlashManager:
                 return False
 
         return True
+
+    def upload_image(
+        self,
+        local_path: str,
+        remote_path: str,
+        width: int,
+        height: int,
+        fit: str = "cover",
+        with_mask: bool = False,
+        progress_cb: Optional[Callable[[int, int], None]] = None,
+    ) -> bool:
+        """Convert and upload an image as a streamable RGB565 asset."""
+        with tempfile.NamedTemporaryFile(suffix=".r565", delete=False) as temp:
+            temp_path = temp.name
+        try:
+            pack_image_asset(
+                local_path,
+                temp_path,
+                width=width,
+                height=height,
+                fit=fit,
+                with_mask=with_mask,
+            )
+            return self.upload_file(temp_path, remote_path, progress_cb=progress_cb)
+        finally:
+            try:
+                os.remove(temp_path)
+            except FileNotFoundError:
+                pass
 
     def download_file(
         self,
@@ -628,6 +746,16 @@ def _main() -> int:
     p_upload.add_argument("local", help="Local file path")
     p_upload.add_argument("remote", help="Remote path (e.g. /data.bin)")
 
+    p_image = sub.add_parser("upload-image", help="Convert and upload a RGB565 image asset")
+    p_image.add_argument("local", help="Local JPG/PNG path")
+    p_image.add_argument("remote", help="Remote path (e.g. /air_bg.r565)")
+    p_image.add_argument("--width", type=int, required=True)
+    p_image.add_argument("--height", type=int, required=True)
+    p_image.add_argument(
+        "--fit", choices=("cover", "contain", "stretch"), default="cover"
+    )
+    p_image.add_argument("--mask", action="store_true", help="Store a 1-bit alpha mask")
+
     p_dl = sub.add_parser("download", help="Download a file")
     p_dl.add_argument("remote", help="Remote path")
     p_dl.add_argument("local", help="Local file path")
@@ -664,6 +792,23 @@ def _main() -> int:
             print(f"Uploading {args.local} → {args.remote}")
             ok = fm.upload_file(args.local, args.remote,
                                 progress_cb=_progress)
+            print()
+            print("OK" if ok else "FAILED")
+
+        elif args.action == "upload-image":
+            print(
+                f"Converting {args.local} to {args.width}x{args.height} RGB565 "
+                f"and uploading to {args.remote}"
+            )
+            ok = fm.upload_image(
+                args.local,
+                args.remote,
+                width=args.width,
+                height=args.height,
+                fit=args.fit,
+                with_mask=args.mask,
+                progress_cb=_progress,
+            )
             print()
             print("OK" if ok else "FAILED")
 
