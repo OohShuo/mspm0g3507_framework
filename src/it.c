@@ -24,8 +24,8 @@ void TIMA1_IRQHandler(void) {
 }
 
 void TIMG7_IRQHandler(void) {
-    switch (DL_TimerA_getPendingInterrupt(TIMG7)) {
-        case DL_TIMERA_INTERRUPT_ZERO_EVENT:
+    switch (DL_TimerG_getPendingInterrupt(TIMG7)) {
+        case DL_TIMERG_INTERRUPT_ZERO_EVENT:
             Bsp_Rz_Iqr_Handler(0);
             break;
         default:

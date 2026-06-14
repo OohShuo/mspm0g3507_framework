@@ -163,15 +163,16 @@
 
 /* rz */
 
-
 #define RZ_NUM                       1
 
 #define RZ_0_PWM_TIMER               TIMG7
 #define RZ_0_PWM_CHANNEL             DL_TIMER_CC_1_INDEX
 #define RZ_0_PWM_CLK_FREQ            80000000
+#define RZ_0_PWM_INT_IRQN            TIMG7_INT_IRQn
 
 #define RZ_PWM_TIMERS                {RZ_0_PWM_TIMER}
 #define RZ_PWM_CHANNELS              {RZ_0_PWM_CHANNEL}
 #define RZ_PWM_CLK_FREQS             {RZ_0_PWM_CLK_FREQ}
+#define RZ_PWM_INT_IRQNS             {RZ_0_PWM_INT_IRQN}
 
 #define RZ_WS2812_IDX                0
