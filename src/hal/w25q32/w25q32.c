@@ -5,8 +5,8 @@
 #include "bsp_gpio.h"
 #include "bsp_spi.h"
 
-#define Bsp_Spi_Write Bsp_Hard_Spi_Write_Blocking
-#define Bsp_Spi_Read  Bsp_Hard_Spi_Read_Blocking
+#define Bsp_Spi_Write               Bsp_Hard_Spi_Write_Blocking
+#define Bsp_Spi_Read                Bsp_Hard_Spi_Read_Blocking
 
 #define W25Q32_INIT_BUSY_POLL_LIMIT 100000u
 

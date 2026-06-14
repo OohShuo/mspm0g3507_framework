@@ -6,23 +6,23 @@
 #include "st7789.h"
 #include "task.h"
 
-#define LCD_HOR_RES 240
-#define LCD_VER_RES 320
+#define LCD_HOR_RES        240
+#define LCD_VER_RES        320
 
-#define BORDER_INSET 5
-#define BORDER_WIDTH 2
-#define BALL_SIZE    25
+#define BORDER_INSET       5
+#define BORDER_WIDTH       2
+#define BALL_SIZE          25
 
-#define FIELD_X_MIN (BORDER_INSET + BORDER_WIDTH)
-#define FIELD_Y_MIN (BORDER_INSET + BORDER_WIDTH)
-#define FIELD_X_MAX (LCD_HOR_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
-#define FIELD_Y_MAX (LCD_VER_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
+#define FIELD_X_MIN        (BORDER_INSET + BORDER_WIDTH)
+#define FIELD_Y_MIN        (BORDER_INSET + BORDER_WIDTH)
+#define FIELD_X_MAX        (LCD_HOR_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
+#define FIELD_Y_MAX        (LCD_VER_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
 
 #define JOYSTICK_MAX_SPEED 5.0f
 
-#define COLOR_BACKGROUND 0x0004u
-#define COLOR_BORDER     0xffffu
-#define COLOR_BALL       0xfa08u
+#define COLOR_BACKGROUND   0x0004u
+#define COLOR_BORDER       0xffffu
+#define COLOR_BALL         0xfa08u
 
 static St7789* g_lcd = NULL;
 static Joystick* g_joystick = NULL;
@@ -44,9 +44,8 @@ static float clampf(float value, float min_value, float max_value) {
 static void draw_field(void) {
     for (int32_t y = 0; y < LCD_VER_RES; y++) {
         for (int32_t x = 0; x < LCD_HOR_RES; x++) {
-            const uint8_t inside_outer =
-                x >= BORDER_INSET && x < LCD_HOR_RES - BORDER_INSET && y >= BORDER_INSET &&
-                y < LCD_VER_RES - BORDER_INSET;
+            const uint8_t inside_outer = x >= BORDER_INSET && x < LCD_HOR_RES - BORDER_INSET &&
+                                         y >= BORDER_INSET && y < LCD_VER_RES - BORDER_INSET;
             const uint8_t inside_inner =
                 x >= BORDER_INSET + BORDER_WIDTH && x < LCD_HOR_RES - BORDER_INSET - BORDER_WIDTH &&
                 y >= BORDER_INSET + BORDER_WIDTH && y < LCD_VER_RES - BORDER_INSET - BORDER_WIDTH;
@@ -66,13 +65,11 @@ static void draw_ball_area(int32_t x, int32_t y, uint8_t show_ball) {
             const int32_t dx = col - radius;
             const int32_t dy = row - radius;
             const uint8_t inside_ball = dx * dx + dy * dy <= radius * radius;
-            g_ball_buf[row * BALL_SIZE + col] =
-                show_ball && inside_ball ? COLOR_BALL : COLOR_BACKGROUND;
+            g_ball_buf[row * BALL_SIZE + col] = show_ball && inside_ball ? COLOR_BALL : COLOR_BACKGROUND;
         }
     }
 
-    St7789_Flush(
-        g_lcd, x, y, x + BALL_SIZE - 1, y + BALL_SIZE - 1, (uint8_t*)g_ball_buf, sizeof(g_ball_buf));
+    St7789_Flush(g_lcd, x, y, x + BALL_SIZE - 1, y + BALL_SIZE - 1, (uint8_t*)g_ball_buf, sizeof(g_ball_buf));
 }
 
 static void ball_demo_init(void) {
@@ -92,8 +89,7 @@ static void ball_demo_init(void) {
         .y_reverse = JOYSTICK_Y_REVERSE,
     };
     g_joystick = Joystick_Create(&joystick_cfg);
-    Joystick_Calibrate_Center(
-        g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
+    Joystick_Calibrate_Center(g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
 
     const St7789_config lcd_cfg = {
         .spi_idx = SOFT_SPI_LCD_IDX,
