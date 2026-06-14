@@ -12,6 +12,8 @@ typedef struct {
     float y_max_voltage;
     float x_offset;
     float y_offset;
+    float x_dead_zone;
+    float y_dead_zone;
     uint8_t x_reverse;
     uint8_t y_reverse;
 } Joystick_config;
