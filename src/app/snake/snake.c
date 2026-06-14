@@ -257,3 +257,7 @@ Game_result Snake_Update(const Game_input* input) {
     }
     return game_result_running;
 }
+
+uint32_t Snake_Get_Score(void) { return g_score; }
+
+uint8_t Snake_Is_Finished(void) { return g_state != snake_state_playing; }
