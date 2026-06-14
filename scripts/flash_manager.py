@@ -20,6 +20,7 @@ import os
 import struct
 import tempfile
 import time
+import binascii
 from typing import Callable, List, Optional, Tuple, Union
 
 try:
@@ -128,7 +129,7 @@ def pack_image_asset(
         flags,
         width,
         height,
-        0,
+        binascii.crc_hqx(pixel_data, 0xFFFF),
         len(pixel_data),
     )
     if len(header) != IMAGE_HEADER_SIZE:
