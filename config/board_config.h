@@ -113,8 +113,8 @@
 #define JOYSTICK_Y_MIN_VOLTAGE       0.0f
 #define JOYSTICK_Y_MAX_VOLTAGE       3.3f
 
-#define JOYSTICK_X_REVERSE           0
-#define JOYSTICK_Y_REVERSE           0
+#define JOYSTICK_X_REVERSE           1
+#define JOYSTICK_Y_REVERSE           1
 
 /* spi */
 
