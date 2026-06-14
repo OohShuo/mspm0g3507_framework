@@ -119,7 +119,7 @@
 
 #define JOYSTICK_X_OFFSET            0.0f
 #define JOYSTICK_Y_OFFSET            0.0f
-#define JOYSTICK_X_REVERSE           1
+#define JOYSTICK_X_REVERSE           0
 #define JOYSTICK_Y_REVERSE           1
 
 /* Normalized axis settings: 0.0f to 1.0f. */
