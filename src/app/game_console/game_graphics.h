@@ -4,6 +4,7 @@
 
 #include "st7789.h"
 
+uint16_t* Game_Graphics_Get_Line_Buffer(void);
 void Game_Graphics_Fill_Rect(
     St7789* lcd, int32_t x, int32_t y, int32_t width, int32_t height, uint16_t color);
 void Game_Graphics_Draw_Text(

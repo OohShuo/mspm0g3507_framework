@@ -67,6 +67,7 @@ uint8_t Image_Asset_Open(Image_asset* image, const char* path) {
     }
 
     image->is_open = 1;
+    image->next_read_offset = IMAGE_ASSET_HEADER_SIZE;
     return 1;
 #else
     (void)path;
@@ -103,10 +104,15 @@ uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x,
         IMAGE_ASSET_HEADER_SIZE + ((lfs_soff_t)y * image->width + x) * 2;
     const lfs_size_t byte_count = (lfs_size_t)width * 2u;
     Storage_Lock();
-    const lfs_soff_t seek_result = lfs_file_seek(lfs, &image->file, offset, LFS_SEEK_SET);
+    const lfs_soff_t seek_result =
+        image->next_read_offset == (uint32_t)offset
+            ? offset
+            : lfs_file_seek(lfs, &image->file, offset, LFS_SEEK_SET);
     const lfs_ssize_t read_result =
         seek_result < 0 ? seek_result : lfs_file_read(lfs, &image->file, pixels, byte_count);
     Storage_Unlock();
+    image->next_read_offset =
+        read_result == (lfs_ssize_t)byte_count ? (uint32_t)(offset + byte_count) : UINT32_MAX;
     return read_result == (lfs_ssize_t)byte_count;
 #else
     (void)y;
