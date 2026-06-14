@@ -3,14 +3,11 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "FreeRTOS.h"
-#include "board_config.h"
 #include "bsp_time.h"
-#include "button.h"
 #include "buzzer.h"
-#include "joystick.h"
+#include "game_graphics.h"
+#include "game_runtime.h"
 #include "st7789.h"
-#include "task.h"
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -21,10 +18,9 @@
 #define MAP_X       ((SCREEN_WIDTH - MAP_WIDTH * TILE_SIZE) / 2)
 #define MAP_Y       42
 
-#define PLAYER_MOVE_MS 125u
-#define GHOST_MOVE_MS  185u
+#define PLAYER_MOVE_MS 250u
+#define GHOST_MOVE_MS  500u
 #define POWER_TIME_MS  7000u
-#define INPUT_THRESHOLD 0.42f
 
 #define COLOR_BLACK       0x0000u
 #define COLOR_WALL        0x001fu
@@ -92,13 +88,7 @@ static const int8_t g_dir_x[] = {0, 0, -1, 0, 1};
 static const int8_t g_dir_y[] = {0, -1, 0, 1, 0};
 
 static St7789* g_lcd = NULL;
-static Joystick* g_joystick = NULL;
 static Buzzer* g_buzzer = NULL;
-static Button* g_button_up = NULL;
-static Button* g_button_left = NULL;
-static Button* g_button_down = NULL;
-static Button* g_button_right = NULL;
-static Button* g_button_start = NULL;
 
 static uint16_t g_tile_buffer[TILE_SIZE * TILE_SIZE];
 static uint16_t g_line_buffer[SCREEN_WIDTH];
@@ -301,6 +291,7 @@ static void render_full_map(void) {
     for (int8_t y = 0; y < MAP_HEIGHT; y++) {
         for (int8_t x = 0; x < MAP_WIDTH; x++) { render_cell(x, y); }
     }
+    Game_Graphics_Draw_Text(g_lcd, 90, 304, "HOLD MENU", 1, COLOR_WHITE);
     render_hud();
 }
 
@@ -351,23 +342,6 @@ static void restart_game(void) {
     load_level();
     render_full_map();
     if (g_buzzer != NULL) { Buzzer_Stop(g_buzzer); }
-}
-
-static Direction read_direction(void) {
-    if (Button_Get_State(g_button_up) == button_state_down) { return direction_up; }
-    if (Button_Get_State(g_button_left) == button_state_down) { return direction_left; }
-    if (Button_Get_State(g_button_down) == button_state_down) { return direction_down; }
-    if (Button_Get_State(g_button_right) == button_state_down) { return direction_right; }
-
-    if (g_joystick == NULL) { return direction_none; }
-    const float x = g_joystick->x_value;
-    const float y = g_joystick->y_value;
-    const float abs_x = x < 0.0f ? -x : x;
-    const float abs_y = y < 0.0f ? -y : y;
-
-    if (abs_x < INPUT_THRESHOLD && abs_y < INPUT_THRESHOLD) { return direction_none; }
-    if (abs_x > abs_y) { return x < 0.0f ? direction_left : direction_right; }
-    return y < 0.0f ? direction_down : direction_up;
 }
 
 static void collect_pellet(void) {
@@ -506,62 +480,30 @@ static void move_ghosts(void) {
     }
 }
 
-static Button* create_button(uint32_t gpio_idx) {
-    const Button_config config = {
-        .gpio_idx = gpio_idx,
-        .gpio_state_when_pressed = bsp_gpio_state_reset,
-    };
-    return Button_Create(&config);
+static Direction convert_direction(Game_direction direction) {
+    if (direction == game_direction_up) { return direction_up; }
+    if (direction == game_direction_left) { return direction_left; }
+    if (direction == game_direction_down) { return direction_down; }
+    if (direction == game_direction_right) { return direction_right; }
+    return direction_none;
 }
 
-static void pacman_init(void) {
-    const Joystick_config joystick_config = {
-        .adc_idx = ADC_JOYSTICK_IDX,
-        .adc_channel_x = ADC_JOYSTICK_X_CHANNEL,
-        .adc_channel_y = ADC_JOYSTICK_Y_CHANNEL,
-        .x_min_voltage = JOYSTICK_X_MIN_VOLTAGE,
-        .x_max_voltage = JOYSTICK_X_MAX_VOLTAGE,
-        .y_min_voltage = JOYSTICK_Y_MIN_VOLTAGE,
-        .y_max_voltage = JOYSTICK_Y_MAX_VOLTAGE,
-        .x_reverse = JOYSTICK_X_REVERSE,
-        .y_reverse = JOYSTICK_Y_REVERSE,
-    };
-    g_joystick = Joystick_Create(&joystick_config);
-    Joystick_Calibrate_Center(g_joystick, 32, 5);
-
-    g_button_up = create_button(GPIO_BNT_UP_IDX);
-    g_button_left = create_button(GPIO_BNT_LEFT_IDX);
-    g_button_down = create_button(GPIO_BNT_DOWN_IDX);
-    g_button_right = create_button(GPIO_BNT_RIGHT_IDX);
-    g_button_start = create_button(GPIO_SW_BTN_IDX);
-
-    const Buzzer_config buzzer_config = {.pwm_idx = PWM_BUZZER_IDX};
-    g_buzzer = Buzzer_Create(&buzzer_config);
-
-    const St7789_config lcd_config = {
-        .spi_idx = SOFT_SPI_LCD_IDX,
-        .cs_gpio_idx = (uint32_t)-1,
-        .dc_gpio_idx = GPIO_TFT_DC_IDX,
-        .rst_gpio_idx = GPIO_TFT_RST_IDX,
-        .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
-        .hor_res = SCREEN_WIDTH,
-        .ver_res = SCREEN_HEIGHT,
-        .flags = {.mirror_y = 1, .color_use_bgr = 1},
-    };
-    g_lcd = St7789_Create(&lcd_config);
-    configASSERT(g_lcd != NULL);
-
-    St7789_Init(g_lcd);
-    St7789_Set_Backlight(g_lcd, 1);
+void Pacman_Init(const Game_hardware* hardware) {
+    if (hardware == NULL) { return; }
+    g_lcd = hardware->lcd;
+    g_buzzer = hardware->buzzer;
     restart_game();
 }
 
-static void pacman_loop(void) {
-    const Direction input = read_direction();
-    if (input != direction_none) { g_wanted_direction = input; }
+Game_result Pacman_Update(const Game_input* input) {
+    if (input == NULL) { return game_result_running; }
+    if (input->back_requested) { return game_result_exit; }
+
+    const Direction direction = convert_direction(input->direction);
+    if (direction != direction_none) { g_wanted_direction = direction; }
 
     if (g_game_state != game_state_playing) {
-        if (Button_Get_State(g_button_start) == button_state_down) {
+        if (input->confirm_pressed) {
             if (g_game_state == game_state_level_clear) {
                 g_level++;
                 load_level();
@@ -570,7 +512,7 @@ static void pacman_loop(void) {
                 restart_game();
             }
         }
-        return;
+        return game_result_running;
     }
 
     const uint32_t now = Bsp_Get_Tick_Ms();
@@ -582,20 +524,5 @@ static void pacman_loop(void) {
         g_last_ghost_move = now;
         move_ghosts();
     }
-}
-
-static void pacman_task(void* arg) {
-    (void)arg;
-    pacman_init();
-
-    uint32_t tick = xTaskGetTickCount();
-    while (1) {
-        pacman_loop();
-        vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
-    }
-}
-
-void Pacman_Task_Def(void) {
-    const BaseType_t result = xTaskCreate(pacman_task, "Pac", 512, NULL, 1, NULL);
-    configASSERT(result == pdPASS);
+    return game_result_running;
 }
