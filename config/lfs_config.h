@@ -1,6 +1,6 @@
 #pragma once
 
-#define LFS_LOG_ENABLE 1
+#define LFS_LOG_ENABLE 0
 
 #include "SEGGER_RTT.h"
 
