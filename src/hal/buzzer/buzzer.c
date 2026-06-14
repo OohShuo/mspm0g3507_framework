@@ -42,6 +42,9 @@ static const uint8_t sfx_priorities[buzzer_sfx_count] = {
     [buzzer_sfx_overtake] = 1,
     [buzzer_sfx_tank_fire] = 1,
     [buzzer_sfx_tank_hit] = 2,
+    [buzzer_sfx_air_fire] = 1,
+    [buzzer_sfx_air_pickup] = 2,
+    [buzzer_sfx_boss_alert] = 4,
     [buzzer_sfx_explosion] = 3,
     [buzzer_sfx_life_lost] = 4,
 };
