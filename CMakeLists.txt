@@ -76,6 +76,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
     "--specs=nosys.specs"
     "-Wl,--gc-sections"
     "-nostartfiles"
+    "-Wl,--undefined=Reset_Handler"
     "-Wl,--print-memory-usage"
     # "-Wl,--print-gc-sections"
 )
