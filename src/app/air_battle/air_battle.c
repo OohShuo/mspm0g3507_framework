@@ -238,7 +238,10 @@ static void compose_line(int16_t x, int16_t y, int16_t width) {
     const uint8_t external_ready =
         g_external_background.is_open &&
         Image_Asset_Read_Span(
-            &g_external_background, (uint16_t)y, (uint16_t)x, (uint16_t)width, g_line_buffer);
+            &g_external_background, (uint16_t)y, 0, SCREEN_WIDTH, g_line_buffer);
+    if (external_ready && x > 0) {
+        memmove(g_line_buffer, g_line_buffer + x, (size_t)width * sizeof(uint16_t));
+    }
     if (!external_ready) {
         for (int16_t col = 0; col < width; col++) {
             const int16_t screen_x = x + col;
@@ -279,12 +282,15 @@ static void compose_line(int16_t x, int16_t y, int16_t width) {
 }
 
 static void render_region(const Dirty_rect* rect) {
+    St7789_Begin_Write(g_hardware.lcd, rect->x, rect->y,
+        rect->x + rect->width - 1, rect->y + rect->height - 1);
     for (int16_t row = 0; row < rect->height; row++) {
         const int16_t screen_y = rect->y + row;
         compose_line(rect->x, screen_y, rect->width);
-        St7789_Flush(g_hardware.lcd, rect->x, screen_y, rect->x + rect->width - 1,
-            screen_y, (uint8_t*)g_line_buffer, (uint32_t)rect->width * sizeof(uint16_t));
+        St7789_Write_Pixels(g_hardware.lcd, (uint8_t*)g_line_buffer,
+            (uint32_t)rect->width * sizeof(uint16_t));
     }
+    St7789_End_Write(g_hardware.lcd);
 }
 
 static void flush_dirty(void) {
