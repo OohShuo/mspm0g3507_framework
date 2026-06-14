@@ -531,9 +531,7 @@ static void flash_mgr_task(void* arg) {
 
 static void flash_mgr_task(void* arg) {
     uint32_t tick = xTaskGetTickCount();
-    while (1) {
-        vTaskDelayUntil(&tick, pdMS_TO_TICKS(5000));
-    }
+    while (1) { vTaskDelayUntil(&tick, pdMS_TO_TICKS(5000)); }
 }
 
 #endif /* FRAMEWORK_USE_LFS */
@@ -542,4 +540,3 @@ void Flash_Mgr_Task_Def(void) {
     BaseType_t ret = xTaskCreate(flash_mgr_task, "FlashMgr", 1024, NULL, 1, NULL);
     configASSERT(ret == pdPASS);
 }
-
