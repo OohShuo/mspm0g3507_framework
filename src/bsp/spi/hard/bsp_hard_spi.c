@@ -35,6 +35,8 @@ void Bsp_Hard_Spi_Init(void) {
         bsp_spi_instances[i].dma_tx_channel = ((uint32_t[])SPI_DMA_TX_CHANNELS)[i];
         bsp_spi_instances[i].dma_rx_channel = ((uint32_t[])SPI_DMA_RX_CHANNELS)[i];
         bsp_spi_instances[i].int_irqn = ((IRQn_Type[])SPI_INT_IRQNS)[i];
+        DL_SPI_setBitRateSerialClockDivider(
+            bsp_spi_instances[i].inst, ((uint32_t[])SPI_CLOCK_DIVIDERS)[i]);
         bsp_spi_instances[i].tx_dma_done.cb_vec = Vector_Init(sizeof(Bsp_spi_tx_dma_done_cb_t), 1);
         bsp_spi_instances[i].tx_dma_done.cb_arg_vec = Vector_Init(sizeof(void*), 1);
         bsp_spi_instances[i].tx_done.cb_vec = Vector_Init(sizeof(Bsp_spi_tx_done_cb_t), 1);

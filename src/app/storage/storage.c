@@ -14,6 +14,9 @@
 
 #define STORAGE_LFS_START (2u * 1024u * 1024u)
 #define STORAGE_LFS_SIZE  (2u * 1024u * 1024u)
+#define STORAGE_RAW_LIMIT STORAGE_LFS_START
+#define STORAGE_SECTOR_SIZE 4096u
+#define STORAGE_PAGE_SIZE   256u
 
 static W25q32* g_flash = NULL;
 static Lfs_port* g_port = NULL;
@@ -64,6 +67,62 @@ uint8_t Storage_Init(void) {
 
 uint8_t Storage_Is_Available(void) { return g_available; }
 
+uint8_t Storage_Raw_Read(uint32_t address, void* data, uint32_t size) {
+    if (!g_available || g_flash == NULL || data == NULL || size == 0 ||
+        address >= STORAGE_RAW_LIMIT || size > STORAGE_RAW_LIMIT - address) {
+        return 0;
+    }
+    uint8_t* destination = (uint8_t*)data;
+    Storage_Lock();
+    while (size > 0) {
+        uint32_t chunk = size > 512u ? 512u : size;
+        W25q32_Read(g_flash, address, destination, chunk);
+        address += chunk;
+        destination += chunk;
+        size -= chunk;
+    }
+    Storage_Unlock();
+    return 1;
+}
+
+uint8_t Storage_Raw_Write(uint32_t address, const void* data, uint32_t size) {
+    if (!g_available || g_flash == NULL || data == NULL || size == 0 ||
+        address >= STORAGE_RAW_LIMIT || size > STORAGE_RAW_LIMIT - address) {
+        return 0;
+    }
+
+    const uint8_t* source = (const uint8_t*)data;
+    Storage_Lock();
+    while (size > 0) {
+        uint32_t chunk = STORAGE_PAGE_SIZE - (address & (STORAGE_PAGE_SIZE - 1u));
+        if (chunk > size) { chunk = size; }
+        W25q32_Page_Program(g_flash, address, source, chunk);
+        address += chunk;
+        source += chunk;
+        size -= chunk;
+    }
+    Storage_Unlock();
+    return 1;
+}
+
+uint8_t Storage_Raw_Erase(uint32_t address, uint32_t size) {
+    if (!g_available || g_flash == NULL || size == 0 ||
+        (address & (STORAGE_SECTOR_SIZE - 1u)) != 0 ||
+        address >= STORAGE_RAW_LIMIT || size > STORAGE_RAW_LIMIT - address) {
+        return 0;
+    }
+
+    const uint32_t end =
+        (address + size + STORAGE_SECTOR_SIZE - 1u) & ~(STORAGE_SECTOR_SIZE - 1u);
+    Storage_Lock();
+    while (address < end) {
+        W25q32_Sector_Erase(g_flash, address);
+        address += STORAGE_SECTOR_SIZE;
+    }
+    Storage_Unlock();
+    return 1;
+}
+
 uint8_t Storage_Format(void) {
     if (g_port == NULL) { return 0; }
 
@@ -97,5 +156,25 @@ uint8_t Storage_Init(void) { return 0; }
 uint8_t Storage_Is_Available(void) { return 0; }
 
 uint8_t Storage_Format(void) { return 0; }
+
+uint8_t Storage_Raw_Read(uint32_t address, void* data, uint32_t size) {
+    (void)address;
+    (void)data;
+    (void)size;
+    return 0;
+}
+
+uint8_t Storage_Raw_Write(uint32_t address, const void* data, uint32_t size) {
+    (void)address;
+    (void)data;
+    (void)size;
+    return 0;
+}
+
+uint8_t Storage_Raw_Erase(uint32_t address, uint32_t size) {
+    (void)address;
+    (void)size;
+    return 0;
+}
 
 #endif

@@ -20,6 +20,9 @@ upper 2 MiB (`0x200000` through `0x3fffff`), which fits about thirteen opaque
 240x320 images. Expanding LittleFS to the full chip would require auditing the
 reserved lower half and reformatting the filesystem.
 
+Air Battle reserves `0x100000` through `0x13ffff` in the lower half as a raw
+background cache.
+
 ## Upload workflow
 
 The UART file manager and the game console use separate firmware profiles to
@@ -65,6 +68,15 @@ leave enough runtime heap for games.
 Air Battle automatically tries `/air_bg.r565` as a 240x320 background. If the
 file is missing, corrupt, or has a different size, the built-in low-resolution
 background remains available as a fallback.
+
+On first launch, the game copies the uploaded pixels from LittleFS into the raw
+W25Q32 cache. This may take a few seconds once. Later launches read dirty spans
+directly by physical address, avoiding LittleFS seek and block-cache overhead.
+The full image is never loaded into SRAM.
+
+Newly converted R565 files include a content fingerprint. Uploading a changed
+image automatically invalidates and rebuilds the raw cache. The cache address
+and capacity are configured in `config/app_config.h`.
 
 For transparent assets, add `--mask` and use `--fit contain`. The file format
 already stores the mask, while sprite compositing can be migrated incrementally
