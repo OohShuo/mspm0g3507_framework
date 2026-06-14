@@ -341,7 +341,7 @@ static void restart_game(void) {
     g_level = 1;
     load_level();
     render_full_map();
-    if (g_buzzer != NULL) { Buzzer_Stop(g_buzzer); }
+    if (g_buzzer != NULL) { Buzzer_Play_Music(g_buzzer, music_idx_pacman_theme, 1); }
 }
 
 static void collect_pellet(void) {
@@ -351,26 +351,32 @@ static void collect_pellet(void) {
     g_pellets[g_player.y][g_player.x] = 0;
     g_pellets_left--;
     g_score += pellet == 2 ? 50u : 10u;
-    if (pellet == 2) { g_power_until = Bsp_Get_Tick_Ms() + POWER_TIME_MS; }
+    if (pellet == 2) {
+        g_power_until = Bsp_Get_Tick_Ms() + POWER_TIME_MS;
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_power);
+    } else {
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_pellet);
+    }
     render_hud();
 
     if (g_pellets_left == 0) {
         g_game_state = game_state_level_clear;
-        if (g_buzzer != NULL) { Buzzer_Play(g_buzzer, &music_library[music_idx_victory], 0); }
+        if (g_buzzer != NULL) { Buzzer_Play_Music(g_buzzer, music_idx_victory, 0); }
         render_hud();
     }
 }
 
 static void lose_life(void) {
     if (g_lives > 0) { g_lives--; }
-    if (g_buzzer != NULL) { Buzzer_Play(g_buzzer, &music_library[music_idx_death], 0); }
 
     if (g_lives == 0) {
         g_game_state = game_state_over;
+        if (g_buzzer != NULL) { Buzzer_Play_Music(g_buzzer, music_idx_defeat, 0); }
         render_hud();
         return;
     }
 
+    Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_life_lost);
     reset_actor_positions();
     g_last_player_move = Bsp_Get_Tick_Ms();
     g_last_ghost_move = g_last_player_move;
@@ -385,6 +391,7 @@ static uint8_t check_collisions(void) {
             const Position old = g_ghosts[i].pos;
             g_ghosts[i].pos = g_ghosts[i].home;
             g_score += 200u;
+            Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_ghost);
             render_cell(old.x, old.y);
             render_cell(g_ghosts[i].pos.x, g_ghosts[i].pos.y);
             render_hud();
@@ -508,6 +515,7 @@ Game_result Pacman_Update(const Game_input* input) {
                 g_level++;
                 load_level();
                 render_full_map();
+                Buzzer_Play_Music(g_buzzer, music_idx_pacman_theme, 1);
             } else {
                 restart_game();
             }

@@ -158,6 +158,7 @@ static void restart_game(void) {
 
     g_last_frame = Bsp_Get_Tick_Ms();
     g_last_spawn = g_last_frame;
+    Buzzer_Play_Music(g_hardware.buzzer, music_idx_racing_theme, 1);
 }
 
 static uint8_t obstacle_hits_player(const Racing_obstacle* obstacle) {
@@ -168,7 +169,7 @@ static uint8_t obstacle_hits_player(const Racing_obstacle* obstacle) {
 static void end_game(void) {
     g_state = racing_state_over;
     if (g_hardware.buzzer != NULL) {
-        Buzzer_Play(g_hardware.buzzer, &music_library[music_idx_death], 0);
+        Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
     }
     render_hud();
 }
@@ -181,6 +182,7 @@ static void move_player(Game_direction direction) {
 
     clear_car(g_player_lane, PLAYER_Y);
     g_player_lane = new_lane;
+    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_lane_change);
     for (uint32_t i = 0; i < OBSTACLE_COUNT; i++) {
         if (obstacle_hits_player(&g_obstacles[i])) {
             end_game();
@@ -200,6 +202,7 @@ static void update_obstacles(uint32_t step) {
         if (obstacle->y + CAR_HEIGHT >= ROAD_Y + ROAD_HEIGHT) {
             obstacle->active = 0;
             g_score++;
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_overtake);
             render_hud();
             continue;
         }
