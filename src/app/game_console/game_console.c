@@ -134,6 +134,14 @@ static void draw_tank_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 21, y, 3, 15, COLOR_GREEN);
 }
 
+static void draw_air_icon(int32_t x, int32_t y) {
+    Game_Graphics_Fill_Rect(g_lcd, x + 20, y, 7, 35, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 12, y + 10, 23, 15, COLOR_BLUE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 17, 39, 7, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 16, y + 27, 15, 5, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y - 3, 3, 7, COLOR_YELLOW);
+}
+
 static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     const Game_descriptor* game = Game_Registry_Get(game_index);
     if (game == NULL) { return; }
@@ -153,9 +161,12 @@ static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     } else if (game->icon == game_icon_racing) {
         draw_racing_icon(38, y + 11);
         Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_CYAN);
-    } else {
+    } else if (game->icon == game_icon_tank) {
         draw_tank_icon(40, y + 9);
         Game_Graphics_Draw_Text(g_lcd, 112, y + 12, game->name, 2, COLOR_GREEN);
+    } else {
+        draw_air_icon(39, y + 11);
+        Game_Graphics_Draw_Text(g_lcd, 99, y + 12, game->name, 2, COLOR_CYAN);
     }
 
     Game_Graphics_Draw_Text(g_lcd, 108, y + 37, "HI", 1, COLOR_WHITE);
