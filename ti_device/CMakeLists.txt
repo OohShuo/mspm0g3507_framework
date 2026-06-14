@@ -39,5 +39,4 @@ target_compile_options(ti PUBLIC
 )
 
 print_item("TI" "TI Linker scripts: ${TI_LINKER_SCRIPTS}")
-print_item("TI" "TI DriverLib source files: ${TI_DRIVERLIB_C}")
 print_item("TI" "library ${ColorBold}ti${ColorReset} built")
