@@ -13,16 +13,19 @@
 #define SCREEN_HEIGHT 320
 #define HUD_HEIGHT    30
 
-#define MAX_ENEMIES       7
-#define MAX_BULLETS       18
-#define MAX_PICKUPS       3
-#define MAX_EXPLOSIONS    5
-#define MAX_DIRTY_RECTS   36
-#define NORMAL_ENEMIES    18
+#define MAX_ENEMIES        7
+#define MAX_PLAYER_BULLETS 24
+#define MAX_ENEMY_BULLETS  10
+#define MAX_BULLETS        (MAX_PLAYER_BULLETS + MAX_ENEMY_BULLETS)
+#define MAX_PICKUPS        3
+#define MAX_EXPLOSIONS     5
+#define MAX_DIRTY_RECTS    48
+#define NORMAL_ENEMIES     18
 
 #define PLAYER_MOVE_STEP  4
 #define PLAYER_FIRE_MS    190u
 #define WORLD_STEP_MS     50u
+#define MAX_CATCHUP_STEPS 3u
 #define ENEMY_SPAWN_MS    720u
 #define INVINCIBLE_MS     1300u
 #define EXTERNAL_BACKGROUND_PATH "/air_bg.r565"
@@ -156,6 +159,16 @@ static uint8_t rects_touch(const Dirty_rect* a, const Dirty_rect* b) {
            a->y <= b->y + b->height + 2 && b->y <= a->y + a->height + 2;
 }
 
+static Dirty_rect rect_union(const Dirty_rect* a, const Dirty_rect* b) {
+    const int16_t left = a->x < b->x ? a->x : b->x;
+    const int16_t top = a->y < b->y ? a->y : b->y;
+    const int16_t right =
+        a->x + a->width > b->x + b->width ? a->x + a->width : b->x + b->width;
+    const int16_t bottom =
+        a->y + a->height > b->y + b->height ? a->y + a->height : b->y + b->height;
+    return (Dirty_rect){left, top, (int16_t)(right - left), (int16_t)(bottom - top)};
+}
+
 static void mark_dirty(int16_t x, int16_t y, int16_t width, int16_t height) {
     if (width <= 0 || height <= 0 || x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT ||
         x + width <= 0 || y + height <= HUD_HEIGHT) {
@@ -168,26 +181,33 @@ static void mark_dirty(int16_t x, int16_t y, int16_t width, int16_t height) {
     const int16_t y2 = clamp_i16((int16_t)(y + height), HUD_HEIGHT, SCREEN_HEIGHT);
     Dirty_rect incoming = {x1, y1, (int16_t)(x2 - x1), (int16_t)(y2 - y1)};
 
-    for (uint8_t i = 0; i < g_dirty_count; i++) {
-        Dirty_rect* existing = &g_dirty[i];
-        if (!rects_touch(existing, &incoming)) { continue; }
-        const int16_t right = existing->x + existing->width > incoming.x + incoming.width
-                                  ? existing->x + existing->width
-                                  : incoming.x + incoming.width;
-        const int16_t bottom = existing->y + existing->height > incoming.y + incoming.height
-                                   ? existing->y + existing->height
-                                   : incoming.y + incoming.height;
-        existing->x = existing->x < incoming.x ? existing->x : incoming.x;
-        existing->y = existing->y < incoming.y ? existing->y : incoming.y;
-        existing->width = right - existing->x;
-        existing->height = bottom - existing->y;
-        return;
+    for (uint8_t i = 0; i < g_dirty_count;) {
+        if (!rects_touch(&g_dirty[i], &incoming)) {
+            i++;
+            continue;
+        }
+        incoming = rect_union(&g_dirty[i], &incoming);
+        g_dirty[i] = g_dirty[--g_dirty_count];
+        i = 0;
     }
 
     if (g_dirty_count < MAX_DIRTY_RECTS) {
         g_dirty[g_dirty_count++] = incoming;
     } else {
-        g_force_full_redraw = 1;
+        uint8_t best_index = 0;
+        uint32_t best_growth = UINT32_MAX;
+        for (uint8_t i = 0; i < g_dirty_count; i++) {
+            const Dirty_rect merged = rect_union(&g_dirty[i], &incoming);
+            const uint32_t old_area =
+                (uint32_t)g_dirty[i].width * (uint32_t)g_dirty[i].height;
+            const uint32_t new_area =
+                (uint32_t)merged.width * (uint32_t)merged.height;
+            if (new_area - old_area < best_growth) {
+                best_growth = new_area - old_area;
+                best_index = i;
+            }
+        }
+        g_dirty[best_index] = rect_union(&g_dirty[best_index], &incoming);
     }
 }
 
@@ -235,11 +255,13 @@ static void draw_explosion_line(const Explosion* explosion, int16_t screen_y,
 }
 
 static void compose_line(int16_t x, int16_t y, int16_t width) {
-    const uint8_t external_ready =
-        g_external_background.is_open &&
-        Image_Asset_Read_Span(
-            &g_external_background, (uint16_t)y, 0, SCREEN_WIDTH, g_line_buffer);
-    if (external_ready && x > 0) {
+    const uint16_t read_x = width >= SCREEN_WIDTH / 2 ? 0u : (uint16_t)x;
+    const uint16_t read_width =
+        width >= SCREEN_WIDTH / 2 ? SCREEN_WIDTH : (uint16_t)width;
+    const uint8_t external_ready = g_external_background.is_open &&
+                                   Image_Asset_Read_Span(&g_external_background,
+                                       (uint16_t)y, read_x, read_width, g_line_buffer);
+    if (external_ready && read_x == 0u && x > 0) {
         memmove(g_line_buffer, g_line_buffer + x, (size_t)width * sizeof(uint16_t));
     }
     if (!external_ready) {
@@ -298,6 +320,18 @@ static void flush_dirty(void) {
         const Dirty_rect full = {0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT};
         render_region(&full);
     } else {
+        for (uint8_t i = 1; i < g_dirty_count; i++) {
+            const Dirty_rect current = g_dirty[i];
+            uint8_t position = i;
+            while (position > 0 &&
+                   (g_dirty[position - 1].y > current.y ||
+                       (g_dirty[position - 1].y == current.y &&
+                           g_dirty[position - 1].x > current.x))) {
+                g_dirty[position] = g_dirty[position - 1];
+                position--;
+            }
+            g_dirty[position] = current;
+        }
         for (uint8_t i = 0; i < g_dirty_count; i++) { render_region(&g_dirty[i]); }
     }
     g_dirty_count = 0;
@@ -337,39 +371,46 @@ static void add_explosion(int16_t x, int16_t y) {
     }
 }
 
-static Bullet* allocate_bullet(void) {
-    for (uint8_t i = 0; i < MAX_BULLETS; i++) {
+static Bullet* allocate_bullet(uint8_t from_enemy) {
+    const uint8_t begin = from_enemy ? MAX_PLAYER_BULLETS : 0;
+    const uint8_t end = from_enemy ? MAX_BULLETS : MAX_PLAYER_BULLETS;
+    for (uint8_t i = begin; i < end; i++) {
         if (!g_bullets[i].active) { return &g_bullets[i]; }
     }
     return NULL;
 }
 
-static void spawn_bullet(
+static uint8_t spawn_bullet(
     int16_t x, int16_t y, int8_t dx, int8_t dy, uint8_t from_enemy) {
-    Bullet* bullet = allocate_bullet();
-    if (bullet == NULL) { return; }
+    Bullet* bullet = allocate_bullet(from_enemy);
+    if (bullet == NULL) { return 0; }
     *bullet = (Bullet){x, y, dx, dy, 1, from_enemy};
     mark_sprite(x, y, from_enemy ? &air_sprite_bullet_enemy : &air_sprite_bullet_hero);
+    return 1;
 }
 
-static void player_fire(void) {
+static uint8_t player_fire(void) {
     const int16_t center = g_player_x + air_sprite_hero.width / 2 -
                            air_sprite_bullet_hero.width / 2;
+    uint8_t fired = 0;
     if (g_shot_level == 1) {
-        spawn_bullet(center, g_player_y - 8, 0, -6, 0);
+        fired += spawn_bullet(center, g_player_y - 8, 0, -9, 0);
     } else if (g_shot_level == 2) {
-        spawn_bullet(g_player_x + 7, g_player_y - 5, 0, -6, 0);
-        spawn_bullet(g_player_x + air_sprite_hero.width - 11, g_player_y - 5, 0, -6, 0);
+        fired += spawn_bullet(g_player_x + 7, g_player_y - 5, 0, -9, 0);
+        fired += spawn_bullet(
+            g_player_x + air_sprite_hero.width - 11, g_player_y - 5, 0, -9, 0);
     } else {
-        spawn_bullet(center, g_player_y - 9, 0, -7, 0);
-        spawn_bullet(g_player_x + 5, g_player_y - 3, -1, -6, 0);
-        spawn_bullet(g_player_x + air_sprite_hero.width - 9, g_player_y - 3, 1, -6, 0);
+        fired += spawn_bullet(center, g_player_y - 9, 0, -10, 0);
+        fired += spawn_bullet(g_player_x + 5, g_player_y - 3, -1, -9, 0);
+        fired += spawn_bullet(
+            g_player_x + air_sprite_hero.width - 9, g_player_y - 3, 1, -9, 0);
     }
 
-    if (++g_fire_sound_divider >= 3) {
+    if (fired > 0 && ++g_fire_sound_divider >= 3) {
         g_fire_sound_divider = 0;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_air_fire);
     }
+    return fired > 0;
 }
 
 static uint8_t active_enemy_count(void) {
@@ -763,9 +804,8 @@ Game_result Air_Battle_Update(const Game_input* input) {
     if (g_state != air_state_playing) { return game_result_running; }
 
     const uint32_t now = Bsp_Get_Tick_Ms();
-    if (now - g_last_fire >= PLAYER_FIRE_MS) {
+    if (now - g_last_fire >= PLAYER_FIRE_MS && player_fire()) {
         g_last_fire = now;
-        player_fire();
     }
     if (now - g_last_spawn >= ENEMY_SPAWN_MS && g_spawned < NORMAL_ENEMIES) {
         g_last_spawn = now;
@@ -773,14 +813,20 @@ Game_result Air_Battle_Update(const Game_input* input) {
     }
     spawn_boss(now);
 
-    if (now - g_last_world_step >= WORLD_STEP_MS) {
-        g_last_world_step = now;
-        update_bullets(now);
+    uint8_t catchup_steps = 0;
+    while (now - g_last_world_step >= WORLD_STEP_MS &&
+           catchup_steps < MAX_CATCHUP_STEPS) {
+        g_last_world_step += WORLD_STEP_MS;
+        update_bullets(g_last_world_step);
         if (g_state != air_state_playing) { return game_result_running; }
-        update_enemies(now);
+        update_enemies(g_last_world_step);
         if (g_state != air_state_playing) { return game_result_running; }
         update_pickups();
         update_explosions();
+        catchup_steps++;
+    }
+    if (now - g_last_world_step >= WORLD_STEP_MS) {
+        g_last_world_step = now;
     }
     flush_dirty();
     return game_result_running;
