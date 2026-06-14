@@ -180,6 +180,7 @@ static void enter_menu(void) {
     Buzzer_Stop(g_buzzer);
     g_console_state = console_state_menu;
     render_menu();
+    Buzzer_Play_Music(g_buzzer, music_idx_menu_theme, 1);
 }
 
 static void update_menu(const Game_input* input, const Game_hardware* hardware) {
@@ -194,6 +195,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
         } else if (g_menu_selection == game_count - 1 && game_count > MENU_VISIBLE_GAMES) {
             g_menu_first_visible = (uint8_t)(game_count - MENU_VISIBLE_GAMES);
         }
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
         render_menu();
     } else if (input->direction_pressed && input->direction == game_direction_down) {
         g_menu_selection = (uint8_t)((g_menu_selection + 1) % game_count);
@@ -202,6 +204,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
         } else if (g_menu_selection >= g_menu_first_visible + MENU_VISIBLE_GAMES) {
             g_menu_first_visible = (uint8_t)(g_menu_selection - MENU_VISIBLE_GAMES + 1);
         }
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
         render_menu();
     }
 
@@ -209,6 +212,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
 
     const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
     if (game != NULL) {
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
         g_console_state = console_state_game;
         g_finish_committed = 0;
         game->init(hardware);
@@ -306,6 +310,7 @@ static void console_init(void) {
 
     Score_Store_Init(game_id_count);
     render_menu();
+    Buzzer_Play_Music(g_buzzer, music_idx_menu_theme, 1);
 }
 
 static void console_task(void* arg) {
