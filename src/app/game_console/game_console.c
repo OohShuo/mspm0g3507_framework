@@ -11,6 +11,7 @@
 #include "game_runtime.h"
 #include "joystick.h"
 #include "pacman.h"
+#include "racing.h"
 #include "snake.h"
 #include "st7789.h"
 #include "task.h"
@@ -33,6 +34,7 @@ typedef enum {
     console_state_menu,
     console_state_pacman,
     console_state_snake,
+    console_state_racing,
 } Console_state;
 
 static St7789* g_lcd = NULL;
@@ -113,29 +115,40 @@ static void draw_snake_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 39, y + 19, 2, 2, COLOR_BLACK);
 }
 
-static void draw_menu_card(int32_t y, uint8_t selected, uint8_t snake) {
+static void draw_racing_icon(int32_t x, int32_t y) {
+    Game_Graphics_Fill_Rect(g_lcd, x, y, 48, 34, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y, 4, 34, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 8, 18, 24, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 12, y + 12, 10, 8, COLOR_BLUE);
+}
+
+static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     const uint16_t border = selected ? COLOR_CYAN : COLOR_DARK;
     const uint16_t background = selected ? COLOR_BLUE : COLOR_BLACK;
 
-    Game_Graphics_Fill_Rect(g_lcd, 18, y, 204, 72, border);
-    Game_Graphics_Fill_Rect(g_lcd, 21, y + 3, 198, 66, background);
+    Game_Graphics_Fill_Rect(g_lcd, 18, y, 204, 56, border);
+    Game_Graphics_Fill_Rect(g_lcd, 21, y + 3, 198, 50, background);
 
-    if (snake) {
-        draw_snake_icon(38, y + 23);
-        Game_Graphics_Draw_Text(g_lcd, 108, y + 26, "SNAKE", 2, COLOR_GREEN);
+    if (game_index == 0) {
+        draw_pacman_icon(62, y + 28);
+        Game_Graphics_Draw_Text(g_lcd, 100, y + 20, "PAC-MAN", 2, COLOR_YELLOW);
+    } else if (game_index == 1) {
+        draw_snake_icon(38, y + 14);
+        Game_Graphics_Draw_Text(g_lcd, 108, y + 20, "SNAKE", 2, COLOR_GREEN);
     } else {
-        draw_pacman_icon(62, y + 36);
-        Game_Graphics_Draw_Text(g_lcd, 100, y + 26, "PAC-MAN", 2, COLOR_YELLOW);
+        draw_racing_icon(38, y + 11);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 20, "RACING", 2, COLOR_CYAN);
     }
 }
 
 static void render_menu(void) {
     Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_lcd, 33, 20, "GAME SELECT", 3, COLOR_CYAN);
-    draw_menu_card(78, g_menu_selection == 0, 0);
-    draw_menu_card(166, g_menu_selection == 1, 1);
-    Game_Graphics_Draw_Text(g_lcd, 42, 268, "MOVE JOYSTICK", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 48, 292, "PRESS TO START", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 52, 17, "GAME SELECT", 2, COLOR_CYAN);
+    draw_menu_card(54, g_menu_selection == 0, 0);
+    draw_menu_card(116, g_menu_selection == 1, 1);
+    draw_menu_card(178, g_menu_selection == 2, 2);
+    Game_Graphics_Draw_Text(g_lcd, 42, 252, "MOVE JOYSTICK", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 48, 284, "PRESS TO START", 1, COLOR_WHITE);
 }
 
 static void enter_menu(void) {
@@ -145,9 +158,11 @@ static void enter_menu(void) {
 }
 
 static void update_menu(const Game_input* input, const Game_hardware* hardware) {
-    if (input->direction_pressed &&
-        (input->direction == game_direction_up || input->direction == game_direction_down)) {
-        g_menu_selection ^= 1u;
+    if (input->direction_pressed && input->direction == game_direction_up) {
+        g_menu_selection = g_menu_selection == 0 ? 2 : (uint8_t)(g_menu_selection - 1);
+        render_menu();
+    } else if (input->direction_pressed && input->direction == game_direction_down) {
+        g_menu_selection = (uint8_t)((g_menu_selection + 1) % 3);
         render_menu();
     }
 
@@ -156,9 +171,12 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
     if (g_menu_selection == 0) {
         g_console_state = console_state_pacman;
         Pacman_Init(hardware);
-    } else {
+    } else if (g_menu_selection == 1) {
         g_console_state = console_state_snake;
         Snake_Init(hardware);
+    } else {
+        g_console_state = console_state_racing;
+        Racing_Init(hardware);
     }
 }
 
@@ -197,7 +215,11 @@ static void console_init(void) {
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
         .hor_res = SCREEN_WIDTH,
         .ver_res = SCREEN_HEIGHT,
-        .flags = {.mirror_y = 1, .color_use_bgr = 1},
+        .flags = {
+            .mirror_x = LCD_MIRROR_X,
+            .mirror_y = LCD_MIRROR_Y,
+            .color_use_bgr = LCD_COLOR_USE_BGR,
+        },
     };
     g_lcd = St7789_Create(&lcd_config);
     configASSERT(g_lcd != NULL);
@@ -225,8 +247,10 @@ static void console_task(void* arg) {
             update_menu(&input, &hardware);
         } else if (g_console_state == console_state_pacman) {
             result = Pacman_Update(&input);
-        } else {
+        } else if (g_console_state == console_state_snake) {
             result = Snake_Update(&input);
+        } else {
+            result = Racing_Update(&input);
         }
 
         if (result == game_result_exit) { enter_menu(); }
