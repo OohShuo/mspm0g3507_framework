@@ -3,6 +3,7 @@
 #include "flash_mgr.h"
 
 #include "FreeRTOS.h"
+#include "queue.h"
 #include "task.h"
 
 #if FRAMEWORK_USE_LFS
@@ -10,17 +11,11 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "board_config.h"
 #include "bsp_uart.h"
 #include "com_uart.h"
-#include "freertos_alloc.h"
 #include "lfs.h"
-#include "lfs_port.h"
 #include "rtt_log.h"
-#include "w25q32.h"
-
-#define FLASH_MGR_LFS_START         (2u * 1024u * 1024u) /* 2 MiB             */
-#define FLASH_MGR_LFS_SIZE          (2u * 1024u * 1024u) /* 2 MiB             */
+#include "storage.h"
 
 #define FLASH_MGR_UART_IDX          0u
 #define FLASH_MGR_RX_MAX_LEN        600u
@@ -31,9 +26,6 @@
 // clang-format on
 
 static Com_uart* g_com_uart = NULL;
-static W25q32* g_flash = NULL;
-static Lfs_port* g_lfs_port = NULL;
-static SemaphoreHandle_t g_spi_mutex = NULL;
 static QueueHandle_t g_cmd_queue = NULL;
 
 static uint8_t g_tx_buf[FLASH_MGR_TX_BUF_SIZE];
@@ -162,7 +154,7 @@ static void flash_mgr_loop(void* arg) {
 }
 
 static void handle_read(const Flash_mgr_cmd* cmd) {
-    lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
+    lfs_t* lfs = Storage_Get_Lfs();
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
         return;
@@ -174,24 +166,24 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
     }
 
     uint8_t path_len = cmd->data[0];
-    uint32_t offset = (uint32_t)cmd->data[1 + path_len] | ((uint32_t)cmd->data[2 + path_len] << 8) |
-                      ((uint32_t)cmd->data[3 + path_len] << 16) | ((uint32_t)cmd->data[4 + path_len] << 24);
-
     if (path_len == 0 || path_len > FLASH_MGR_PATH_MAX || (uint32_t)(1 + path_len + 4) > cmd->data_len) {
         send_nak(cmd->seq, FLASH_MGR_ERR_INVAL);
         return;
     }
 
+    uint32_t offset = (uint32_t)cmd->data[1 + path_len] | ((uint32_t)cmd->data[2 + path_len] << 8) |
+                      ((uint32_t)cmd->data[3 + path_len] << 16) | ((uint32_t)cmd->data[4 + path_len] << 24);
+
     char path[FLASH_MGR_PATH_MAX + 1];
     memcpy(path, cmd->data + 1, path_len);
     path[path_len] = '\0';
 
-    if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
+    Storage_Lock();
 
     lfs_file_t f;
     int err = lfs_file_open(lfs, &f, path, LFS_O_RDONLY);
     if (err < 0) {
-        if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+        Storage_Unlock();
         send_nak(cmd->seq, map_lfs_error(err));
         return;
     }
@@ -199,7 +191,7 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
     err = lfs_file_seek(lfs, &f, (lfs_soff_t)offset, LFS_SEEK_SET);
     if (err < 0) {
         lfs_file_close(lfs, &f);
-        if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+        Storage_Unlock();
         send_nak(cmd->seq, map_lfs_error(err));
         return;
     }
@@ -210,7 +202,7 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
     lfs_soff_t file_size = lfs_file_size(lfs, &f);
     lfs_file_close(lfs, &f);
 
-    if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+    Storage_Unlock();
 
     if (nread < 0) {
         send_nak(cmd->seq, map_lfs_error((int)nread));
@@ -237,7 +229,7 @@ static void handle_read(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_write(const Flash_mgr_cmd* cmd) {
-    lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
+    lfs_t* lfs = Storage_Get_Lfs();
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
         return;
@@ -267,12 +259,12 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
 
     const uint8_t* chunk_data = cmd->data + header_size;
 
-    if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
+    Storage_Lock();
 
     lfs_file_t f;
     int err = lfs_file_open(lfs, &f, path, LFS_O_WRONLY | LFS_O_CREAT);
     if (err < 0) {
-        if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+        Storage_Unlock();
         send_nak(cmd->seq, map_lfs_error(err));
         return;
     }
@@ -280,7 +272,7 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
     err = lfs_file_seek(lfs, &f, (lfs_soff_t)offset, LFS_SEEK_SET);
     if (err < 0) {
         lfs_file_close(lfs, &f);
-        if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+        Storage_Unlock();
         send_nak(cmd->seq, map_lfs_error(err));
         return;
     }
@@ -289,7 +281,7 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
         lfs_ssize_t written = lfs_file_write(lfs, &f, chunk_data, chunk_len);
         if (written < 0) {
             lfs_file_close(lfs, &f);
-            if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+            Storage_Unlock();
             send_nak(cmd->seq, map_lfs_error((int)written));
             return;
         }
@@ -297,7 +289,7 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
             /* Partial write — truncate is the simplest recovery */
             lfs_file_truncate(lfs, &f, (lfs_off_t)offset);
             lfs_file_close(lfs, &f);
-            if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+            Storage_Unlock();
             send_nak(cmd->seq, FLASH_MGR_ERR_NOSPC);
             return;
         }
@@ -307,13 +299,13 @@ static void handle_write(const Flash_mgr_cmd* cmd) {
 
     lfs_file_close(lfs, &f);
 
-    if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+    Storage_Unlock();
 
     send_ack(cmd->seq);
 }
 
 static void handle_delete(const Flash_mgr_cmd* cmd) {
-    lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
+    lfs_t* lfs = Storage_Get_Lfs();
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
         return;
@@ -334,9 +326,9 @@ static void handle_delete(const Flash_mgr_cmd* cmd) {
     memcpy(path, cmd->data + 1, path_len);
     path[path_len] = '\0';
 
-    if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
+    Storage_Lock();
     int err = lfs_remove(lfs, path);
-    if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+    Storage_Unlock();
 
     if (err < 0) {
         send_nak(cmd->seq, map_lfs_error(err));
@@ -346,7 +338,7 @@ static void handle_delete(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_list(const Flash_mgr_cmd* cmd) {
-    lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
+    lfs_t* lfs = Storage_Get_Lfs();
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
         return;
@@ -367,12 +359,12 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
     if (path_len > 0) { memcpy(path, cmd->data + 1, path_len); }
     path[path_len] = '\0';
 
-    if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
+    Storage_Lock();
 
     lfs_dir_t dir;
     int err = lfs_dir_open(lfs, &dir, path_len > 0 ? path : "/");
     if (err < 0) {
-        if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+        Storage_Unlock();
         send_nak(cmd->seq, map_lfs_error(err));
         return;
     }
@@ -403,7 +395,7 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
 
     lfs_dir_close(lfs, &dir);
 
-    if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+    Storage_Unlock();
 
     uint8_t end_buf[2];
     end_buf[0] = (uint8_t)(count);
@@ -412,7 +404,7 @@ static void handle_list(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_info(const Flash_mgr_cmd* cmd) {
-    lfs_t* lfs = Lfs_Port_Get_Lfs(g_lfs_port);
+    lfs_t* lfs = Storage_Get_Lfs();
     if (lfs == NULL) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
         return;
@@ -433,12 +425,12 @@ static void handle_info(const Flash_mgr_cmd* cmd) {
     memcpy(path, cmd->data + 1, path_len);
     path[path_len] = '\0';
 
-    if (g_spi_mutex != NULL) { xSemaphoreTake(g_spi_mutex, portMAX_DELAY); }
+    Storage_Lock();
 
     struct lfs_info info;
     int err = lfs_stat(lfs, path, &info);
 
-    if (g_spi_mutex != NULL) { xSemaphoreGive(g_spi_mutex); }
+    Storage_Unlock();
 
     if (err < 0) {
         send_nak(cmd->seq, map_lfs_error(err));
@@ -456,49 +448,20 @@ static void handle_info(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_format(const Flash_mgr_cmd* cmd) {
-    if (g_lfs_port == NULL) {
+    if (!Storage_Is_Available()) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
         return;
     }
 
-    int err = Lfs_Port_Unmount(g_lfs_port);
-    if (err >= 0) { err = Lfs_Port_Format(g_lfs_port); }
-    if (err >= 0) { err = Lfs_Port_Mount(g_lfs_port); }
-
-    if (err < 0) {
-        send_nak(cmd->seq, map_lfs_error(err));
+    if (!Storage_Format()) {
+        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
     } else {
         send_ack(cmd->seq);
     }
 }
 
 static void flash_mgr_init(void) {
-    g_spi_mutex = xSemaphoreCreateMutex();
-    configASSERT(g_spi_mutex != NULL);
-
-    const W25q32_config flash_cfg = {
-        .spi_idx = SPI_LCD_IDX,
-        .cs_gpio_idx = GPIO_SPI_CS_IDX,
-    };
-    g_flash = W25q32_Create(&flash_cfg);
-    configASSERT(g_flash != NULL);
-    configASSERT(W25q32_Init(g_flash));
-
-    const Lfs_port_config port_cfg = {
-        .flash = g_flash,
-        .start = FLASH_MGR_LFS_START,
-        .size = FLASH_MGR_LFS_SIZE,
-        .spi_mutex = g_spi_mutex,
-    };
-    g_lfs_port = Lfs_Port_Create(&port_cfg);
-    configASSERT(g_lfs_port != NULL);
-
-    int err = Lfs_Port_Mount(g_lfs_port);
-    if (err != 0) {
-        err = Lfs_Port_Format(g_lfs_port);
-        if (err == 0) { err = Lfs_Port_Mount(g_lfs_port); }
-        configASSERT(err == 0);
-    }
+    configASSERT(Storage_Is_Available());
 
     g_cmd_queue = xQueueCreate(FLASH_MGR_QUEUE_DEPTH, sizeof(Flash_mgr_cmd));
     configASSERT(g_cmd_queue != NULL);
