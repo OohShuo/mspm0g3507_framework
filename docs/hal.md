@@ -70,16 +70,21 @@ GPIO 按键驱动，内置软件去皮抖。
 
 `src/hal/buzzer/buzzer.h`
 
-PWM 驱动的无源蜂鸣器，内置 Music Library 支持多首曲目。
+PWM 驱动的无源蜂鸣器。音序器同时维护背景音乐和高优先级音效两条逻辑播放轨：
+音效播放时暂停背景音乐，音效结束后从原位置继续。每个音符可单独配置频率、时值、
+断奏比例、音量和滑音，不需要 8-bit PCM 缓冲或高频采样中断。
 
 | API | 说明 |
 | --- | --- |
 | `Buzzer_Create(config)` | 创建蜂鸣器实例 |
-| `Buzzer_Play(obj, music, is_loop)` | 播放指定曲目 |
+| `Buzzer_Play_Music(obj, music_idx, is_loop)` | 播放或切换背景音乐 |
+| `Buzzer_Play_Sfx(obj, sfx_idx)` | 播放抢占式游戏音效 |
+| `Buzzer_Play(obj, music, is_loop)` | 使用自定义 `Music` 的兼容接口 |
 | `Buzzer_Stop(obj)` | 停止播放 |
-| `Buzzer_Update_All()` | 批量更新（音符切换、滑音处理） |
+| `Buzzer_Update_All()` | 批量更新音符、断奏、滑音和播放轨切换 |
 
-内置曲目库 `music_library[]` 通过 `Music_idx` 枚举索引（`main_theme`、`victory`、`death`、`mario`、`totoro` 等）。
+内置背景曲包括菜单、吃豆人、贪吃蛇、赛车、坦克大战、胜利和失败主题。
+内置音效包括菜单操作、吃豆、能量豆、吃食物、变道、超车、开火、命中、爆炸和失去生命。
 
 ### ST7789 — LCD 显示驱动
 

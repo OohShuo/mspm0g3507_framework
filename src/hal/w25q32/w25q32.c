@@ -5,8 +5,10 @@
 #include "bsp_gpio.h"
 #include "bsp_spi.h"
 
-#define Bsp_Spi_Write Bsp_Hard_Spi_Write_Blocking
-#define Bsp_Spi_Read  Bsp_Hard_Spi_Read_Blocking
+#define Bsp_Spi_Write               Bsp_Hard_Spi_Write_Blocking
+#define Bsp_Spi_Read                Bsp_Hard_Spi_Read_Blocking
+
+#define W25Q32_INIT_BUSY_POLL_LIMIT 100000u
 
 static void busy_wait_us(uint32_t us) {
     volatile uint32_t cycles = us * 80;
@@ -56,6 +58,14 @@ static void send_cmd_addr(W25q32* obj, uint8_t cmd, uint32_t addr) {
 // current call sites ever pass).
 static W25q32 s_w25q32_storage;
 
+static uint8_t wait_busy_during_init(W25q32* obj) {
+    for (uint32_t i = 0; i < W25Q32_INIT_BUSY_POLL_LIMIT; i++) {
+        if ((W25q32_Read_Status_Reg_1(obj) & W25Q32_SR1_BUSY) == 0) { return 1; }
+        busy_wait_us(10);
+    }
+    return 0;
+}
+
 W25q32* W25q32_Create(const W25q32_config* config) {
     if (config == NULL) { return NULL; }
     s_w25q32_storage.config = *config;
@@ -70,17 +80,18 @@ uint8_t W25q32_Init(W25q32* obj) {
 
     W25q32_Reset(obj);
 
-    W25q32_Wait_Busy(obj);
-
-    W25q32_Write_Status_Reg_1(obj, 0x00);
-    W25q32_Wait_Busy(obj);
+    if (!wait_busy_during_init(obj)) { return 0; }
 
     uint8_t id3[3] = {0, 0, 0};
     W25q32_Read_Jedec_Id(obj, id3);
     obj->manufacturer_id = id3[0];
     obj->memory_type = id3[1];
     obj->capacity = id3[2];
-    return (uint8_t)(id3[0] == W25Q32_JEDEC_MFR_WINBOND);
+    if (id3[0] != W25Q32_JEDEC_MFR_WINBOND) { return 0; }
+
+    W25q32_Write_Status_Reg_1(obj, 0x00);
+    W25q32_Wait_Busy(obj);
+    return 1;
 }
 
 void W25q32_Read_Jedec_Id(W25q32* obj, uint8_t* out_id3) {
