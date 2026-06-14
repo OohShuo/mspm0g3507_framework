@@ -19,8 +19,8 @@
 #define ENEMY_COUNT       4
 #define BULLET_COUNT      10
 #define TOTAL_ENEMIES     12
-#define PLAYER_MOVE_MS    115u
-#define ENEMY_MOVE_MS     260u
+#define PLAYER_MOVE_MS    250u
+#define ENEMY_MOVE_MS     500u
 #define BULLET_MOVE_MS    65u
 #define ENEMY_SPAWN_MS    900u
 #define ENEMY_FIRE_CHANCE 7u
