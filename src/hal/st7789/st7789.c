@@ -98,10 +98,13 @@ void St7789_Reset(St7789* obj) {
 }
 
 void St7789_Run_Init_Sequence(St7789* obj) {
-    if (obj->config.flags.mirror_x) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MX; }
-    if (obj->config.flags.mirror_y) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_MY; }
-    if (obj->config.flags.color_use_bgr) { st7789_default_init_seq[1].args[0] |= ST7789_MADCTL_BGR; }
-    if (obj->config.flags.color_use_18bit) { st7789_default_init_seq[2].args[0] = ST7789_COLMOD_18BPP; }
+    uint8_t madctl = 0;
+    if (obj->config.flags.mirror_x) { madctl |= ST7789_MADCTL_MX; }
+    if (obj->config.flags.mirror_y) { madctl |= ST7789_MADCTL_MY; }
+    if (obj->config.flags.color_use_bgr) { madctl |= ST7789_MADCTL_BGR; }
+    st7789_default_init_seq[1].args[0] = madctl;
+    st7789_default_init_seq[2].args[0] =
+        obj->config.flags.color_use_18bit ? ST7789_COLMOD_18BPP : ST7789_COLMOD_16BPP;
 
     for (uint32_t i = 0; i < ST7789_INIT_SEQ_LEN; i++) {
         const St7789_init_cmd* c = &st7789_default_init_seq[i];
