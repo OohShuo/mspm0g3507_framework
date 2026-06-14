@@ -150,11 +150,13 @@
 #define SPI_0_DMA_TX_CHANNEL         1
 #define SPI_0_DMA_RX_CHANNEL         2
 #define SPI_0_INT_IRQN               SPI1_INT_IRQn
+#define SPI_0_CLOCK_DIVIDER          1
 
 #define SPI_PORTS                    {SPI_0_INSTANCE}
 #define SPI_DMA_TX_CHANNELS          {SPI_0_DMA_TX_CHANNEL}
 #define SPI_DMA_RX_CHANNELS          {SPI_0_DMA_RX_CHANNEL}
 #define SPI_INT_IRQNS                {SPI_0_INT_IRQN}
+#define SPI_CLOCK_DIVIDERS           {SPI_0_CLOCK_DIVIDER}
 
 #define SPI_LCD_IDX                  0
 

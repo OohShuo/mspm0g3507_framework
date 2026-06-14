@@ -7,6 +7,22 @@
 
 #define IMAGE_ASSET_HEADER_SIZE 16u
 #define IMAGE_ASSET_VERSION     1u
+#define IMAGE_CACHE_MAGIC       0x48434349u
+#define IMAGE_CACHE_VERSION     1u
+#define IMAGE_CACHE_DATA_OFFSET 4096u
+#define IMAGE_CACHE_COPY_SIZE   256u
+
+typedef struct {
+    uint32_t magic;
+    uint8_t version;
+    uint8_t flags;
+    uint16_t asset_id;
+    uint16_t width;
+    uint16_t height;
+    uint32_t pixel_data_size;
+} Image_cache_header;
+
+_Static_assert(sizeof(Image_cache_header) == 16u, "unexpected image cache header size");
 
 #if FRAMEWORK_USE_LFS
 static uint16_t read_u16_le(const uint8_t* data) {
@@ -51,6 +67,7 @@ uint8_t Image_Asset_Open(Image_asset* image, const char* path) {
     image->flags = header[5];
     image->width = read_u16_le(header + 6);
     image->height = read_u16_le(header + 8);
+    image->asset_id = read_u16_le(header + 10);
     image->pixel_data_size = read_u32_le(header + 12);
     const uint32_t expected_pixels = (uint32_t)image->width * image->height * 2u;
     const uint32_t mask_size = (image->flags & IMAGE_ASSET_FLAG_MASK) != 0
@@ -89,6 +106,75 @@ void Image_Asset_Close(Image_asset* image) {
     memset(image, 0, sizeof(*image));
 }
 
+uint8_t Image_Asset_Prepare_Raw_Cache(
+    Image_asset* image, uint32_t address, uint32_t capacity) {
+    if (image == NULL || !image->is_open ||
+        capacity < IMAGE_CACHE_DATA_OFFSET + image->pixel_data_size) {
+        return 0;
+    }
+
+    Image_cache_header cache;
+    if (Storage_Raw_Read(address, &cache, sizeof(cache)) &&
+        cache.magic == IMAGE_CACHE_MAGIC &&
+        cache.version == IMAGE_CACHE_VERSION &&
+        cache.flags == image->flags &&
+        cache.asset_id == image->asset_id &&
+        cache.width == image->width &&
+        cache.height == image->height &&
+        cache.pixel_data_size == image->pixel_data_size) {
+        image->raw_pixel_address = address + IMAGE_CACHE_DATA_OFFSET;
+        return 1;
+    }
+
+#if FRAMEWORK_USE_LFS
+    lfs_t* lfs = Storage_Get_Lfs();
+    if (lfs == NULL ||
+        !Storage_Raw_Erase(address, IMAGE_CACHE_DATA_OFFSET + image->pixel_data_size)) {
+        return 0;
+    }
+
+    uint8_t buffer[IMAGE_CACHE_COPY_SIZE];
+    uint32_t copied = 0;
+    Storage_Lock();
+    const lfs_soff_t seek_result =
+        lfs_file_seek(lfs, &image->file, IMAGE_ASSET_HEADER_SIZE, LFS_SEEK_SET);
+    Storage_Unlock();
+    if (seek_result < 0) { return 0; }
+
+    while (copied < image->pixel_data_size) {
+        uint32_t chunk = image->pixel_data_size - copied;
+        if (chunk > sizeof(buffer)) { chunk = sizeof(buffer); }
+
+        Storage_Lock();
+        const lfs_ssize_t read_result =
+            lfs_file_read(lfs, &image->file, buffer, chunk);
+        Storage_Unlock();
+        if (read_result != (lfs_ssize_t)chunk ||
+            !Storage_Raw_Write(address + IMAGE_CACHE_DATA_OFFSET + copied, buffer, chunk)) {
+            return 0;
+        }
+        copied += chunk;
+    }
+
+    cache = (Image_cache_header){
+        IMAGE_CACHE_MAGIC,
+        IMAGE_CACHE_VERSION,
+        image->flags,
+        image->asset_id,
+        image->width,
+        image->height,
+        image->pixel_data_size,
+    };
+    if (!Storage_Raw_Write(address, &cache, sizeof(cache))) { return 0; }
+    image->raw_pixel_address = address + IMAGE_CACHE_DATA_OFFSET;
+    image->next_read_offset = UINT32_MAX;
+    return 1;
+#else
+    (void)address;
+    return 0;
+#endif
+}
+
 uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x,
     uint16_t width, uint16_t* pixels) {
     if (image == NULL || pixels == NULL || !image->is_open || width == 0 ||
@@ -97,12 +183,17 @@ uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x,
     }
 
 #if FRAMEWORK_USE_LFS
+    const uint32_t pixel_offset = ((uint32_t)y * image->width + x) * 2u;
+    const uint32_t byte_count = (uint32_t)width * 2u;
+    if (image->raw_pixel_address != 0) {
+        return Storage_Raw_Read(
+            image->raw_pixel_address + pixel_offset, pixels, byte_count);
+    }
+
     lfs_t* lfs = Storage_Get_Lfs();
     if (lfs == NULL) { return 0; }
 
-    const lfs_soff_t offset =
-        IMAGE_ASSET_HEADER_SIZE + ((lfs_soff_t)y * image->width + x) * 2;
-    const lfs_size_t byte_count = (lfs_size_t)width * 2u;
+    const lfs_soff_t offset = IMAGE_ASSET_HEADER_SIZE + pixel_offset;
     Storage_Lock();
     const lfs_soff_t seek_result =
         image->next_read_offset == (uint32_t)offset
