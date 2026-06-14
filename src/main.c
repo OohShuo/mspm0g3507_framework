@@ -10,6 +10,7 @@
 
 int main(void) {
     SYSCFG_DL_init();
+    NVIC_EnableIRQ(DMA_INT_IRQn);
 
     Syscall_Init();
 
