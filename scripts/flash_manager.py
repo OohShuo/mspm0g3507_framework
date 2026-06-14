@@ -375,6 +375,11 @@ class FlashManager:
                 if resp_cmd == RESP_NAK:
                     err = resp_data[0] if resp_data else ERR_UNKNOWN
                     print(f"WRITE NAK at offset {offset}: {_ERROR_NAMES.get(err, err)}")
+                    if err == ERR_CORRUPT:
+                        print(
+                            "文件系统已损坏。重新烧录最新上传固件后执行："
+                            f"python scripts/flash_manager.py {self.ser.port} format --yes"
+                        )
                     return False
 
                 offset += len(chunk)
@@ -802,7 +807,12 @@ def _main() -> int:
     p_info = sub.add_parser("info", help="Get file info")
     p_info.add_argument("remote", help="Remote path")
 
-    sub.add_parser("format", help="Format the filesystem (DESTRUCTIVE)")
+    p_format = sub.add_parser("format", help="格式化文件系统（会清空 LittleFS 分区）")
+    p_format.add_argument(
+        "--yes",
+        action="store_true",
+        help="确认清空外部 Flash 的 LittleFS 分区",
+    )
 
     args = parser.parse_args()
 
@@ -913,7 +923,14 @@ def _main() -> int:
                 return 1
 
         elif args.action == "format":
-            print("Formatting...")
+            if not args.yes:
+                print(
+                    "格式化会清空外部 Flash 高 2 MiB LittleFS 分区。"
+                    "确认后请重新执行并添加 --yes。",
+                    file=sys.stderr,
+                )
+                return 2
+            print("正在格式化 LittleFS 分区...")
             ok = fm.format()
             print("OK" if ok else "FAILED")
 
@@ -927,6 +944,12 @@ def _main() -> int:
                 "  3. 调试器 UART RX 接 PA10（MCU TX）；\n"
                 "  4. 调试器与 MCU 共地，串口为 115200 8N1；\n"
                 "  5. 当前选择的是调试器虚拟串口。",
+                file=sys.stderr,
+            )
+        elif "filesystem corruption" in str(exc).lower():
+            print(
+                "文件系统已损坏。重新烧录最新上传固件后执行：\n"
+                f"  python scripts/flash_manager.py {args.port} format --yes",
                 file=sys.stderr,
             )
         return 1
