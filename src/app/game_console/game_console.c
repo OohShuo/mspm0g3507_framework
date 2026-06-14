@@ -9,6 +9,7 @@
 #include "button.h"
 #include "buzzer.h"
 #include "game_graphics.h"
+#include "game_over_menu.h"
 #include "game_registry.h"
 #include "game_runtime.h"
 #include "joystick.h"
@@ -34,6 +35,7 @@
 typedef enum {
     console_state_menu,
     console_state_game,
+    console_state_game_over,
 } Console_state;
 
 static St7789* g_lcd = NULL;
@@ -48,7 +50,6 @@ static uint32_t g_button_down_time = 0;
 static uint8_t g_back_sent = 0;
 static uint8_t g_menu_selection = 0;
 static uint8_t g_menu_first_visible = 0;
-static uint8_t g_finish_committed = 0;
 static uint32_t g_last_monitor_time = 0;
 
 static Game_direction read_direction(void) {
@@ -225,7 +226,6 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
     if (game != NULL) {
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
         g_console_state = console_state_game;
-        g_finish_committed = 0;
         game->init(hardware);
     }
 }
@@ -246,26 +246,28 @@ static Game_result update_active_game(const Game_input* input) {
     const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
     if (game == NULL) { return game_result_exit; }
 
-    Score_Store_Observe(game->id, game->get_score());
-    if (game->is_finished() && !g_finish_committed) {
-        Score_Store_Commit();
-        g_finish_committed = 1;
-    }
-
     const Game_result result = game->update(input);
-
-    Score_Store_Observe(game->id, game->get_score());
+    if (result == game_result_exit) { return result; }
     if (game->is_finished()) {
-        if (!g_finish_committed) {
-            Score_Store_Commit();
-            g_finish_committed = 1;
-        }
-    } else {
-        g_finish_committed = 0;
+        g_console_state = console_state_game_over;
+        Game_Over_Menu_Open(g_lcd, g_buzzer, game->id, game->name, game->get_score());
     }
+    return game_result_running;
+}
 
-    if (result == game_result_exit) { Score_Store_Commit(); }
-    return result;
+static void update_game_over(const Game_input* input, const Game_hardware* hardware) {
+    const Game_over_action action = Game_Over_Menu_Update(input);
+    if (action == game_over_action_menu) {
+        enter_menu();
+    } else if (action == game_over_action_replay) {
+        const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
+        if (game == NULL) {
+            enter_menu();
+            return;
+        }
+        g_console_state = console_state_game;
+        game->init(hardware);
+    }
 }
 
 static void console_init(void) {
@@ -340,8 +342,10 @@ static void console_task(void* arg) {
 
         if (g_console_state == console_state_menu) {
             update_menu(&input, &hardware);
-        } else {
+        } else if (g_console_state == console_state_game) {
             result = update_active_game(&input);
+        } else {
+            update_game_over(&input, &hardware);
         }
 
         if (result == game_result_exit) { enter_menu(); }
