@@ -89,6 +89,16 @@ static const Buzzer_note tank_theme[] = {
     S(F4, 180), N(G4, 180), N(A4, 180), L(E4, 360), R(180),
 };
 
+/* Open, climbing arpeggios for Air Battle. */
+static const Buzzer_note air_theme[] = {
+    S(E5, 100), S(G5, 100), S(B5, 100), N(E6, 200), S(B5, 100), S(G5, 100),
+    S(FS5, 100), S(A5, 100), S(C6, 100), N(FS6, 200), S(C6, 100), S(A5, 100),
+    S(G5, 100), S(B5, 100), S(D6, 100), N(G6, 200), S(D6, 100), S(B5, 100),
+    N(A5, 150), N(C6, 150), N(E6, 150), L(A6, 300), R(100),
+    S(G5, 100), S(A5, 100), S(B5, 100), N(E6, 200), S(D6, 100), S(B5, 100),
+    N(FS5, 150), N(A5, 150), N(C6, 150), L(E6, 300), R(100),
+};
+
 static const Buzzer_note victory_theme[] = {
     N(C5, 110), N(E5, 110), N(G5, 110), N(C6, 220),
     N(E6, 110), N(G6, 110), L(C7, 500), R(120),
@@ -129,6 +139,15 @@ static const Buzzer_note sfx_tank_fire[] = {
 static const Buzzer_note sfx_tank_hit[] = {
     V(C5, 45, 90), V(G4, 70, 85),
 };
+static const Buzzer_note sfx_air_fire[] = {
+    V(C7, 18, 65), G(E6, 24),
+};
+static const Buzzer_note sfx_air_pickup[] = {
+    S(E6, 40), S(A6, 45), N(C7, 70),
+};
+static const Buzzer_note sfx_boss_alert[] = {
+    V(C5, 120, 95), R(45), V(C5, 120, 95), R(45), V(G4, 220, 100),
+};
 static const Buzzer_note sfx_explosion[] = {
     V(C5, 45, 100), G(G4, 85), G(C4, 130),
 };
@@ -142,6 +161,7 @@ const Music music_library[music_idx_count] = {
     [music_idx_snake_theme] = {snake_theme, LEN(snake_theme)},
     [music_idx_racing_theme] = {racing_theme, LEN(racing_theme)},
     [music_idx_tank_theme] = {tank_theme, LEN(tank_theme)},
+    [music_idx_air_theme] = {air_theme, LEN(air_theme)},
     [music_idx_victory] = {victory_theme, LEN(victory_theme)},
     [music_idx_defeat] = {defeat_theme, LEN(defeat_theme)},
 };
@@ -157,6 +177,9 @@ const Music buzzer_sfx_library[buzzer_sfx_count] = {
     [buzzer_sfx_overtake] = {sfx_overtake, LEN(sfx_overtake)},
     [buzzer_sfx_tank_fire] = {sfx_tank_fire, LEN(sfx_tank_fire)},
     [buzzer_sfx_tank_hit] = {sfx_tank_hit, LEN(sfx_tank_hit)},
+    [buzzer_sfx_air_fire] = {sfx_air_fire, LEN(sfx_air_fire)},
+    [buzzer_sfx_air_pickup] = {sfx_air_pickup, LEN(sfx_air_pickup)},
+    [buzzer_sfx_boss_alert] = {sfx_boss_alert, LEN(sfx_boss_alert)},
     [buzzer_sfx_explosion] = {sfx_explosion, LEN(sfx_explosion)},
     [buzzer_sfx_life_lost] = {sfx_life_lost, LEN(sfx_life_lost)},
 };
