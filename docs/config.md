@@ -48,3 +48,12 @@ CMake 读取 `config.yaml` 生成对应的 C 宏定义（如 `FRAMEWORK_USE_LFS`
 ## SysConfig
 
 `config/framework.syscfg` — TI SysConfig 项目文件，GUI 配置时钟树和外设引脚复用，构建时自动生成 `src/syscfg/ti_msp_dl_config.c/h`。
+
+## 调试复位
+
+`DEBUG_RESET_ESCALATE_TO_BOOTRST` 用于处理烧录器在下载完成后仅产生调试
+SYSRST/CPURST 的情况。启用后，程序会在时钟初始化前将这两类复位升级为一次
+BOOTRST，使启动状态与短按板载 NRST 按键一致。
+
+该选项无法解除烧录器主动设置的 CPU halt。烧录软件仍需选择下载后运行目标，
+避免使用 `reset-and-halt` 或 `wait for debug`。
