@@ -53,10 +53,6 @@ uint8_t Storage_Init(void) {
 
     int result = Lfs_Port_Mount(g_port);
     if (result != 0) {
-        result = Lfs_Port_Format(g_port);
-        if (result == 0) { result = Lfs_Port_Mount(g_port); }
-    }
-    if (result != 0) {
         printf("[STORAGE] LittleFS mount failed: %d\n", result);
         return 0;
     }
@@ -69,12 +65,15 @@ uint8_t Storage_Init(void) {
 uint8_t Storage_Is_Available(void) { return g_available; }
 
 uint8_t Storage_Format(void) {
-    if (!g_available || g_port == NULL) { return 0; }
+    if (g_port == NULL) { return 0; }
+
     Storage_Lock();
-    int result = Lfs_Port_Unmount(g_port);
-    if (result == 0) { result = Lfs_Port_Format(g_port); }
+    if (g_available) { (void)Lfs_Port_Unmount(g_port); }
+    g_available = 0;
+
+    int result = Lfs_Port_Format(g_port);
     if (result == 0) { result = Lfs_Port_Mount(g_port); }
-    if (result != 0) { g_available = 0; }
+    if (result == 0) { g_available = 1; }
     Storage_Unlock();
     return result == 0;
 }

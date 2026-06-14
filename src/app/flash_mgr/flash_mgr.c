@@ -448,11 +448,6 @@ static void handle_info(const Flash_mgr_cmd* cmd) {
 }
 
 static void handle_format(const Flash_mgr_cmd* cmd) {
-    if (!Storage_Is_Available()) {
-        send_nak(cmd->seq, FLASH_MGR_ERR_IO);
-        return;
-    }
-
     if (!Storage_Format()) {
         send_nak(cmd->seq, FLASH_MGR_ERR_IO);
     } else {
