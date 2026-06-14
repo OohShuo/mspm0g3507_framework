@@ -68,7 +68,7 @@ void Ws2812_Set_Serial(Ws2812* obj, const uint8_t* color_arr, const uint8_t* idx
 void Ws2812_Update(Ws2812* obj) {
     if (obj == NULL) return;
 
-    while (Bsp_Rz_Is_Busy(obj->config.rz_idx)) { taskYIELD(); }
+    if (Bsp_Rz_Is_Busy(obj->config.rz_idx)) { return; }
 
     Bsp_Rz_Start(obj->config.rz_idx, obj->pixel_data, (uint32_t)obj->config.led_count * 3);
 }
