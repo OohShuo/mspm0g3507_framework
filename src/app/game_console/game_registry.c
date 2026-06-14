@@ -5,6 +5,7 @@
 #include "pacman.h"
 #include "racing.h"
 #include "snake.h"
+#include "tank_battle.h"
 
 static const Game_descriptor g_games[] = {
     {
@@ -33,6 +34,15 @@ static const Game_descriptor g_games[] = {
         .update = Racing_Update,
         .get_score = Racing_Get_Score,
         .is_finished = Racing_Is_Finished,
+    },
+    {
+        .name = "TANK",
+        .icon = game_icon_tank,
+        .id = game_id_tank,
+        .init = Tank_Battle_Init,
+        .update = Tank_Battle_Update,
+        .get_score = Tank_Battle_Get_Score,
+        .is_finished = Tank_Battle_Is_Finished,
     },
 };
 
