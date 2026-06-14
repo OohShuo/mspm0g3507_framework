@@ -461,8 +461,6 @@ static void handle_format(const Flash_mgr_cmd* cmd) {
 }
 
 static void flash_mgr_init(void) {
-    configASSERT(Storage_Is_Available());
-
     g_cmd_queue = xQueueCreate(FLASH_MGR_QUEUE_DEPTH, sizeof(Flash_mgr_cmd));
     configASSERT(g_cmd_queue != NULL);
 
