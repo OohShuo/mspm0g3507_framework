@@ -13,6 +13,7 @@ static Vector* joystick_instances = NULL;
 
 static void joystick_adc_cb(void* arg);
 static float normalize_axis(float voltage, float min_voltage, float center_voltage, float max_voltage);
+static float apply_dead_zone(float value, float dead_zone);
 
 void Joystick_Init(void) {
     if (joystick_instances == NULL) { joystick_instances = Vector_Init(sizeof(Joystick*), 4); }
@@ -81,6 +82,18 @@ static float normalize_axis(float voltage, float min_voltage, float center_volta
     return value;
 }
 
+static float apply_dead_zone(float value, float dead_zone) {
+    if (dead_zone <= 0.0f) { return value; }
+    if (dead_zone >= 1.0f) { return 0.0f; }
+
+    const float magnitude = value < 0.0f ? -value : value;
+    if (magnitude <= dead_zone) { return 0.0f; }
+
+    float scaled = (magnitude - dead_zone) / (1.0f - dead_zone);
+    if (scaled > 1.0f) { scaled = 1.0f; }
+    return value < 0.0f ? -scaled : scaled;
+}
+
 static void joystick_adc_cb(void* arg) {
     if (arg == NULL) return;
 
@@ -100,4 +113,7 @@ static void joystick_adc_cb(void* arg) {
 
     if (obj->config.x_reverse) { obj->x_value *= -1; }
     if (obj->config.y_reverse) { obj->y_value *= -1; }
+
+    obj->x_value = apply_dead_zone(obj->x_value, obj->config.x_dead_zone);
+    obj->y_value = apply_dead_zone(obj->y_value, obj->config.y_dead_zone);
 }

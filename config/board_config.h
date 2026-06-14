@@ -107,14 +107,29 @@
 #define ADC_JOYSTICK_X_CHANNEL       0
 #define ADC_JOYSTICK_Y_CHANNEL       1
 
-/* Replace these limits with the measured endpoint voltages. */
+/*
+ * Joystick calibration.
+ * Replace the endpoint voltages with measured values while holding each axis
+ * at its physical limit. The center is sampled automatically at startup.
+ */
 #define JOYSTICK_X_MIN_VOLTAGE       0.0f
 #define JOYSTICK_X_MAX_VOLTAGE       3.3f
 #define JOYSTICK_Y_MIN_VOLTAGE       0.0f
 #define JOYSTICK_Y_MAX_VOLTAGE       3.3f
 
+#define JOYSTICK_X_OFFSET            0.0f
+#define JOYSTICK_Y_OFFSET            0.0f
 #define JOYSTICK_X_REVERSE           1
 #define JOYSTICK_Y_REVERSE           1
+
+/* Normalized axis settings: 0.0f to 1.0f. */
+#define JOYSTICK_X_DEAD_ZONE         0.18f
+#define JOYSTICK_Y_DEAD_ZONE         0.18f
+#define JOYSTICK_DIRECTION_THRESHOLD 0.42f
+
+/* Keep the joystick released while startup center calibration is running. */
+#define JOYSTICK_CALIBRATION_SAMPLES     32u
+#define JOYSTICK_CALIBRATION_INTERVAL_MS 5u
 
 /* LCD mounting orientation. X + Y mirror rotates the portrait panel by 180 degrees. */
 #define LCD_MIRROR_X                 1
