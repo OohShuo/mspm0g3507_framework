@@ -33,6 +33,35 @@ IMAGE_FLAG_MASK = 0x01
 IMAGE_HEADER_SIZE = 16
 
 
+def get_serial_ports() -> List[Tuple[str, str, str]]:
+    """Return available serial ports as (device, description, hardware id)."""
+    if serial is None:
+        raise RuntimeError("缺少 pyserial，请先执行：pip install pyserial")
+
+    from serial.tools import list_ports
+
+    return [
+        (port.device, port.description, port.hwid)
+        for port in list_ports.comports()
+    ]
+
+
+def print_serial_ports(file=None) -> None:
+    """Print serial ports in a human-readable form."""
+    import sys
+
+    output = file or sys.stdout
+    ports = get_serial_ports()
+    if not ports:
+        print("未检测到串口设备。", file=output)
+        return
+
+    print("当前检测到的串口：", file=output)
+    for device, description, hardware_id in ports:
+        print(f"  {device:<8} {description}", file=output)
+        print(f"           {hardware_id}", file=output)
+
+
 def pack_image_asset(
     source_path: str,
     output_path: str,
@@ -733,12 +762,18 @@ class FlashManager:
 def _main() -> int:
     """Minimal CLI for quick testing."""
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(
-        description="Flash UART passthrough file manager")
-    parser.add_argument("port", help="Serial port, e.g. /dev/ttyUSB0")
-    parser.add_argument("--baud", type=int, default=115200)
-    sub = parser.add_subparsers(dest="action", required=True)
+        description="通过 UART 管理外部 Flash 文件")
+    parser.add_argument("port", nargs="?", help="串口，例如 COM3 或 /dev/ttyUSB0")
+    parser.add_argument("--baud", type=int, default=115200, help="串口波特率")
+    parser.add_argument(
+        "--list-ports",
+        action="store_true",
+        help="列出当前检测到的串口后退出",
+    )
+    sub = parser.add_subparsers(dest="action")
 
     sub.add_parser("list", help="List root directory")
 
@@ -770,6 +805,17 @@ def _main() -> int:
 
     args = parser.parse_args()
 
+    if args.list_ports:
+        try:
+            print_serial_ports()
+        except RuntimeError as exc:
+            print(f"错误：{exc}", file=sys.stderr)
+            return 2
+        return 0
+
+    if not args.port or not args.action:
+        parser.error("请指定串口和操作，或使用 --list-ports 查看可用串口")
+
     def _progress(sent: int, total: Optional[int]) -> None:
         if total:
             pct = sent * 100 // total
@@ -777,7 +823,34 @@ def _main() -> int:
         else:
             print(f"\r  {sent} bytes", end="", flush=True)
 
-    fm = FlashManager(args.port, baudrate=args.baud)
+    try:
+        fm = FlashManager(args.port, baudrate=args.baud)
+    except RuntimeError as exc:
+        print(f"错误：{exc}", file=sys.stderr)
+        return 2
+    except (OSError, serial.SerialException) as exc:
+        print(f"无法打开串口 {args.port}：{exc}", file=sys.stderr)
+        error_text = str(exc).lower()
+        if (
+            getattr(exc, "errno", None) == 13
+            or "permissionerror(13" in error_text
+            or "access is denied" in error_text
+            or "拒绝访问" in error_text
+        ):
+            print(
+                "COM 口通常正被其他程序占用。请关闭串口助手、VS Code "
+                "串口监视器、CCS/UniFlash 串口终端以及其他 flash_manager.py 进程，"
+                "然后重新插拔设备再试。",
+                file=sys.stderr,
+            )
+        elif "filenotfounderror" in error_text or "找不到指定的文件" in error_text:
+            print("该串口不存在或设备已经断开。", file=sys.stderr)
+
+        try:
+            print_serial_ports(file=sys.stderr)
+        except RuntimeError:
+            pass
+        return 2
 
     try:
         if args.action == "list":

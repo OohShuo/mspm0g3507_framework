@@ -1,5 +1,7 @@
 # External Image Assets
 
+[中文版](external_image_assets_zh.md)
+
 Large images can be stored in the W25Q32 LittleFS partition and streamed into
 the LCD one scanline at a time. The MCU does not decode JPG or PNG. The PC
 converts source artwork into the native `R565` format before upload.
