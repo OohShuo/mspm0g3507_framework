@@ -775,6 +775,7 @@ def _main() -> int:
     )
     sub = parser.add_subparsers(dest="action")
 
+    sub.add_parser("probe", help="检测 Flash Manager 协议是否有响应")
     sub.add_parser("list", help="List root directory")
 
     p_upload = sub.add_parser("upload", help="Upload a file")
@@ -853,7 +854,13 @@ def _main() -> int:
         return 2
 
     try:
-        if args.action == "list":
+        if args.action == "probe":
+            if fm.reset():
+                print("Flash Manager 协议连接正常。")
+            else:
+                raise OSError("设备未返回 Flash Manager 协议响应")
+
+        elif args.action == "list":
             entries = fm.list_dir("/")
             print(f"{'Type':<6} {'Size':>10}  Name")
             print("-" * 50)
@@ -910,6 +917,19 @@ def _main() -> int:
             ok = fm.format()
             print("OK" if ok else "FAILED")
 
+    except OSError as exc:
+        print(f"操作失败：{exc}", file=sys.stderr)
+        if "no response" in str(exc).lower() or "未返回" in str(exc):
+            print(
+                "串口已经打开，但 MCU 没有返回协议帧。请确认：\n"
+                "  1. 已烧录 FLASH_MGR_ENABLE=1 的最新固件并复位；\n"
+                "  2. 调试器 UART TX 接 PA11（MCU RX）；\n"
+                "  3. 调试器 UART RX 接 PA10（MCU TX）；\n"
+                "  4. 调试器与 MCU 共地，串口为 115200 8N1；\n"
+                "  5. 当前选择的是调试器虚拟串口。",
+                file=sys.stderr,
+            )
+        return 1
     finally:
         fm.close()
 

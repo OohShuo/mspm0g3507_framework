@@ -31,6 +31,18 @@ python scripts/flash_manager.py --list-ports
 如果有多个串口，可以拔掉设备后再次执行命令，通过前后差异确认端口号。
 端口号可能在重新插拔后发生变化，不一定始终是 `COM3`。
 
+当前使用 CMSIS-DAP/DAPLink 调试器时，其虚拟串口通常显示为
+`VID:PID=0D28:0204`。在当前电脑上对应 `COM6`。SWD 接线只负责烧录和调试，
+UART 仍需单独连接：
+
+| MCU | 调试器 UART |
+|---|---|
+| `PA10 / UART0 TX` | `RX` |
+| `PA11 / UART0 RX` | `TX` |
+| `GND` | `GND` |
+
+TX 与 RX 交叉连接，使用 3.3V TTL 电平。通常不需要连接调试器的 VCC。
+
 ## 上传图片
 
 UART 文件管理器和游戏主程序采用两套固件配置，以便给游戏保留更多 SRAM。
@@ -52,19 +64,20 @@ UART 文件管理器和游戏主程序采用两套固件配置，以便给游戏
 
    ```powershell
    python scripts/flash_manager.py --list-ports
+   python scripts/flash_manager.py COM6 probe
    ```
 
 4. 转换并上传图片：
 
    ```powershell
-   python scripts/flash_manager.py COM3 upload-image assets/images/bg2.jpg /air_bg.r565 --width 240 --height 320 --fit cover
+   python scripts/flash_manager.py COM6 upload-image assets/images/bg2.jpg /air_bg.r565 --width 240 --height 320 --fit cover
    ```
 
 5. 查看文件是否已经写入：
 
    ```powershell
-   python scripts/flash_manager.py COM3 list
-   python scripts/flash_manager.py COM3 info /air_bg.r565
+   python scripts/flash_manager.py COM6 list
+   python scripts/flash_manager.py COM6 info /air_bg.r565
    ```
 
 6. 上传完成后，在 `config/app_config.h` 中恢复游戏固件：
