@@ -1,67 +1,96 @@
 #include "test_lvgl_ball.h"
 
-#include <stddef.h>
-
 #include "FreeRTOS.h"
 #include "board_config.h"
-#include "bsp.h"
-#include "bsp_time.h"
+#include "joystick.h"
 #include "st7789.h"
 #include "task.h"
 
-#define LCD_HOR_RES   240
-#define LCD_VER_RES   320
-#define LCD_BUF_LINES (LCD_VER_RES / 10 / 4)
+#define LCD_HOR_RES        240
+#define LCD_VER_RES        320
 
-#define BORDER_INSET  5
-#define BORDER_WIDTH  2
+#define BORDER_INSET       5
+#define BORDER_WIDTH       2
+#define BALL_SIZE          25
 
-#define BALL_SIZE     25
+#define FIELD_X_MIN        (BORDER_INSET + BORDER_WIDTH)
+#define FIELD_Y_MIN        (BORDER_INSET + BORDER_WIDTH)
+#define FIELD_X_MAX        (LCD_HOR_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
+#define FIELD_Y_MAX        (LCD_VER_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
 
-#define FIELD_X_MIN   BORDER_INSET
-#define FIELD_Y_MIN   BORDER_INSET
-#define FIELD_X_MAX   (LCD_HOR_RES - BORDER_INSET - BALL_SIZE)
-#define FIELD_Y_MAX   (LCD_VER_RES - BORDER_INSET - BALL_SIZE)
+#define JOYSTICK_MAX_SPEED 5.0f
 
-#define BALL_DX       3
-#define BALL_DY       5
-
-#if FRAMEWORK_USE_LVGL
-
-// clang-format off
-
-#include "lvgl.h"
-#include "src/drivers/display/st7789/lv_st7789.h"
-
-// clang-format on
+#define COLOR_BACKGROUND   0x0004u
+#define COLOR_BORDER       0xffffu
+#define COLOR_BALL         0xfa08u
 
 static St7789* g_lcd = NULL;
-static lv_display_t* g_disp = NULL;
-static lv_obj_t* g_ball = NULL;
+static Joystick* g_joystick = NULL;
 
-static uint8_t g_render_buf[LCD_HOR_RES * LCD_BUF_LINES * 2];
+static uint16_t g_line_buf[LCD_HOR_RES];
+static uint16_t g_ball_buf[BALL_SIZE * BALL_SIZE];
 
-static int32_t g_ball_x = (LCD_HOR_RES - BALL_SIZE) / 2;
-static int32_t g_ball_y = (LCD_VER_RES - BALL_SIZE) / 2;
-static int32_t g_vx = BALL_DX;
-static int32_t g_vy = BALL_DY;
+static float g_ball_x = (LCD_HOR_RES - BALL_SIZE) / 2.0f;
+static float g_ball_y = (LCD_VER_RES - BALL_SIZE) / 2.0f;
+static int32_t g_drawn_ball_x = (LCD_HOR_RES - BALL_SIZE) / 2;
+static int32_t g_drawn_ball_y = (LCD_VER_RES - BALL_SIZE) / 2;
 
-static void lvgl_send_cmd_cb(
-    lv_display_t* disp, const uint8_t* cmd, size_t cmd_size, const uint8_t* param, size_t param_size) {
-    (void)disp;
-    St7789_Send_Cmd(g_lcd, cmd, (uint32_t)cmd_size, param, (uint32_t)param_size);
+static float clampf(float value, float min_value, float max_value) {
+    if (value < min_value) { return min_value; }
+    if (value > max_value) { return max_value; }
+    return value;
 }
 
-static void lvgl_send_color_cb(
-    lv_display_t* disp, const uint8_t* cmd, size_t cmd_size, uint8_t* px_map, size_t px_size) {
-    (void)disp;
-    St7789_Send_Color(g_lcd, cmd, (uint32_t)cmd_size, px_map, (uint32_t)px_size);
-    lv_display_flush_ready(disp);
+static void draw_field(void) {
+    for (int32_t y = 0; y < LCD_VER_RES; y++) {
+        for (int32_t x = 0; x < LCD_HOR_RES; x++) {
+            const uint8_t inside_outer = x >= BORDER_INSET && x < LCD_HOR_RES - BORDER_INSET &&
+                                         y >= BORDER_INSET && y < LCD_VER_RES - BORDER_INSET;
+            const uint8_t inside_inner =
+                x >= BORDER_INSET + BORDER_WIDTH && x < LCD_HOR_RES - BORDER_INSET - BORDER_WIDTH &&
+                y >= BORDER_INSET + BORDER_WIDTH && y < LCD_VER_RES - BORDER_INSET - BORDER_WIDTH;
+
+            g_line_buf[x] = inside_outer && !inside_inner ? COLOR_BORDER : COLOR_BACKGROUND;
+        }
+
+        St7789_Flush(g_lcd, 0, y, LCD_HOR_RES - 1, y, (uint8_t*)g_line_buf, sizeof(g_line_buf));
+    }
 }
 
-static uint32_t lvgl_get_tick(void) { return Bsp_Get_Tick_Ms(); }
+static void draw_ball_area(int32_t x, int32_t y, uint8_t show_ball) {
+    const int32_t radius = BALL_SIZE / 2;
 
-static void lvgl_ball_init(void) {
+    for (int32_t row = 0; row < BALL_SIZE; row++) {
+        for (int32_t col = 0; col < BALL_SIZE; col++) {
+            const int32_t dx = col - radius;
+            const int32_t dy = row - radius;
+            const uint8_t inside_ball = dx * dx + dy * dy <= radius * radius;
+            g_ball_buf[row * BALL_SIZE + col] = show_ball && inside_ball ? COLOR_BALL : COLOR_BACKGROUND;
+        }
+    }
+
+    St7789_Flush(g_lcd, x, y, x + BALL_SIZE - 1, y + BALL_SIZE - 1, (uint8_t*)g_ball_buf, sizeof(g_ball_buf));
+}
+
+static void ball_demo_init(void) {
+    const Joystick_config joystick_cfg = {
+        .adc_idx = ADC_JOYSTICK_IDX,
+        .adc_channel_x = ADC_JOYSTICK_X_CHANNEL,
+        .adc_channel_y = ADC_JOYSTICK_Y_CHANNEL,
+        .x_min_voltage = JOYSTICK_X_MIN_VOLTAGE,
+        .x_max_voltage = JOYSTICK_X_MAX_VOLTAGE,
+        .y_min_voltage = JOYSTICK_Y_MIN_VOLTAGE,
+        .y_max_voltage = JOYSTICK_Y_MAX_VOLTAGE,
+        .x_offset = JOYSTICK_X_OFFSET,
+        .y_offset = JOYSTICK_Y_OFFSET,
+        .x_dead_zone = JOYSTICK_X_DEAD_ZONE,
+        .y_dead_zone = JOYSTICK_Y_DEAD_ZONE,
+        .x_reverse = JOYSTICK_X_REVERSE,
+        .y_reverse = JOYSTICK_Y_REVERSE,
+    };
+    g_joystick = Joystick_Create(&joystick_cfg);
+    Joystick_Calibrate_Center(g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
+
     const St7789_config lcd_cfg = {
         .spi_idx = SOFT_SPI_LCD_IDX,
         .cs_gpio_idx = (uint32_t)-1,
@@ -70,91 +99,49 @@ static void lvgl_ball_init(void) {
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
         .hor_res = LCD_HOR_RES,
         .ver_res = LCD_VER_RES,
-        .flags = {.mirror_y = 0, .color_use_bgr = 0},
+        .flags = {.mirror_y = 1, .color_use_bgr = 1},
     };
     g_lcd = St7789_Create(&lcd_cfg);
     if (g_lcd == NULL) { return; }
 
-    St7789_Reset(g_lcd);
+    St7789_Init(g_lcd);
     St7789_Set_Backlight(g_lcd, 1);
 
-    lv_init();
-    lv_tick_set_cb(lvgl_get_tick);
-
-    g_disp =
-        lv_st7789_create(LCD_HOR_RES, LCD_VER_RES, LV_LCD_FLAG_NONE, lvgl_send_cmd_cb, lvgl_send_color_cb);
-    if (g_disp == NULL) { return; }
-    lv_display_set_buffers(g_disp, g_render_buf, NULL, sizeof(g_render_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
-    lv_lcd_generic_mipi_set_invert(g_disp, 0);
-
-    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x000020), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, LV_PART_MAIN);
-
-    lv_obj_t* border = lv_obj_create(lv_screen_active());
-    lv_obj_remove_style_all(border);
-    lv_obj_set_size(border, LCD_HOR_RES - 2 * BORDER_INSET, LCD_VER_RES - 2 * BORDER_INSET);
-    lv_obj_set_pos(border, BORDER_INSET, BORDER_INSET);
-    lv_obj_set_style_border_color(border, lv_color_hex(0xffffff), LV_PART_MAIN);
-    lv_obj_set_style_border_width(border, BORDER_WIDTH, LV_PART_MAIN);
-    lv_obj_set_style_border_opa(border, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_invalidate(border);
-
-    g_ball = lv_label_create(lv_screen_active());
-    lv_obj_set_size(g_ball, BALL_SIZE, BALL_SIZE);
-    lv_obj_set_pos(g_ball, g_ball_x, g_ball_y);
-    lv_label_set_text(g_ball, " ");
-    lv_obj_set_style_bg_color(g_ball, lv_color_hex(0xff4040), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(g_ball, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_invalidate(g_ball);
+    draw_field();
+    draw_ball_area(g_drawn_ball_x, g_drawn_ball_y, 1);
 }
 
-static void lvgl_ball_loop(void) {
-    if (g_ball == NULL) { return; }
+static void ball_demo_loop(void) {
+    if (g_lcd == NULL || g_joystick == NULL) { return; }
 
-    int32_t next_x = g_ball_x + g_vx;
-    int32_t next_y = g_ball_y + g_vy;
+    const float axis_x = g_joystick->x_value;
+    const float axis_y = g_joystick->y_value;
 
-    if (next_x <= FIELD_X_MIN) {
-        next_x = FIELD_X_MIN;
-        g_vx = -g_vx;
-    } else if (next_x >= FIELD_X_MAX) {
-        next_x = FIELD_X_MAX;
-        g_vx = -g_vx;
-    }
+    g_ball_x += axis_x * JOYSTICK_MAX_SPEED;
+    g_ball_y -= axis_y * JOYSTICK_MAX_SPEED;
 
-    if (next_y <= FIELD_Y_MIN) {
-        next_y = FIELD_Y_MIN;
-        g_vy = -g_vy;
-    } else if (next_y >= FIELD_Y_MAX) {
-        next_y = FIELD_Y_MAX;
-        g_vy = -g_vy;
-    }
+    g_ball_x = clampf(g_ball_x, FIELD_X_MIN, FIELD_X_MAX);
+    g_ball_y = clampf(g_ball_y, FIELD_Y_MIN, FIELD_Y_MAX);
 
-    g_ball_x = next_x;
-    g_ball_y = next_y;
-    lv_obj_set_pos(g_ball, g_ball_x, g_ball_y);
-    lv_obj_invalidate(g_ball);
+    const int32_t next_x = (int32_t)(g_ball_x + 0.5f);
+    const int32_t next_y = (int32_t)(g_ball_y + 0.5f);
+    if (next_x == g_drawn_ball_x && next_y == g_drawn_ball_y) { return; }
 
-    lv_timer_handler();
+    draw_ball_area(g_drawn_ball_x, g_drawn_ball_y, 0);
+    draw_ball_area(next_x, next_y, 1);
+    g_drawn_ball_x = next_x;
+    g_drawn_ball_y = next_y;
 }
 
-#else
-
-static void lvgl_ball_init(void) {}
-
-static void lvgl_ball_loop(void) {}
-
-#endif
-
-static void lvgl_ball_task(void* arg) {
+static void ball_demo_task(void* arg) {
     (void)arg;
-    lvgl_ball_init();
+    ball_demo_init();
+
     uint32_t tick = xTaskGetTickCount();
     while (1) {
-        lvgl_ball_loop();
+        ball_demo_loop();
         vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
     }
 }
 
-void Test_Lvgl_Ball_Task_Def(void) { xTaskCreate(lvgl_ball_task, "LVGL_Ball", 1024, NULL, 1, NULL); }
+void Test_Lvgl_Ball_Task_Def(void) { xTaskCreate(ball_demo_task, "Ball", 256, NULL, 1, NULL); }
