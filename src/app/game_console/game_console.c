@@ -19,7 +19,6 @@
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
 
-#define INPUT_THRESHOLD 0.42f
 #define BACK_HOLD_MS   1000u
 
 #define COLOR_BLACK    0x0000u
@@ -57,7 +56,9 @@ static Game_direction read_direction(void) {
     const float abs_x = x < 0.0f ? -x : x;
     const float abs_y = y < 0.0f ? -y : y;
 
-    if (abs_x < INPUT_THRESHOLD && abs_y < INPUT_THRESHOLD) { return game_direction_none; }
+    if (abs_x < JOYSTICK_DIRECTION_THRESHOLD && abs_y < JOYSTICK_DIRECTION_THRESHOLD) {
+        return game_direction_none;
+    }
     if (abs_x > abs_y) { return x < 0.0f ? game_direction_left : game_direction_right; }
     return y < 0.0f ? game_direction_down : game_direction_up;
 }
@@ -189,12 +190,17 @@ static void console_init(void) {
         .x_max_voltage = JOYSTICK_X_MAX_VOLTAGE,
         .y_min_voltage = JOYSTICK_Y_MIN_VOLTAGE,
         .y_max_voltage = JOYSTICK_Y_MAX_VOLTAGE,
+        .x_offset = JOYSTICK_X_OFFSET,
+        .y_offset = JOYSTICK_Y_OFFSET,
+        .x_dead_zone = JOYSTICK_X_DEAD_ZONE,
+        .y_dead_zone = JOYSTICK_Y_DEAD_ZONE,
         .x_reverse = JOYSTICK_X_REVERSE,
         .y_reverse = JOYSTICK_Y_REVERSE,
     };
     g_joystick = Joystick_Create(&joystick_config);
     configASSERT(g_joystick != NULL);
-    Joystick_Calibrate_Center(g_joystick, 32, 5);
+    Joystick_Calibrate_Center(
+        g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
 
     const Button_config button_config = {
         .gpio_idx = GPIO_SW_BTN_IDX,

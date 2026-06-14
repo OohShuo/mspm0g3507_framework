@@ -18,10 +18,7 @@
 #define FIELD_X_MAX (LCD_HOR_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
 #define FIELD_Y_MAX (LCD_VER_RES - BORDER_INSET - BORDER_WIDTH - BALL_SIZE)
 
-#define JOYSTICK_DEAD_ZONE 0.18f
 #define JOYSTICK_MAX_SPEED 5.0f
-#define JOYSTICK_CALIBRATION_SAMPLES 32u
-#define JOYSTICK_CALIBRATION_DELAY_MS 5u
 
 #define COLOR_BACKGROUND 0x0004u
 #define COLOR_BORDER     0xffffu
@@ -42,14 +39,6 @@ static float clampf(float value, float min_value, float max_value) {
     if (value < min_value) { return min_value; }
     if (value > max_value) { return max_value; }
     return value;
-}
-
-static float apply_dead_zone(float value) {
-    const float magnitude = value < 0.0f ? -value : value;
-    if (magnitude <= JOYSTICK_DEAD_ZONE) { return 0.0f; }
-
-    const float scaled = (magnitude - JOYSTICK_DEAD_ZONE) / (1.0f - JOYSTICK_DEAD_ZONE);
-    return value < 0.0f ? -scaled : scaled;
 }
 
 static void draw_field(void) {
@@ -95,12 +84,16 @@ static void ball_demo_init(void) {
         .x_max_voltage = JOYSTICK_X_MAX_VOLTAGE,
         .y_min_voltage = JOYSTICK_Y_MIN_VOLTAGE,
         .y_max_voltage = JOYSTICK_Y_MAX_VOLTAGE,
+        .x_offset = JOYSTICK_X_OFFSET,
+        .y_offset = JOYSTICK_Y_OFFSET,
+        .x_dead_zone = JOYSTICK_X_DEAD_ZONE,
+        .y_dead_zone = JOYSTICK_Y_DEAD_ZONE,
         .x_reverse = JOYSTICK_X_REVERSE,
         .y_reverse = JOYSTICK_Y_REVERSE,
     };
     g_joystick = Joystick_Create(&joystick_cfg);
     Joystick_Calibrate_Center(
-        g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_DELAY_MS);
+        g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
 
     const St7789_config lcd_cfg = {
         .spi_idx = SOFT_SPI_LCD_IDX,
@@ -125,8 +118,8 @@ static void ball_demo_init(void) {
 static void ball_demo_loop(void) {
     if (g_lcd == NULL || g_joystick == NULL) { return; }
 
-    const float axis_x = apply_dead_zone(g_joystick->x_value);
-    const float axis_y = apply_dead_zone(g_joystick->y_value);
+    const float axis_x = g_joystick->x_value;
+    const float axis_y = g_joystick->y_value;
 
     g_ball_x += axis_x * JOYSTICK_MAX_SPEED;
     g_ball_y -= axis_y * JOYSTICK_MAX_SPEED;
