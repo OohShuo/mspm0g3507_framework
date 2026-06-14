@@ -137,6 +137,47 @@ void St7789_Send_Color(
     dc_data(obj);
     Bsp_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
     cs_high(obj);
+    bswap16_inplace(pixels, pixels_len);
+}
+
+void St7789_Begin_Write(
+    St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+    const uint8_t caset_cmd = ST7789_CASET;
+    const uint8_t caset_args[4] = {
+        (uint8_t)(x1 >> 8),
+        (uint8_t)(x1 & 0xFF),
+        (uint8_t)(x2 >> 8),
+        (uint8_t)(x2 & 0xFF),
+    };
+    send_cmd(obj, &caset_cmd, 1, caset_args, 4);
+
+    const uint8_t raset_cmd = ST7789_RASET;
+    const uint8_t raset_args[4] = {
+        (uint8_t)(y1 >> 8),
+        (uint8_t)(y1 & 0xFF),
+        (uint8_t)(y2 >> 8),
+        (uint8_t)(y2 & 0xFF),
+    };
+    send_cmd(obj, &raset_cmd, 1, raset_args, 4);
+
+    const uint8_t ramwr_cmd = ST7789_RAMWR;
+    cs_low(obj);
+    dc_cmd(obj);
+    Bsp_Spi_Write(obj->config.spi_idx, &ramwr_cmd, 1);
+    dc_data(obj);
+}
+
+void St7789_Write_Pixels(St7789* obj, uint8_t* pixels, uint32_t pixels_len) {
+    if (obj == NULL || pixels == NULL || pixels_len == 0) { return; }
+    bswap16_inplace(pixels, pixels_len);
+    Bsp_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
+    bswap16_inplace(pixels, pixels_len);
+}
+
+void St7789_End_Write(St7789* obj) {
+    if (obj == NULL) { return; }
+    cs_high(obj);
+    if (obj->flush_done_cb != NULL) { obj->flush_done_cb(obj->flush_done_cb_arg); }
 }
 
 void St7789_Flush(
