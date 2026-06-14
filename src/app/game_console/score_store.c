@@ -6,9 +6,9 @@
 #include "board_config.h"
 
 #if FRAMEWORK_USE_LFS
-#include "lfs.h"
-#include "lfs_port.h"
-#include "w25q32.h"
+    #include "lfs.h"
+    #include "lfs_port.h"
+    #include "w25q32.h"
 #endif
 
 #include "rtt_log.h"

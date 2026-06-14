@@ -6,27 +6,27 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
+#define SCREEN_WIDTH    240
+#define SCREEN_HEIGHT   320
 
-#define GRID_WIDTH   20
-#define GRID_HEIGHT  24
-#define CELL_SIZE    10
-#define FIELD_X      ((SCREEN_WIDTH - GRID_WIDTH * CELL_SIZE) / 2)
-#define FIELD_Y      54
-#define MAX_SNAKE    160
+#define GRID_WIDTH      20
+#define GRID_HEIGHT     24
+#define CELL_SIZE       10
+#define FIELD_X         ((SCREEN_WIDTH - GRID_WIDTH * CELL_SIZE) / 2)
+#define FIELD_Y         54
+#define MAX_SNAKE       160
 
-#define START_MOVE_MS 220u
-#define MIN_MOVE_MS    80u
+#define START_MOVE_MS   220u
+#define MIN_MOVE_MS     80u
 
-#define COLOR_BLACK      0x0000u
-#define COLOR_WHITE      0xffffu
-#define COLOR_BORDER     0x07ffu
-#define COLOR_SNAKE      0x07e0u
-#define COLOR_HEAD       0xffe0u
-#define COLOR_FOOD       0xf800u
-#define COLOR_GAME_OVER  0xf81fu
-#define COLOR_WIN        0x07ffu
+#define COLOR_BLACK     0x0000u
+#define COLOR_WHITE     0xffffu
+#define COLOR_BORDER    0x07ffu
+#define COLOR_SNAKE     0x07e0u
+#define COLOR_HEAD      0xffe0u
+#define COLOR_FOOD      0xf800u
+#define COLOR_GAME_OVER 0xf81fu
+#define COLOR_WIN       0x07ffu
 
 typedef struct {
     int8_t x;
@@ -56,9 +56,7 @@ static uint32_t random_next(void) {
     return g_random_state;
 }
 
-static uint8_t positions_equal(Snake_position a, Snake_position b) {
-    return a.x == b.x && a.y == b.y;
-}
+static uint8_t positions_equal(Snake_position a, Snake_position b) { return a.x == b.x && a.y == b.y; }
 
 static uint8_t body_contains(Snake_position position, uint16_t count) {
     for (uint16_t i = 0; i < count; i++) {
@@ -83,10 +81,7 @@ static Snake_position next_position(Snake_position position, Game_direction dire
 }
 
 static void render_cell(Snake_position position) {
-    if (position.x < 0 || position.x >= GRID_WIDTH || position.y < 0 ||
-        position.y >= GRID_HEIGHT) {
-        return;
-    }
+    if (position.x < 0 || position.x >= GRID_WIDTH || position.y < 0 || position.y >= GRID_HEIGHT) { return; }
 
     uint16_t color = COLOR_BLACK;
     if (positions_equal(position, g_food)) { color = COLOR_FOOD; }
@@ -99,15 +94,13 @@ static void render_cell(Snake_position position) {
 
     for (uint32_t i = 0; i < CELL_SIZE * CELL_SIZE; i++) { g_cell_buffer[i] = COLOR_BLACK; }
     for (int32_t y = 1; y < CELL_SIZE - 1; y++) {
-        for (int32_t x = 1; x < CELL_SIZE - 1; x++) {
-            g_cell_buffer[y * CELL_SIZE + x] = color;
-        }
+        for (int32_t x = 1; x < CELL_SIZE - 1; x++) { g_cell_buffer[y * CELL_SIZE + x] = color; }
     }
 
     const int32_t screen_x = FIELD_X + position.x * CELL_SIZE;
     const int32_t screen_y = FIELD_Y + position.y * CELL_SIZE;
-    St7789_Flush(g_hardware.lcd, screen_x, screen_y, screen_x + CELL_SIZE - 1,
-        screen_y + CELL_SIZE - 1, (uint8_t*)g_cell_buffer, sizeof(g_cell_buffer));
+    St7789_Flush(g_hardware.lcd, screen_x, screen_y, screen_x + CELL_SIZE - 1, screen_y + CELL_SIZE - 1,
+        (uint8_t*)g_cell_buffer, sizeof(g_cell_buffer));
 }
 
 static void render_hud(void) {
@@ -170,9 +163,7 @@ static void restart_game(void) {
 
     const int8_t start_x = GRID_WIDTH / 2;
     const int8_t start_y = GRID_HEIGHT / 2;
-    for (uint16_t i = 0; i < g_length; i++) {
-        g_body[i] = (Snake_position){(int8_t)(start_x - i), start_y};
-    }
+    for (uint16_t i = 0; i < g_length; i++) { g_body[i] = (Snake_position){(int8_t)(start_x - i), start_y}; }
 
     place_food();
     g_last_move = Bsp_Get_Tick_Ms();
@@ -200,8 +191,8 @@ static void move_snake(void) {
     const uint8_t ate_food = positions_equal(new_head, g_food);
     const uint16_t collision_count = ate_food ? g_length : (uint16_t)(g_length - 1);
 
-    if (new_head.x < 0 || new_head.x >= GRID_WIDTH || new_head.y < 0 ||
-        new_head.y >= GRID_HEIGHT || body_contains(new_head, collision_count)) {
+    if (new_head.x < 0 || new_head.x >= GRID_WIDTH || new_head.y < 0 || new_head.y >= GRID_HEIGHT ||
+        body_contains(new_head, collision_count)) {
         end_game(snake_state_over);
         return;
     }

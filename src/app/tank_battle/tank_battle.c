@@ -7,14 +7,14 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
+#define SCREEN_WIDTH      240
+#define SCREEN_HEIGHT     320
 
-#define GRID_WIDTH  20
-#define GRID_HEIGHT 20
-#define CELL_SIZE   12
-#define FIELD_X     0
-#define FIELD_Y     48
+#define GRID_WIDTH        20
+#define GRID_HEIGHT       20
+#define CELL_SIZE         12
+#define FIELD_X           0
+#define FIELD_Y           48
 
 #define ENEMY_COUNT       4
 #define BULLET_COUNT      10
@@ -25,19 +25,19 @@
 #define ENEMY_SPAWN_MS    900u
 #define ENEMY_FIRE_CHANCE 7u
 
-#define COLOR_BLACK      0x0000u
-#define COLOR_WHITE      0xffffu
-#define COLOR_BRICK      0xb104u
-#define COLOR_MORTAR     0x4208u
-#define COLOR_STEEL      0x8410u
-#define COLOR_PLAYER     0x07e0u
-#define COLOR_ENEMY      0xf800u
-#define COLOR_ENEMY_ALT  0xfd20u
-#define COLOR_BULLET     0xffe0u
-#define COLOR_BASE       0xffe0u
-#define COLOR_HUD        0x07ffu
-#define COLOR_GAME_OVER  0xf81fu
-#define COLOR_WIN        0x07e0u
+#define COLOR_BLACK       0x0000u
+#define COLOR_WHITE       0xffffu
+#define COLOR_BRICK       0xb104u
+#define COLOR_MORTAR      0x4208u
+#define COLOR_STEEL       0x8410u
+#define COLOR_PLAYER      0x07e0u
+#define COLOR_ENEMY       0xf800u
+#define COLOR_ENEMY_ALT   0xfd20u
+#define COLOR_BULLET      0xffe0u
+#define COLOR_BASE        0xffe0u
+#define COLOR_HUD         0x07ffu
+#define COLOR_GAME_OVER   0xf81fu
+#define COLOR_WIN         0x07e0u
 
 typedef enum {
     tile_empty,
@@ -134,9 +134,7 @@ static uint8_t position_in_bounds(int8_t x, int8_t y) {
 static Tank_actor* actor_at(int8_t x, int8_t y) {
     if (g_player.alive && g_player.x == x && g_player.y == y) { return &g_player; }
     for (uint8_t i = 0; i < ENEMY_COUNT; i++) {
-        if (g_enemies[i].alive && g_enemies[i].x == x && g_enemies[i].y == y) {
-            return &g_enemies[i];
-        }
+        if (g_enemies[i].alive && g_enemies[i].x == x && g_enemies[i].y == y) { return &g_enemies[i]; }
     }
     return NULL;
 }
@@ -238,8 +236,8 @@ static void render_cell(int8_t x, int8_t y) {
 
     const int32_t screen_x = FIELD_X + x * CELL_SIZE;
     const int32_t screen_y = FIELD_Y + y * CELL_SIZE;
-    St7789_Flush(g_hardware.lcd, screen_x, screen_y, screen_x + CELL_SIZE - 1,
-        screen_y + CELL_SIZE - 1, (uint8_t*)g_cell_buffer, sizeof(g_cell_buffer));
+    St7789_Flush(g_hardware.lcd, screen_x, screen_y, screen_x + CELL_SIZE - 1, screen_y + CELL_SIZE - 1,
+        (uint8_t*)g_cell_buffer, sizeof(g_cell_buffer));
 }
 
 static void render_hud(void) {
@@ -249,8 +247,7 @@ static void render_hud(void) {
     Game_Graphics_Draw_Text(g_hardware.lcd, 112, 7, "LIFE", 1, COLOR_WHITE);
     Game_Graphics_Draw_U32(g_hardware.lcd, 154, 7, g_lives, 1, 1, COLOR_PLAYER);
     Game_Graphics_Draw_Text(g_hardware.lcd, 176, 7, "EN", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(
-        g_hardware.lcd, 198, 7, TOTAL_ENEMIES - g_destroyed, 2, 1, COLOR_ENEMY);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 198, 7, TOTAL_ENEMIES - g_destroyed, 2, 1, COLOR_ENEMY);
 
     if (g_state == tank_state_over) {
         Game_Graphics_Draw_Text(g_hardware.lcd, 80, 29, "GAME OVER", 1, COLOR_GAME_OVER);
@@ -275,8 +272,7 @@ static void load_level(void) {
         for (int8_t x = 0; x < GRID_WIDTH; x++) {
             const char cell = g_level_template[y][x];
             g_tiles[y][x] = cell == '#' ? tile_brick
-                                         : (cell == 'S' ? tile_steel
-                                                        : (cell == 'B' ? tile_base : tile_empty));
+                                        : (cell == 'S' ? tile_steel : (cell == 'B' ? tile_base : tile_empty));
         }
     }
 }
@@ -290,7 +286,7 @@ static uint8_t reset_player_position(void) {
     };
 
     g_player.alive = 0;
-    for (uint8_t i = 0; i < sizeof(respawn_positions) / sizeof(respawn_positions[0]); i++) {
+    for (int i = 0; i < sizeof(respawn_positions) / sizeof(respawn_positions[0]); i++) {
         const int8_t x = respawn_positions[i][0];
         const int8_t y = respawn_positions[i][1];
         if (!can_enter(x, y)) { continue; }
@@ -488,9 +484,7 @@ static void update_bullet(Tank_bullet* bullet) {
 
     for (uint8_t i = 0; i < BULLET_COUNT; i++) {
         Tank_bullet* other = &g_bullets[i];
-        if (other == bullet || !other->active || other->x != next_x || other->y != next_y) {
-            continue;
-        }
+        if (other == bullet || !other->active || other->x != next_x || other->y != next_y) { continue; }
         other->active = 0;
         bullet->active = 0;
         render_cell(old_x, old_y);
@@ -505,9 +499,7 @@ static void update_bullet(Tank_bullet* bullet) {
 }
 
 static Game_direction choose_enemy_direction(const Tank_actor* enemy) {
-    if ((random_next() % 4u) == 0u) {
-        return (Game_direction)(game_direction_up + random_next() % 4u);
-    }
+    if ((random_next() % 4u) == 0u) { return (Game_direction)(game_direction_up + random_next() % 4u); }
 
     const int8_t dx = g_player.x - enemy->x;
     const int8_t dy = g_player.y - enemy->y;
