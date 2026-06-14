@@ -23,6 +23,7 @@ static void normalize_debug_reset(void) {
 int main(void) {
     normalize_debug_reset();
     SYSCFG_DL_init();
+    NVIC_EnableIRQ(DMA_INT_IRQn);
 
     Syscall_Init();
 

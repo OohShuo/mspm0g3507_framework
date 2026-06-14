@@ -1,6 +1,6 @@
 #include "app.h"
-#include "app_config.h"
 
+#include "app_config.h"
 #include "flash_mgr.h"
 #include "game_console.h"
 

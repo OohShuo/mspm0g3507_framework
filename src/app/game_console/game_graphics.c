@@ -72,8 +72,7 @@ static void draw_glyph(
     for (int32_t column = 0; column < 5; column++) {
         for (int32_t row = 0; row < 7; row++) {
             if ((glyph[column] & (1u << row)) != 0) {
-                Game_Graphics_Fill_Rect(
-                    lcd, x + column * scale, y + row * scale, scale, scale, color);
+                Game_Graphics_Fill_Rect(lcd, x + column * scale, y + row * scale, scale, scale, color);
             }
         }
     }
