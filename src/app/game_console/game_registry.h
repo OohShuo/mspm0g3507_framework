@@ -8,12 +8,14 @@ typedef enum {
     game_icon_pacman,
     game_icon_snake,
     game_icon_racing,
+    game_icon_tank,
 } Game_icon;
 
 typedef enum {
     game_id_pacman,
     game_id_snake,
     game_id_racing,
+    game_id_tank,
     game_id_count,
 } Game_id;
 
