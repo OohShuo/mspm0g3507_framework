@@ -107,6 +107,15 @@
 #define ADC_JOYSTICK_X_CHANNEL       0
 #define ADC_JOYSTICK_Y_CHANNEL       1
 
+/* Replace these limits with the measured endpoint voltages. */
+#define JOYSTICK_X_MIN_VOLTAGE       0.0f
+#define JOYSTICK_X_MAX_VOLTAGE       3.3f
+#define JOYSTICK_Y_MIN_VOLTAGE       0.0f
+#define JOYSTICK_Y_MAX_VOLTAGE       3.3f
+
+#define JOYSTICK_X_REVERSE           0
+#define JOYSTICK_Y_REVERSE           0
+
 /* spi */
 
 #define SPI_NUM                      1
