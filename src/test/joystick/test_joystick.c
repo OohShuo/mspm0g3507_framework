@@ -25,8 +25,7 @@ static void joystick_task(void* arg) {
         .y_reverse = JOYSTICK_Y_REVERSE,
     };
     g_joystick = Joystick_Create(&cfg);
-    Joystick_Calibrate_Center(
-        g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
+    Joystick_Calibrate_Center(g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
     while (1) { vTaskDelay(pdMS_TO_TICKS(5000)); }
 }
 

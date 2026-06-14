@@ -9,18 +9,18 @@
 #include "game_runtime.h"
 #include "st7789.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
+#define SCREEN_WIDTH      240
+#define SCREEN_HEIGHT     320
 
-#define MAP_WIDTH  15
-#define MAP_HEIGHT 21
-#define TILE_SIZE  12
-#define MAP_X       ((SCREEN_WIDTH - MAP_WIDTH * TILE_SIZE) / 2)
-#define MAP_Y       42
+#define MAP_WIDTH         15
+#define MAP_HEIGHT        21
+#define TILE_SIZE         12
+#define MAP_X             ((SCREEN_WIDTH - MAP_WIDTH * TILE_SIZE) / 2)
+#define MAP_Y             42
 
-#define PLAYER_MOVE_MS 250u
-#define GHOST_MOVE_MS  500u
-#define POWER_TIME_MS  7000u
+#define PLAYER_MOVE_MS    250u
+#define GHOST_MOVE_MS     500u
+#define POWER_TIME_MS     7000u
 
 #define COLOR_BLACK       0x0000u
 #define COLOR_WALL        0x001fu
@@ -139,9 +139,7 @@ static uint8_t can_move(Position pos, Direction direction) {
     return !map_is_wall(pos.x + g_dir_x[direction], pos.y + g_dir_y[direction]);
 }
 
-static uint8_t power_active(void) {
-    return (int32_t)(g_power_until - Bsp_Get_Tick_Ms()) > 0;
-}
+static uint8_t power_active(void) { return (int32_t)(g_power_until - Bsp_Get_Tick_Ms()) > 0; }
 
 static uint32_t random_next(void) {
     g_random_state = g_random_state * 1664525u + 1013904223u;
@@ -212,17 +210,13 @@ static void render_cell(int8_t map_x, int8_t map_y) {
 
     if (wall) {
         for (int32_t y = 2; y < TILE_SIZE - 2; y++) {
-            for (int32_t x = 2; x < TILE_SIZE - 2; x++) {
-                tile_pixel(x, y, COLOR_WALL_INNER);
-            }
+            for (int32_t x = 2; x < TILE_SIZE - 2; x++) { tile_pixel(x, y, COLOR_WALL_INNER); }
         }
     } else if (g_pellets[map_y][map_x] != 0) {
         const int32_t center = TILE_SIZE / 2;
         const int32_t radius = g_pellets[map_y][map_x] == 2 ? 2 : 1;
         for (int32_t y = center - radius; y <= center + radius; y++) {
-            for (int32_t x = center - radius; x <= center + radius; x++) {
-                tile_pixel(x, y, COLOR_PELLET);
-            }
+            for (int32_t x = center - radius; x <= center + radius; x++) { tile_pixel(x, y, COLOR_PELLET); }
         }
     }
 
@@ -275,9 +269,7 @@ static void render_hud(void) {
 
     draw_digit(102, 9, g_level % 10u, COLOR_WHITE);
 
-    for (uint8_t i = 0; i < g_lives; i++) {
-        fill_rect(174 + i * 18, 10, 10, 10, COLOR_PACMAN);
-    }
+    for (uint8_t i = 0; i < g_lives; i++) { fill_rect(174 + i * 18, 10, 10, 10, COLOR_PACMAN); }
 
     if (g_game_state == game_state_over) {
         fill_rect(70, 27, 100, 5, COLOR_GAME_OVER);
@@ -414,8 +406,8 @@ static void move_player(void) {
 static int32_t ghost_direction_score(uint32_t ghost_index, Direction direction) {
     const int32_t next_x = g_ghosts[ghost_index].pos.x + g_dir_x[direction];
     const int32_t next_y = g_ghosts[ghost_index].pos.y + g_dir_y[direction];
-    int32_t target_x = g_player.x;
-    int32_t target_y = g_player.y;
+    int32_t target_x = (int32_t)g_player.x;
+    int32_t target_y = (int32_t)g_player.y;
 
     if (ghost_index == 1) {
         target_x += g_dir_x[g_player_direction] * 3;

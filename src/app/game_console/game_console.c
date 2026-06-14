@@ -17,19 +17,19 @@
 #include "st7789.h"
 #include "task.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
+#define SCREEN_WIDTH       240
+#define SCREEN_HEIGHT      320
 
-#define BACK_HOLD_MS   1000u
+#define BACK_HOLD_MS       1000u
 #define MENU_VISIBLE_GAMES 3u
 
-#define COLOR_BLACK    0x0000u
-#define COLOR_WHITE    0xffffu
-#define COLOR_CYAN     0x07ffu
-#define COLOR_BLUE     0x0010u
-#define COLOR_YELLOW   0xffe0u
-#define COLOR_GREEN    0x07e0u
-#define COLOR_DARK     0x0841u
+#define COLOR_BLACK        0x0000u
+#define COLOR_WHITE        0xffffu
+#define COLOR_CYAN         0x07ffu
+#define COLOR_BLUE         0x0010u
+#define COLOR_YELLOW       0xffe0u
+#define COLOR_GREEN        0x07e0u
+#define COLOR_DARK         0x0841u
 
 typedef enum {
     console_state_menu,
@@ -72,8 +72,7 @@ static Game_input poll_input(void) {
     const Button_state button_state = Button_Get_State(g_confirm_button);
 
     input.direction = read_direction();
-    input.direction_pressed =
-        input.direction != game_direction_none && input.direction != g_last_direction;
+    input.direction_pressed = input.direction != game_direction_none && input.direction != g_last_direction;
 
     if (button_state == button_state_down && g_last_button_state == button_state_up) {
         g_button_down_time = now;
@@ -94,27 +93,21 @@ static Game_input poll_input(void) {
 static void draw_pacman_icon(int32_t x, int32_t y) {
     for (int32_t row = -18; row <= 18; row++) {
         int32_t half_width = 0;
-        while ((half_width + 1) * (half_width + 1) + row * row <= 18 * 18) {
-            half_width++;
-        }
+        while ((half_width + 1) * (half_width + 1) + row * row <= 18 * 18) { half_width++; }
 
         const int32_t abs_row = row < 0 ? -row : row;
         int32_t right = half_width;
         if (abs_row <= half_width) { right = abs_row - 1; }
         if (right >= -half_width) {
-            Game_Graphics_Fill_Rect(
-                g_lcd, x - half_width, y + row, right + half_width + 1, 1, COLOR_YELLOW);
+            Game_Graphics_Fill_Rect(g_lcd, x - half_width, y + row, right + half_width + 1, 1, COLOR_YELLOW);
         }
     }
 }
 
 static void draw_snake_icon(int32_t x, int32_t y) {
-    static const int8_t cells[][2] = {
-        {0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}, {3, 2}, {4, 2},
-    };
+    static const int8_t cells[][2] = {{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}, {3, 2}, {4, 2}};
     for (uint32_t i = 0; i < sizeof(cells) / sizeof(cells[0]); i++) {
-        Game_Graphics_Fill_Rect(
-            g_lcd, x + cells[i][0] * 9, y + cells[i][1] * 9, 8, 8, COLOR_GREEN);
+        Game_Graphics_Fill_Rect(g_lcd, x + cells[i][0] * 9, y + cells[i][1] * 9, 8, 8, COLOR_GREEN);
     }
     Game_Graphics_Fill_Rect(g_lcd, x + 39, y + 19, 2, 2, COLOR_BLACK);
 }
@@ -159,8 +152,7 @@ static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     }
 
     Game_Graphics_Draw_Text(g_lcd, 108, y + 37, "HI", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(
-        g_lcd, 128, y + 37, Score_Store_Get(game->id), 5, 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_lcd, 128, y + 37, Score_Store_Get(game->id), 5, 1, COLOR_WHITE);
 }
 
 static void render_menu(void) {
@@ -221,9 +213,9 @@ static void monitor_resources(void) {
     if (now - g_last_monitor_time < GAME_RUNTIME_MONITOR_INTERVAL_MS) { return; }
     g_last_monitor_time = now;
 
-    printf("[MEM] heap=%u min_heap=%u game_stack=%u words save=%u\n",
-        (unsigned)xPortGetFreeHeapSize(), (unsigned)xPortGetMinimumEverFreeHeapSize(),
-        (unsigned)uxTaskGetStackHighWaterMark(NULL), (unsigned)Score_Store_Is_Available());
+    printf("[MEM] heap=%u min_heap=%u game_stack=%u words save=%u\n", (unsigned)xPortGetFreeHeapSize(),
+        (unsigned)xPortGetMinimumEverFreeHeapSize(), (unsigned)uxTaskGetStackHighWaterMark(NULL),
+        (unsigned)Score_Store_Is_Available());
 #endif
 }
 
@@ -271,8 +263,7 @@ static void console_init(void) {
     };
     g_joystick = Joystick_Create(&joystick_config);
     configASSERT(g_joystick != NULL);
-    Joystick_Calibrate_Center(
-        g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
+    Joystick_Calibrate_Center(g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
 
     const Button_config button_config = {
         .gpio_idx = GPIO_SW_BTN_IDX,
@@ -293,11 +284,12 @@ static void console_init(void) {
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
         .hor_res = SCREEN_WIDTH,
         .ver_res = SCREEN_HEIGHT,
-        .flags = {
-            .mirror_x = LCD_MIRROR_X,
-            .mirror_y = LCD_MIRROR_Y,
-            .color_use_bgr = LCD_COLOR_USE_BGR,
-        },
+        .flags =
+            {
+                .mirror_x = LCD_MIRROR_X,
+                .mirror_y = LCD_MIRROR_Y,
+                .color_use_bgr = LCD_COLOR_USE_BGR,
+            },
     };
     g_lcd = St7789_Create(&lcd_config);
     configASSERT(g_lcd != NULL);
