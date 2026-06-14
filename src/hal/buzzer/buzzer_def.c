@@ -1,122 +1,162 @@
-#include <stdint.h>
-
 #include "buzzer.h"
 
-// Tone frequency definitions
-#define NOTE_XL_DO 7645
-#define NOTE_XL_RE 6811
-#define NOTE_XL_MI 6067
-#define NOTE_XL_FA 5727
-#define NOTE_XL_SO 5102
-#define NOTE_XL_LA 4545
-#define NOTE_XL_XI 4049
-#define NOTE_L_DO  3822
-#define NOTE_L_RE  3405
-#define NOTE_L_MI  3033
-#define NOTE_L_FA  2863
-#define NOTE_L_SO  2551
-#define NOTE_L_GSH 2408
-#define NOTE_L_LA  2272
-#define NOTE_L_XI  2024
-#define NOTE_L_FSH 2711
-#define NOTE_L_CSH 3640
-#define NOTE_M_DO  1911
-#define NOTE_M_RE  1702
-#define NOTE_M_DSH 1607
-#define NOTE_M_MI  1526
-#define NOTE_M_FA  1431
-#define NOTE_M_SO  1275
-#define NOTE_M_LA  1136
-#define NOTE_M_XI  1012
-#define NOTE_H_DO  955
-#define NOTE_H_RE  851
-#define NOTE_H_MI  758
-#define NOTE_H_FA  715
-#define NOTE_H_CSH 721
-#define NOTE_H_SO  637
-#define NOTE_H_LA  568
-#define NOTE_H_XI  506
-#define NOTE_X_DO  478
-#define NOTE_REST  0
-#define GLISS      0x8000
+#define C4  262
+#define D4  294
+#define E4  330
+#define F4  349
+#define G4  392
+#define A4  440
+#define B4  494
+#define C5  523
+#define CS5 554
+#define D5  587
+#define DS5 622
+#define E5  659
+#define F5  698
+#define FS5 740
+#define G5  784
+#define GS5 831
+#define A5  880
+#define AS5 932
+#define B5  988
+#define C6  1047
+#define D6  1175
+#define E6  1319
+#define F6  1397
+#define FS6 1480
+#define G6  1568
+#define A6  1760
+#define B6  1976
+#define C7  2093
 
-// 8-bit 游戏机风格主题曲（低八度）
-const uint16_t music_main_theme[] = {
-    // A段 - 跳跃主旋律
-    NOTE_L_DO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_M_MI, NOTE_M_DO,
-    NOTE_L_SO, NOTE_M_DO, NOTE_M_MI, NOTE_M_RE, NOTE_M_DO, NOTE_L_XI, NOTE_M_DO,
+#define LEN(a) ((uint16_t)(sizeof(a) / sizeof((a)[0])))
+#define N(f, ms)       {(f), (ms), 78, 72, 0}
+#define S(f, ms)       {(f), (ms), 48, 75, 0}
+#define L(f, ms)       {(f), (ms), 94, 68, 0}
+#define V(f, ms, vol)  {(f), (ms), 72, (vol), 0}
+#define G(f, ms)       {(f), (ms), 96, 72, BUZZER_NOTE_GLISSANDO}
+#define R(ms)          {0, (ms), 0, 0, 0}
 
-    // B段 - 冲刺感
-    NOTE_M_DO, NOTE_M_RE, NOTE_M_MI, NOTE_M_RE, NOTE_M_DO, NOTE_L_XI, NOTE_L_LA, NOTE_L_XI, NOTE_M_DO,
-    NOTE_REST, NOTE_M_DO, NOTE_REST, NOTE_L_SO, NOTE_L_LA, NOTE_L_XI, NOTE_M_DO,
+/* Bright, relaxed game-selection loop. */
+static const Buzzer_note menu_theme[] = {
+    N(C5, 150), N(E5, 150), N(G5, 150), N(C6, 300), R(75),
+    N(B5, 150), N(G5, 150), N(E5, 150), N(D5, 300), R(75),
+    N(F5, 150), N(A5, 150), N(C6, 150), N(A5, 300), R(75),
+    N(G5, 150), N(E5, 150), N(D5, 150), L(C5, 450), R(150),
+    N(E5, 150), N(G5, 150), N(B5, 150), N(E6, 300), R(75),
+    N(D6, 150), N(B5, 150), N(G5, 150), L(C6, 450), R(225),
+};
 
-    // A段重复
-    NOTE_L_DO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_M_MI, NOTE_M_DO,
-    NOTE_L_SO, NOTE_M_DO, NOTE_M_MI, NOTE_M_RE, NOTE_M_DO, NOTE_L_XI, NOTE_M_DO,
+/* Quick chromatic chase motif for Pac-Man. */
+static const Buzzer_note pacman_theme[] = {
+    S(C5, 90), S(E5, 90), S(G5, 90), S(B5, 90), S(C6, 180), R(45),
+    S(B5, 90), S(G5, 90), S(E5, 90), S(D5, 90), S(F5, 180), R(45),
+    S(D5, 90), S(F5, 90), S(A5, 90), S(C6, 90), S(D6, 180), R(45),
+    S(C6, 90), S(A5, 90), S(F5, 90), S(E5, 90), L(C5, 270), R(90),
+    S(C5, 90), S(C6, 90), S(B5, 90), S(G5, 90), S(E5, 180), R(45),
+    S(F5, 90), S(FS5, 90), S(G5, 90), S(B5, 90), L(C6, 270), R(90),
+};
 
-    // C段 - 高潮上行
-    NOTE_L_DO, NOTE_L_RE, NOTE_L_MI, NOTE_L_FA, NOTE_L_SO, NOTE_L_LA, NOTE_L_XI, NOTE_M_DO, NOTE_M_DO,
-    NOTE_M_RE, NOTE_M_MI, NOTE_M_FA, NOTE_M_SO, NOTE_REST, NOTE_REST};
-const uint8_t music_main_theme_len = sizeof(music_main_theme) / sizeof(music_main_theme[0]);
+/* Smooth, winding melody for Snake. */
+static const Buzzer_note snake_theme[] = {
+    L(E5, 220), L(G5, 220), L(A5, 330), N(G5, 110), L(E5, 220),
+    L(D5, 220), L(E5, 330), R(110),
+    L(G5, 220), L(A5, 220), L(C6, 330), N(B5, 110), L(A5, 220),
+    L(G5, 220), L(E5, 330), R(110),
+    L(D5, 220), L(F5, 220), L(A5, 330), N(G5, 110), L(F5, 220),
+    L(E5, 220), G(D5, 330), L(E5, 440), R(220),
+};
 
-// 胜利音效 - 上行欢快旋律，循环播放
-const uint16_t music_victory[] = {NOTE_L_DO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO,
-    NOTE_M_MI, NOTE_L_SO, NOTE_M_DO, NOTE_M_MI, NOTE_M_SO, NOTE_M_DO, NOTE_M_MI, NOTE_M_SO, NOTE_REST,
-    NOTE_M_MI, NOTE_M_SO, NOTE_REST, NOTE_M_DO, NOTE_REST};
-const uint8_t music_victory_len = sizeof(music_victory) / sizeof(music_victory[0]);
+/* Fast pulse with a rising finish for Racing. */
+static const Buzzer_note racing_theme[] = {
+    S(E5, 85), S(B5, 85), S(E6, 85), S(B5, 85),
+    S(FS5, 85), S(C6, 85), S(FS6, 85), S(C6, 85),
+    S(G5, 85), S(D6, 85), S(G6, 85), S(D6, 85),
+    S(A5, 85), S(E6, 85), S(A6, 85), S(E6, 85),
+    S(G5, 85), S(D6, 85), S(B5, 85), S(D6, 85),
+    S(FS5, 85), S(C6, 85), S(A5, 85), S(C6, 85),
+    S(E5, 85), S(G5, 85), S(B5, 85), S(E6, 85),
+    G(E6, 170), L(A6, 255), R(85),
+};
 
-// 死亡音效 - 下行阴沉旋律，循环播放
-const uint16_t music_death[] = {NOTE_M_MI, NOTE_M_RE, NOTE_M_DO, NOTE_L_XI, NOTE_L_LA, NOTE_L_SO, NOTE_L_FA,
-    NOTE_L_MI, NOTE_L_MI, NOTE_L_FA, NOTE_L_MI, NOTE_L_RE, NOTE_L_MI, NOTE_REST, NOTE_REST};
-const uint8_t music_death_len = sizeof(music_death) / sizeof(music_death[0]);
+/* Deliberate march for Tank Battle. */
+static const Buzzer_note tank_theme[] = {
+    S(E4, 180), S(E4, 90), N(G4, 180), N(A4, 270), R(90),
+    S(E4, 180), S(G4, 90), N(B4, 180), N(A4, 270), R(90),
+    S(D4, 180), S(D4, 90), N(F4, 180), N(G4, 270), R(90),
+    S(E4, 180), N(G4, 180), N(B4, 180), L(E5, 360), R(180),
+    S(C5, 180), S(B4, 90), N(A4, 180), N(G4, 270), R(90),
+    S(F4, 180), N(G4, 180), N(A4, 180), L(E4, 360), R(180),
+};
 
-// 8-bit 游戏主题曲 2 - 冒险风格（低八度）
-const uint16_t music_main_theme_2[] = {
-    // A段 - 明亮主旋律
-    NOTE_M_DO, NOTE_L_XI, NOTE_M_DO, NOTE_L_SO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_REST, NOTE_L_XI,
-    NOTE_M_DO, NOTE_L_XI, NOTE_L_LA, NOTE_L_SO, NOTE_REST, NOTE_REST,
+static const Buzzer_note victory_theme[] = {
+    N(C5, 110), N(E5, 110), N(G5, 110), N(C6, 220),
+    N(E6, 110), N(G6, 110), L(C7, 500), R(120),
+};
 
-    // B段 - 跳跃节奏
-    NOTE_L_MI, NOTE_L_FA, NOTE_L_SO, NOTE_L_LA, NOTE_L_SO, NOTE_L_FA, NOTE_L_MI, NOTE_REST, NOTE_L_DO,
-    NOTE_L_RE, NOTE_L_MI, NOTE_L_FA, NOTE_L_MI, NOTE_L_RE, NOTE_L_DO, NOTE_REST,
+static const Buzzer_note defeat_theme[] = {
+    G(E6, 180), G(C6, 180), G(A5, 220), G(F5, 240),
+    G(D5, 300), L(C5, 520), R(100),
+};
 
-    // A段重复
-    NOTE_M_DO, NOTE_L_XI, NOTE_M_DO, NOTE_L_SO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_REST, NOTE_L_XI,
-    NOTE_M_DO, NOTE_L_XI, NOTE_L_LA, NOTE_L_SO, NOTE_REST, NOTE_REST,
+static const Buzzer_note sfx_menu_move[] = {
+    S(C6, 35), S(E6, 45),
+};
+static const Buzzer_note sfx_menu_select[] = {
+    S(C6, 45), S(G6, 55), N(C7, 90),
+};
+static const Buzzer_note sfx_pellet[] = {
+    S(B5, 28), S(E6, 32),
+};
+static const Buzzer_note sfx_power[] = {
+    G(C5, 90), G(G5, 90), N(C6, 120),
+};
+static const Buzzer_note sfx_ghost[] = {
+    S(C6, 45), S(E6, 45), S(G6, 45), N(C7, 80),
+};
+static const Buzzer_note sfx_snake_eat[] = {
+    S(E6, 45), N(A6, 70),
+};
+static const Buzzer_note sfx_lane_change[] = {
+    G(G5, 65), N(C6, 45),
+};
+static const Buzzer_note sfx_overtake[] = {
+    S(A5, 35), S(C6, 35), N(E6, 55),
+};
+static const Buzzer_note sfx_tank_fire[] = {
+    V(G5, 35, 90), G(D5, 55),
+};
+static const Buzzer_note sfx_tank_hit[] = {
+    V(C5, 45, 90), V(G4, 70, 85),
+};
+static const Buzzer_note sfx_explosion[] = {
+    V(C5, 45, 100), G(G4, 85), G(C4, 130),
+};
+static const Buzzer_note sfx_life_lost[] = {
+    G(E6, 90), G(B5, 110), L(E5, 180),
+};
 
-    // C段 - 高潮
-    NOTE_L_DO, NOTE_L_MI, NOTE_L_SO, NOTE_M_DO, NOTE_M_RE, NOTE_M_DO, NOTE_L_XI, NOTE_M_DO, NOTE_M_MI,
-    NOTE_M_RE, NOTE_M_DO, NOTE_L_XI, NOTE_M_DO, NOTE_REST, NOTE_REST};
-const uint8_t music_main_theme_2_len = sizeof(music_main_theme_2) / sizeof(music_main_theme_2[0]);
+const Music music_library[music_idx_count] = {
+    [music_idx_menu_theme] = {menu_theme, LEN(menu_theme)},
+    [music_idx_pacman_theme] = {pacman_theme, LEN(pacman_theme)},
+    [music_idx_snake_theme] = {snake_theme, LEN(snake_theme)},
+    [music_idx_racing_theme] = {racing_theme, LEN(racing_theme)},
+    [music_idx_tank_theme] = {tank_theme, LEN(tank_theme)},
+    [music_idx_victory] = {victory_theme, LEN(victory_theme)},
+    [music_idx_defeat] = {defeat_theme, LEN(defeat_theme)},
+};
 
-// 超级马里奥 (Super Mario Bros Theme)（低八度）
-const uint16_t music_mario[] = {NOTE_M_RE, NOTE_M_RE, NOTE_REST, NOTE_M_DO, NOTE_M_RE, NOTE_REST, NOTE_M_SO,
-    NOTE_REST, NOTE_L_SO, NOTE_REST, NOTE_REST, NOTE_REST,
-
-    NOTE_M_DO, NOTE_REST, NOTE_REST, NOTE_L_SO, NOTE_REST, NOTE_REST, NOTE_L_MI, NOTE_REST, NOTE_REST,
-    NOTE_REST, NOTE_L_LA, NOTE_REST, NOTE_L_XI, NOTE_REST, NOTE_L_LA, NOTE_REST,
-
-    NOTE_L_SO, NOTE_M_MI, NOTE_M_SO, NOTE_M_LA, NOTE_REST, NOTE_M_FA, NOTE_M_SO, NOTE_REST, NOTE_M_MI,
-    NOTE_M_DO, NOTE_M_RE, NOTE_L_XI, NOTE_REST, NOTE_REST, NOTE_REST};
-const uint8_t music_mario_len = sizeof(music_mario) / sizeof(music_mario[0]);
-
-// 龙猫 (Totoro) - 久石让
-const uint16_t music_totoro[] = {
-    // 开头
-    NOTE_L_MI, NOTE_L_MI, NOTE_L_MI, NOTE_L_RE, NOTE_L_DO, NOTE_L_RE, NOTE_L_MI, NOTE_L_SO, NOTE_L_MI,
-    NOTE_REST, NOTE_L_MI, NOTE_L_MI,
-
-    NOTE_L_MI, NOTE_L_RE, NOTE_L_DO, NOTE_L_RE, NOTE_L_MI, NOTE_L_SO, NOTE_L_MI, NOTE_REST,
-
-    NOTE_L_MI, NOTE_L_MI, NOTE_L_SO, NOTE_L_MI, NOTE_L_LA, NOTE_L_SO, NOTE_L_MI, NOTE_L_SO, NOTE_L_MI,
-    NOTE_L_RE, NOTE_L_DO, NOTE_L_RE, NOTE_L_MI, NOTE_REST};
-const uint8_t music_totoro_len = sizeof(music_totoro) / sizeof(music_totoro[0]);
-
-const Music music_library[] = {
-    {music_main_theme, music_main_theme_len, 60 * 3},
-    {music_victory, music_victory_len, 60 * 6},
-    {music_death, music_death_len, 60 * 4},
-    {music_main_theme_2, music_main_theme_2_len, 60 * 5},
-    {music_mario, music_mario_len, 60 * 6},
-    {music_totoro, music_totoro_len, 60 * 3 + 20},
+const Music buzzer_sfx_library[buzzer_sfx_count] = {
+    [buzzer_sfx_menu_move] = {sfx_menu_move, LEN(sfx_menu_move)},
+    [buzzer_sfx_menu_select] = {sfx_menu_select, LEN(sfx_menu_select)},
+    [buzzer_sfx_pellet] = {sfx_pellet, LEN(sfx_pellet)},
+    [buzzer_sfx_power] = {sfx_power, LEN(sfx_power)},
+    [buzzer_sfx_ghost] = {sfx_ghost, LEN(sfx_ghost)},
+    [buzzer_sfx_snake_eat] = {sfx_snake_eat, LEN(sfx_snake_eat)},
+    [buzzer_sfx_lane_change] = {sfx_lane_change, LEN(sfx_lane_change)},
+    [buzzer_sfx_overtake] = {sfx_overtake, LEN(sfx_overtake)},
+    [buzzer_sfx_tank_fire] = {sfx_tank_fire, LEN(sfx_tank_fire)},
+    [buzzer_sfx_tank_hit] = {sfx_tank_hit, LEN(sfx_tank_hit)},
+    [buzzer_sfx_explosion] = {sfx_explosion, LEN(sfx_explosion)},
+    [buzzer_sfx_life_lost] = {sfx_life_lost, LEN(sfx_life_lost)},
 };

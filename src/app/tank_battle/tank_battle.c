@@ -320,8 +320,8 @@ static void end_game(Tank_state state) {
     if (g_state != tank_state_playing) { return; }
     g_state = state;
     if (g_hardware.buzzer != NULL) {
-        const Music_idx music = state == tank_state_win ? music_idx_victory : music_idx_death;
-        Buzzer_Play(g_hardware.buzzer, &music_library[music], 0);
+        Buzzer_Play_Music(g_hardware.buzzer,
+            state == tank_state_win ? music_idx_victory : music_idx_defeat, 0);
     }
     render_hud();
 }
@@ -343,6 +343,7 @@ static void restart_game(void) {
     g_last_bullet_move = now;
     g_last_spawn = now - ENEMY_SPAWN_MS;
     render_full();
+    Buzzer_Play_Music(g_hardware.buzzer, music_idx_tank_theme, 1);
 }
 
 static uint8_t spawn_enemy(void) {
@@ -399,6 +400,7 @@ static void fire_bullet(const Tank_actor* actor, uint8_t from_player) {
             .from_player = from_player,
         };
         update_bullet(&g_bullets[i]);
+        if (from_player) { Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tank_fire); }
         return;
     }
 }
@@ -409,6 +411,7 @@ static void destroy_enemy(Tank_actor* enemy) {
     enemy->alive = 0;
     g_destroyed++;
     g_score += 100u;
+    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_explosion);
     render_cell(x, y);
     render_hud();
 
@@ -419,6 +422,7 @@ static void hit_player(void) {
     const int8_t old_x = g_player.x;
     const int8_t old_y = g_player.y;
     if (g_lives > 0) { g_lives--; }
+    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
     g_player.alive = 0;
     render_cell(old_x, old_y);
     if (g_lives == 0) {
@@ -456,11 +460,13 @@ static void update_bullet(Tank_bullet* bullet) {
     if (tile == tile_brick) {
         bullet->active = 0;
         g_tiles[next_y][next_x] = tile_empty;
+        if (bullet->from_player) { Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tank_hit); }
         render_cell(old_x, old_y);
         render_cell(next_x, next_y);
         return;
     }
     if (tile == tile_steel) {
+        if (bullet->from_player) { Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tank_hit); }
         deactivate_bullet(bullet);
         return;
     }
