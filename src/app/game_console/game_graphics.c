@@ -58,11 +58,13 @@ void Game_Graphics_Fill_Rect(
     St7789* lcd, int32_t x, int32_t y, int32_t width, int32_t height, uint16_t color) {
     if (lcd == NULL || width <= 0 || height <= 0 || width > SCREEN_WIDTH) { return; }
 
+    for (int32_t col = 0; col < width; col++) { g_line_buffer[col] = color; }
+    St7789_Begin_Write(lcd, x, y, x + width - 1, y + height - 1);
     for (int32_t row = 0; row < height; row++) {
-        for (int32_t col = 0; col < width; col++) { g_line_buffer[col] = color; }
-        St7789_Flush(lcd, x, y + row, x + width - 1, y + row, (uint8_t*)g_line_buffer,
-            (uint32_t)width * sizeof(uint16_t));
+        St7789_Write_Pixels(
+            lcd, (uint8_t*)g_line_buffer, (uint32_t)width * sizeof(uint16_t));
     }
+    St7789_End_Write(lcd);
 }
 
 static void draw_glyph(

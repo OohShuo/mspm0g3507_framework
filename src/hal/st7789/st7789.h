@@ -40,6 +40,10 @@ void St7789_Send_Cmd(
     St7789* obj, const uint8_t* cmd, uint32_t cmd_len, const uint8_t* params, uint32_t params_len);
 void St7789_Send_Color(
     St7789* obj, const uint8_t* cmd, uint32_t cmd_len, uint8_t* pixels, uint32_t pixels_len);
+void St7789_Begin_Write(
+    St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
+void St7789_Write_Pixels(St7789* obj, uint8_t* pixels, uint32_t pixels_len);
+void St7789_End_Write(St7789* obj);
 void St7789_Flush(
     St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t* px_map, uint32_t px_size);
 
