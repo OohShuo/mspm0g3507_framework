@@ -7,6 +7,7 @@
 #include "air_assets.h"
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "image_asset.h"
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -24,6 +25,7 @@
 #define WORLD_STEP_MS     50u
 #define ENEMY_SPAWN_MS    720u
 #define INVINCIBLE_MS     1300u
+#define EXTERNAL_BACKGROUND_PATH "/air_bg.r565"
 
 #define COLOR_BLACK       0x0000u
 #define COLOR_WHITE       0xffffu
@@ -123,6 +125,7 @@ static uint32_t g_last_world_step = 0;
 static uint32_t g_last_spawn = 0;
 static uint32_t g_random_state = 0x6d2b79f5u;
 static uint16_t g_line_buffer[SCREEN_WIDTH];
+static Image_asset g_external_background;
 
 static uint32_t random_next(void) {
     g_random_state = g_random_state * 1664525u + 1013904223u;
@@ -232,11 +235,17 @@ static void draw_explosion_line(const Explosion* explosion, int16_t screen_y,
 }
 
 static void compose_line(int16_t x, int16_t y, int16_t width) {
-    for (int16_t col = 0; col < width; col++) {
-        const int16_t screen_x = x + col;
-        const uint16_t bg_x = (uint16_t)(screen_x / AIR_BACKGROUND_SCALE);
-        const uint16_t bg_y = (uint16_t)(y / AIR_BACKGROUND_SCALE);
-        g_line_buffer[col] = air_background[bg_y * AIR_BACKGROUND_WIDTH + bg_x];
+    const uint8_t external_ready =
+        g_external_background.is_open &&
+        Image_Asset_Read_Span(
+            &g_external_background, (uint16_t)y, (uint16_t)x, (uint16_t)width, g_line_buffer);
+    if (!external_ready) {
+        for (int16_t col = 0; col < width; col++) {
+            const int16_t screen_x = x + col;
+            const uint16_t bg_x = (uint16_t)(screen_x / AIR_BACKGROUND_SCALE);
+            const uint16_t bg_y = (uint16_t)(y / AIR_BACKGROUND_SCALE);
+            g_line_buffer[col] = air_background[bg_y * AIR_BACKGROUND_WIDTH + bg_x];
+        }
     }
 
     for (uint8_t i = 0; i < MAX_PICKUPS; i++) {
@@ -420,6 +429,7 @@ static void spawn_pickup(int16_t x, int16_t y) {
 static void finish_game(Air_state state) {
     if (g_state != air_state_playing) { return; }
     g_state = state;
+    Image_Asset_Close(&g_external_background);
     Buzzer_Play_Music(g_hardware.buzzer,
         state == air_state_win ? music_idx_victory : music_idx_defeat, 0);
     Game_Graphics_Fill_Rect(g_hardware.lcd, 31, 133, 178, 70, COLOR_BLUE_DARK);
@@ -687,6 +697,13 @@ static void update_bullets(uint32_t now) {
 }
 
 static void restart_game(void) {
+    Image_Asset_Close(&g_external_background);
+    if (Image_Asset_Open(&g_external_background, EXTERNAL_BACKGROUND_PATH) &&
+        (g_external_background.width != SCREEN_WIDTH ||
+            g_external_background.height != SCREEN_HEIGHT)) {
+        Image_Asset_Close(&g_external_background);
+    }
+
     memset(g_enemies, 0, sizeof(g_enemies));
     memset(g_bullets, 0, sizeof(g_bullets));
     memset(g_pickups, 0, sizeof(g_pickups));
@@ -723,7 +740,10 @@ void Air_Battle_Init(const Game_hardware* hardware) {
 
 Game_result Air_Battle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
-    if (input->back_requested) { return game_result_exit; }
+    if (input->back_requested) {
+        Image_Asset_Close(&g_external_background);
+        return game_result_exit;
+    }
     if (g_state != air_state_playing) {
         if (input->confirm_pressed) {
             Buzzer_Stop(g_hardware.buzzer);
