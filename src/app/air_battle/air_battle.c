@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "air_assets.h"
+#include "app_config.h"
 #include "bsp_time.h"
 #include "game_graphics.h"
 #include "image_asset.h"
@@ -14,18 +15,17 @@
 #define HUD_HEIGHT    30
 
 #define MAX_ENEMIES        7
-#define MAX_PLAYER_BULLETS 24
-#define MAX_ENEMY_BULLETS  10
+#define MAX_PLAYER_BULLETS 18
+#define MAX_ENEMY_BULLETS  8
 #define MAX_BULLETS        (MAX_PLAYER_BULLETS + MAX_ENEMY_BULLETS)
 #define MAX_PICKUPS        3
 #define MAX_EXPLOSIONS     5
-#define MAX_DIRTY_RECTS    48
+#define MAX_DIRTY_RECTS    36
 #define NORMAL_ENEMIES     18
 
 #define PLAYER_MOVE_STEP  4
-#define PLAYER_FIRE_MS    190u
 #define WORLD_STEP_MS     50u
-#define MAX_CATCHUP_STEPS 3u
+#define PLAYER_FIRE_STEPS 4u
 #define ENEMY_SPAWN_MS    720u
 #define INVINCIBLE_MS     1300u
 #define EXTERNAL_BACKGROUND_PATH "/air_bg.r565"
@@ -101,6 +101,11 @@ typedef struct {
     int16_t height;
 } Dirty_rect;
 
+typedef struct {
+    int16_t x1;
+    int16_t x2;
+} Dirty_span;
+
 static Game_hardware g_hardware;
 static Air_state g_state = air_state_playing;
 static Enemy g_enemies[MAX_ENEMIES];
@@ -109,7 +114,6 @@ static Pickup g_pickups[MAX_PICKUPS];
 static Explosion g_explosions[MAX_EXPLOSIONS];
 static Dirty_rect g_dirty[MAX_DIRTY_RECTS];
 static uint8_t g_dirty_count = 0;
-static uint8_t g_force_full_redraw = 0;
 static int16_t g_player_x = 102;
 static int16_t g_player_y = 270;
 static uint8_t g_lives = 3;
@@ -123,11 +127,13 @@ static uint8_t g_boss_max_hp = 0;
 static uint8_t g_fire_sound_divider = 0;
 static uint32_t g_score = 0;
 static uint32_t g_invincible_until = 0;
-static uint32_t g_last_fire = 0;
 static uint32_t g_last_world_step = 0;
 static uint32_t g_last_spawn = 0;
+static uint8_t g_fire_step_count = 0;
+static uint8_t g_slow_external_frames = 0;
+static uint8_t g_disable_external_background = 0;
 static uint32_t g_random_state = 0x6d2b79f5u;
-static uint16_t g_line_buffer[SCREEN_WIDTH];
+static uint16_t* g_line_buffer = NULL;
 static Image_asset g_external_background;
 
 static uint32_t random_next(void) {
@@ -255,13 +261,11 @@ static void draw_explosion_line(const Explosion* explosion, int16_t screen_y,
 }
 
 static void compose_line(int16_t x, int16_t y, int16_t width) {
-    const uint16_t read_x = width >= SCREEN_WIDTH / 2 ? 0u : (uint16_t)x;
-    const uint16_t read_width =
-        width >= SCREEN_WIDTH / 2 ? SCREEN_WIDTH : (uint16_t)width;
-    const uint8_t external_ready = g_external_background.is_open &&
-                                   Image_Asset_Read_Span(&g_external_background,
-                                       (uint16_t)y, read_x, read_width, g_line_buffer);
-    if (external_ready && read_x == 0u && x > 0) {
+    const uint8_t external_ready =
+        g_external_background.is_open &&
+        Image_Asset_Read_Span(
+            &g_external_background, (uint16_t)y, 0, SCREEN_WIDTH, g_line_buffer);
+    if (external_ready && x > 0) {
         memmove(g_line_buffer, g_line_buffer + x, (size_t)width * sizeof(uint16_t));
     }
     if (!external_ready) {
@@ -316,26 +320,82 @@ static void render_region(const Dirty_rect* rect) {
 }
 
 static void flush_dirty(void) {
-    if (g_force_full_redraw) {
-        const Dirty_rect full = {0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT};
-        render_region(&full);
-    } else {
-        for (uint8_t i = 1; i < g_dirty_count; i++) {
-            const Dirty_rect current = g_dirty[i];
+    const uint32_t flush_started = Bsp_Get_Tick_Ms();
+    Dirty_span spans[MAX_DIRTY_RECTS];
+    for (int16_t y = HUD_HEIGHT; y < SCREEN_HEIGHT; y++) {
+        uint8_t span_count = 0;
+        for (uint8_t i = 0; i < g_dirty_count; i++) {
+            const Dirty_rect* rect = &g_dirty[i];
+            if (y < rect->y || y >= rect->y + rect->height) { continue; }
+            spans[span_count++] =
+                (Dirty_span){rect->x, (int16_t)(rect->x + rect->width)};
+        }
+        if (span_count == 0) { continue; }
+
+        for (uint8_t i = 1; i < span_count; i++) {
+            const Dirty_span current = spans[i];
             uint8_t position = i;
-            while (position > 0 &&
-                   (g_dirty[position - 1].y > current.y ||
-                       (g_dirty[position - 1].y == current.y &&
-                           g_dirty[position - 1].x > current.x))) {
-                g_dirty[position] = g_dirty[position - 1];
+            while (position > 0 && spans[position - 1].x1 > current.x1) {
+                spans[position] = spans[position - 1];
                 position--;
             }
-            g_dirty[position] = current;
+            spans[position] = current;
         }
-        for (uint8_t i = 0; i < g_dirty_count; i++) { render_region(&g_dirty[i]); }
+
+        uint8_t merged_count = 0;
+        for (uint8_t i = 0; i < span_count; i++) {
+            if (merged_count == 0 || spans[i].x1 > spans[merged_count - 1].x2 + 2) {
+                spans[merged_count++] = spans[i];
+            } else if (spans[i].x2 > spans[merged_count - 1].x2) {
+                spans[merged_count - 1].x2 = spans[i].x2;
+            }
+        }
+
+        Dirty_span output[2];
+        uint8_t output_count = merged_count;
+        if (merged_count <= 2) {
+            for (uint8_t i = 0; i < merged_count; i++) { output[i] = spans[i]; }
+        } else {
+            uint8_t split = 0;
+            int16_t largest_gap = -1;
+            for (uint8_t i = 0; i + 1 < merged_count; i++) {
+                const int16_t gap = spans[i + 1].x1 - spans[i].x2;
+                if (gap > largest_gap) {
+                    largest_gap = gap;
+                    split = i;
+                }
+            }
+            output_count = 2;
+            output[0] = (Dirty_span){spans[0].x1, spans[split].x2};
+            output[1] =
+                (Dirty_span){spans[split + 1].x1, spans[merged_count - 1].x2};
+        }
+
+        compose_line(0, y, SCREEN_WIDTH);
+        for (uint8_t i = 0; i < output_count; i++) {
+            const int16_t width = output[i].x2 - output[i].x1;
+            St7789_Begin_Write(g_hardware.lcd, output[i].x1, y,
+                output[i].x2 - 1, y);
+            St7789_Write_Pixels(g_hardware.lcd,
+                (uint8_t*)&g_line_buffer[output[i].x1],
+                (uint32_t)width * sizeof(uint16_t));
+            St7789_End_Write(g_hardware.lcd);
+        }
     }
     g_dirty_count = 0;
-    g_force_full_redraw = 0;
+
+    if (g_external_background.is_open &&
+        AIR_BATTLE_EXTERNAL_BG_MAX_FLUSH_MS > 0u) {
+        const uint32_t elapsed = Bsp_Get_Tick_Ms() - flush_started;
+        if (elapsed >= AIR_BATTLE_EXTERNAL_BG_MAX_FLUSH_MS) {
+            if (g_slow_external_frames < UINT8_MAX) { g_slow_external_frames++; }
+            if (g_slow_external_frames >= AIR_BATTLE_EXTERNAL_BG_SLOW_LIMIT) {
+                g_disable_external_background = 1;
+            }
+        } else {
+            g_slow_external_frames = 0;
+        }
+    }
 }
 
 static void render_hud(void) {
@@ -394,16 +454,16 @@ static uint8_t player_fire(void) {
                            air_sprite_bullet_hero.width / 2;
     uint8_t fired = 0;
     if (g_shot_level == 1) {
-        fired += spawn_bullet(center, g_player_y - 8, 0, -9, 0);
+        fired += spawn_bullet(center, g_player_y - 8, 0, -11, 0);
     } else if (g_shot_level == 2) {
-        fired += spawn_bullet(g_player_x + 7, g_player_y - 5, 0, -9, 0);
+        fired += spawn_bullet(g_player_x + 7, g_player_y - 5, 0, -11, 0);
         fired += spawn_bullet(
-            g_player_x + air_sprite_hero.width - 11, g_player_y - 5, 0, -9, 0);
+            g_player_x + air_sprite_hero.width - 11, g_player_y - 5, 0, -11, 0);
     } else {
-        fired += spawn_bullet(center, g_player_y - 9, 0, -10, 0);
-        fired += spawn_bullet(g_player_x + 5, g_player_y - 3, -1, -9, 0);
+        fired += spawn_bullet(center, g_player_y - 9, 0, -12, 0);
+        fired += spawn_bullet(g_player_x + 5, g_player_y - 3, -1, -11, 0);
         fired += spawn_bullet(
-            g_player_x + air_sprite_hero.width - 9, g_player_y - 3, 1, -9, 0);
+            g_player_x + air_sprite_hero.width - 9, g_player_y - 3, 1, -11, 0);
     }
 
     if (fired > 0 && ++g_fire_sound_divider >= 3) {
@@ -769,12 +829,13 @@ static void restart_game(void) {
     g_invincible_until = 0;
     g_state = air_state_playing;
     g_dirty_count = 0;
-    g_force_full_redraw = 0;
+    g_slow_external_frames = 0;
+    g_disable_external_background = 0;
 
     const uint32_t now = Bsp_Get_Tick_Ms();
-    g_last_fire = now;
     g_last_world_step = now;
     g_last_spawn = now - ENEMY_SPAWN_MS;
+    g_fire_step_count = 0;
     render_full();
     Buzzer_Play_Music(g_hardware.buzzer, music_idx_air_theme, 1);
 }
@@ -782,6 +843,7 @@ static void restart_game(void) {
 void Air_Battle_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
+    g_line_buffer = Game_Graphics_Get_Line_Buffer();
     restart_game();
 }
 
@@ -804,31 +866,30 @@ Game_result Air_Battle_Update(const Game_input* input) {
     if (g_state != air_state_playing) { return game_result_running; }
 
     const uint32_t now = Bsp_Get_Tick_Ms();
-    if (now - g_last_fire >= PLAYER_FIRE_MS && player_fire()) {
-        g_last_fire = now;
-    }
     if (now - g_last_spawn >= ENEMY_SPAWN_MS && g_spawned < NORMAL_ENEMIES) {
         g_last_spawn = now;
         spawn_enemy(now);
     }
     spawn_boss(now);
 
-    uint8_t catchup_steps = 0;
-    while (now - g_last_world_step >= WORLD_STEP_MS &&
-           catchup_steps < MAX_CATCHUP_STEPS) {
-        g_last_world_step += WORLD_STEP_MS;
-        update_bullets(g_last_world_step);
+    if (now - g_last_world_step >= WORLD_STEP_MS) {
+        g_last_world_step = now;
+        update_bullets(now);
         if (g_state != air_state_playing) { return game_result_running; }
-        update_enemies(g_last_world_step);
+        update_enemies(now);
         if (g_state != air_state_playing) { return game_result_running; }
         update_pickups();
         update_explosions();
-        catchup_steps++;
-    }
-    if (now - g_last_world_step >= WORLD_STEP_MS) {
-        g_last_world_step = now;
+        if (++g_fire_step_count >= PLAYER_FIRE_STEPS && player_fire()) {
+            g_fire_step_count = 0;
+        }
     }
     flush_dirty();
+    if (g_disable_external_background) {
+        Image_Asset_Close(&g_external_background);
+        g_disable_external_background = 0;
+        render_full();
+    }
     return game_result_running;
 }
 

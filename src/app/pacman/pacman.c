@@ -91,7 +91,7 @@ static St7789* g_lcd = NULL;
 static Buzzer* g_buzzer = NULL;
 
 static uint16_t g_tile_buffer[TILE_SIZE * TILE_SIZE];
-static uint16_t g_line_buffer[SCREEN_WIDTH];
+static uint16_t* g_line_buffer = NULL;
 static uint8_t g_pellets[MAP_HEIGHT][MAP_WIDTH];
 
 static Position g_player;
@@ -491,6 +491,7 @@ void Pacman_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_lcd = hardware->lcd;
     g_buzzer = hardware->buzzer;
+    g_line_buffer = Game_Graphics_Get_Line_Buffer();
     restart_game();
 }
 
