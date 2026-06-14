@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 
+#include "air_battle.h"
 #include "pacman.h"
 #include "racing.h"
 #include "snake.h"
@@ -43,6 +44,15 @@ static const Game_descriptor g_games[] = {
         .update = Tank_Battle_Update,
         .get_score = Tank_Battle_Get_Score,
         .is_finished = Tank_Battle_Is_Finished,
+    },
+    {
+        .name = "AIR FORCE",
+        .icon = game_icon_air,
+        .id = game_id_air,
+        .init = Air_Battle_Init,
+        .update = Air_Battle_Update,
+        .get_score = Air_Battle_Get_Score,
+        .is_finished = Air_Battle_Is_Finished,
     },
 };
 

@@ -23,6 +23,7 @@ typedef enum {
     music_idx_snake_theme,
     music_idx_racing_theme,
     music_idx_tank_theme,
+    music_idx_air_theme,
     music_idx_victory,
     music_idx_defeat,
     music_idx_count
@@ -39,6 +40,9 @@ typedef enum {
     buzzer_sfx_overtake,
     buzzer_sfx_tank_fire,
     buzzer_sfx_tank_hit,
+    buzzer_sfx_air_fire,
+    buzzer_sfx_air_pickup,
+    buzzer_sfx_boss_alert,
     buzzer_sfx_explosion,
     buzzer_sfx_life_lost,
     buzzer_sfx_count
