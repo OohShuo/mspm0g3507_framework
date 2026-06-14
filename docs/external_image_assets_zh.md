@@ -135,6 +135,19 @@ UART 文件管理器和游戏主程序采用两套固件配置，以便给游戏
 同时确认波特率为 115200、选择的是连接 MCU UART 的端口，并在烧录后复位
 一次开发板。COM 口能被电脑识别，不代表当前 MCU 固件正在运行文件管理协议。
 
+### 提示 `filesystem corruption`
+
+先烧录包含 SPI DMA 完成等待修复的最新上传固件，然后显式格式化当前使用的
+高 2 MiB LittleFS 分区：
+
+```powershell
+python scripts/flash_manager.py COM6 format --yes
+python scripts/flash_manager.py COM6 list
+```
+
+格式化会删除该 LittleFS 分区中的所有图片、成绩和其他文件，但不会擦除
+W25Q32 低 2 MiB 保留区。完成后重新执行图片上传命令。
+
 ### 提示缺少模块
 
 ```powershell
