@@ -17,6 +17,7 @@ typedef struct {
     uint8_t flags;
     uint8_t is_open;
     uint32_t pixel_data_size;
+    uint32_t next_read_offset;
 } Image_asset;
 
 uint8_t Image_Asset_Open(Image_asset* image, const char* path);
