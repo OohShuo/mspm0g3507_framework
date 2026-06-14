@@ -10,9 +10,18 @@
 #include "dl_timerg.h"
 #include "dl_uart_main.h"
 #include "rtt_log.h"
+#include "ti_msp_dl_config.h"
 #include "vector.h"
 
 #if UART_NUM
+
+#if UART_0_DMA_TX_CHANNEL != DMA_CH4_CHAN_ID
+#error "UART0 TX DMA channel does not match the SysConfig-generated channel"
+#endif
+
+#if UART_0_DMA_RX_CHANNEL != DMA_CH3_CHAN_ID
+#error "UART0 RX DMA channel does not match the SysConfig-generated channel"
+#endif
 
 struct Bsp_uart_instance_t {
     UART_Regs* inst;
