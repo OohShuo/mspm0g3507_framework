@@ -264,3 +264,7 @@ Game_result Racing_Update(const Game_input* input) {
     }
     return game_result_running;
 }
+
+uint32_t Racing_Get_Score(void) { return g_score; }
+
+uint8_t Racing_Is_Finished(void) { return g_state == racing_state_over; }

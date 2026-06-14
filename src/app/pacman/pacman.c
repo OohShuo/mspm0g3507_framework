@@ -526,3 +526,7 @@ Game_result Pacman_Update(const Game_input* input) {
     }
     return game_result_running;
 }
+
+uint32_t Pacman_Get_Score(void) { return g_score; }
+
+uint8_t Pacman_Is_Finished(void) { return g_game_state == game_state_over; }
