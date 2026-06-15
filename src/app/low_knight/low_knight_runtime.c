@@ -32,12 +32,17 @@
 #define PLAYER_MOVE_SPEED_Q    448
 #define PLAYER_GRAVITY_Q       72
 #define PLAYER_MAX_FALL_Q      832
-#define PLAYER_JUMP_Q          (-1000)
+#define PLAYER_JUMP_Q          (-1200)
 #define PLAYER_JUMP_CUT_Q      (-180)
 #define PLAYER_COYOTE_FRAMES   3u
 #define PLAYER_JUMP_BUFFER_FRAMES 4u
 #define ROOM_ENTRY_INSET       24
-#define CAMERA_PAGE_STEP       32
+#define LOW_KNIGHT_MAX_ENEMIES 12u
+#define ENEMY_BUSH_TILE        207u
+#define BUSH_MOVE_SPEED_Q      192
+#define BUSH_GRAVITY_Q         96
+#define BUSH_MAX_FALL_Q        768
+#define LOW_KNIGHT_MAX_DIRTY_RECTS 16u
 
 #define COLOR_BLACK            0x0000u
 #define COLOR_RESOURCE_ERROR   0xf800u
@@ -72,6 +77,18 @@ typedef struct {
     int16_t right;
     int16_t bottom;
 } Low_Knight_Box;
+
+typedef struct {
+    int32_t qx;
+    int32_t qy;
+    int16_t x;
+    int16_t y;
+    int16_t vx;
+    int16_t vy;
+    int8_t way;
+    uint8_t type;
+    uint8_t active;
+} Low_Knight_Enemy;
 
 static const Low_Knight_Room g_rooms[] = {
     {0, 0, 84, 64, 20, 16, 1, 0},
@@ -121,8 +138,13 @@ static uint8_t g_player_facing_left;
 static uint8_t g_player_on_ground;
 static uint8_t g_coyote_frames;
 static uint8_t g_jump_buffer_frames;
+static uint8_t g_input_locked;
 static int16_t g_camera_x;
 static int16_t g_camera_y;
+static Low_Knight_Enemy g_enemies[LOW_KNIGHT_MAX_ENEMIES];
+static uint8_t g_enemy_count;
+static Low_Knight_Rect g_pending_dirty[LOW_KNIGHT_MAX_DIRTY_RECTS];
+static uint8_t g_pending_dirty_count;
 
 static uint8_t sample_packed_pixel(const uint8_t* bytes, uint8_t pixel_index) {
     const uint8_t packed = bytes[pixel_index / 2u];
@@ -142,6 +164,11 @@ static int16_t clamp_i16(int16_t value, int16_t min_value, int16_t max_value) {
     if (value < min_value) { return min_value; }
     if (value > max_value) { return max_value; }
     return value;
+}
+
+static int16_t camera_page_for_coord(int16_t coord, int16_t max_camera) {
+    if (coord < 0) { return 0; }
+    return clamp_i16((int16_t)(coord / PICO_SCREEN_SIZE * PICO_SCREEN_SIZE), 0, max_camera);
 }
 
 static uint8_t is_transparent_color(uint8_t color) {
@@ -196,15 +223,15 @@ static uint8_t update_camera(uint8_t snap) {
                                                           : 0;
 
     if (snap) {
-        g_camera_x = clamp_i16((int16_t)(g_player.x - PICO_SCREEN_SIZE / 2), 0, max_x);
-        g_camera_y = clamp_i16((int16_t)(g_player.y - PICO_SCREEN_SIZE / 2), 0, max_y);
+        g_camera_x = camera_page_for_coord(g_player.x, max_x);
+        g_camera_y = camera_page_for_coord(g_player.y, max_y);
     } else {
-        const int16_t center_x = clamp_i16((int16_t)(g_player.x - PICO_SCREEN_SIZE / 2), 0, max_x);
-        const int16_t center_y = clamp_i16((int16_t)(g_player.y - PICO_SCREEN_SIZE / 2), 0, max_y);
-        g_camera_x = clamp_i16((int16_t)((center_x + CAMERA_PAGE_STEP / 2) / CAMERA_PAGE_STEP * CAMERA_PAGE_STEP),
-            0, max_x);
-        g_camera_y = clamp_i16((int16_t)((center_y + CAMERA_PAGE_STEP / 2) / CAMERA_PAGE_STEP * CAMERA_PAGE_STEP),
-            0, max_y);
+        if (g_player.x < g_camera_x || g_player.x >= (int16_t)(g_camera_x + PICO_SCREEN_SIZE)) {
+            g_camera_x = camera_page_for_coord(g_player.x, max_x);
+        }
+        if (g_player.y < g_camera_y || g_player.y >= (int16_t)(g_camera_y + PICO_SCREEN_SIZE)) {
+            g_camera_y = camera_page_for_coord(g_player.y, max_y);
+        }
     }
 
     return old_x != g_camera_x || old_y != g_camera_y;
@@ -293,6 +320,28 @@ static uint8_t unpack_room(const Low_Knight_Room* room) {
     return 1;
 }
 
+static void spawn_room_enemies(void) {
+    memset(g_enemies, 0, sizeof(g_enemies));
+    g_enemy_count = 0;
+
+    for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
+        for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
+            uint8_t* tile = &g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x];
+            if (*tile != ENEMY_BUSH_TILE || g_enemy_count >= LOW_KNIGHT_MAX_ENEMIES) { continue; }
+
+            Low_Knight_Enemy* enemy = &g_enemies[g_enemy_count++];
+            enemy->x = (int16_t)(tile_x * PICO_TILE_SIZE);
+            enemy->y = (int16_t)(tile_y * PICO_TILE_SIZE);
+            enemy->qx = (int32_t)enemy->x * PHYSICS_Q_ONE;
+            enemy->qy = (int32_t)enemy->y * PHYSICS_Q_ONE;
+            enemy->way = tile_x >= g_room.width / 2u ? -1 : 1;
+            enemy->type = ENEMY_BUSH_TILE;
+            enemy->active = 1;
+            *tile = 0;
+        }
+    }
+}
+
 static uint8_t read_gfx_tile_row(uint8_t tile, uint8_t row, uint8_t* out_row) {
     if (out_row == NULL) { return 0; }
 
@@ -334,6 +383,7 @@ static uint8_t load_room(uint8_t room_index) {
     g_room_index = room_index;
     g_room = g_rooms[g_room_index];
     if (!unpack_room(&g_room)) { return 0; }
+    spawn_room_enemies();
     return g_room.no_background || cache_background_map();
 }
 
@@ -371,6 +421,64 @@ static Low_Knight_Rect rect_union(Low_Knight_Rect a, Low_Knight_Rect b) {
 
 static uint8_t rect_is_empty(Low_Knight_Rect r) { return r.x1 >= r.x2 || r.y1 >= r.y2; }
 
+static uint8_t rects_touch(Low_Knight_Rect a, Low_Knight_Rect b) {
+    return a.x1 <= b.x2 + 2 && b.x1 <= a.x2 + 2 && a.y1 <= b.y2 + 2 && b.y1 <= a.y2 + 2;
+}
+
+static uint32_t rect_area(Low_Knight_Rect rect) {
+    if (rect_is_empty(rect)) { return 0; }
+    return (uint32_t)(rect.x2 - rect.x1) * (uint32_t)(rect.y2 - rect.y1);
+}
+
+static void mark_dirty_rect(Low_Knight_Rect rect) {
+    if (rect_is_empty(rect)) { return; }
+
+    for (uint8_t i = 0; i < g_pending_dirty_count; i++) {
+        if (!rects_touch(g_pending_dirty[i], rect)) { continue; }
+
+        g_pending_dirty[i] = rect_union(g_pending_dirty[i], rect);
+        for (uint8_t j = (uint8_t)(i + 1); j < g_pending_dirty_count;) {
+            if (!rects_touch(g_pending_dirty[i], g_pending_dirty[j])) {
+                j++;
+                continue;
+            }
+            g_pending_dirty[i] = rect_union(g_pending_dirty[i], g_pending_dirty[j]);
+            g_pending_dirty[j] = g_pending_dirty[--g_pending_dirty_count];
+        }
+        return;
+    }
+
+    if (g_pending_dirty_count < LOW_KNIGHT_MAX_DIRTY_RECTS) {
+        g_pending_dirty[g_pending_dirty_count++] = rect;
+        return;
+    }
+
+    uint8_t best = 0;
+    uint32_t best_growth = UINT32_MAX;
+    for (uint8_t i = 0; i < g_pending_dirty_count; i++) {
+        const Low_Knight_Rect combined = rect_union(g_pending_dirty[i], rect);
+        const uint32_t growth = rect_area(combined) - rect_area(g_pending_dirty[i]);
+        if (growth < best_growth) {
+            best = i;
+            best_growth = growth;
+        }
+    }
+    g_pending_dirty[best] = rect_union(g_pending_dirty[best], rect);
+}
+
+static Low_Knight_Rect enemy_rect_for(const Low_Knight_Enemy* enemy) {
+    const Low_Knight_Rect view = screen_rect();
+    const uint8_t scale = 2;
+    const int16_t x = (int16_t)(view.x1 + (enemy->x - g_camera_x) * scale);
+    const int16_t y = (int16_t)(view.y1 + (enemy->y - g_camera_y) * scale);
+    return (Low_Knight_Rect){
+        (int16_t)(x - 12 * scale),
+        (int16_t)(y - 6 * scale),
+        (int16_t)(x + 12 * scale),
+        (int16_t)(y + 6 * scale),
+    };
+}
+
 static void compose_sprite_rect_line(uint16_t* line, int16_t region_x, int16_t region_width,
     int16_t screen_y, uint8_t tile, uint8_t width_tiles, uint8_t height_tiles, int16_t sprite_x,
     int16_t sprite_y, uint8_t scale, uint8_t hflip) {
@@ -404,6 +512,27 @@ static void compose_sprite_rect_line(uint16_t* line, int16_t region_x, int16_t r
 
         const uint8_t color = sample_packed_pixel(row_data, (uint8_t)(source_x & 7u));
         if (!is_transparent_color(color)) { line[screen_x - region_x] = g_pico_palette[color]; }
+    }
+}
+
+static void compose_enemies_line(uint16_t* line, int16_t region_x, int16_t region_width, int16_t screen_y) {
+    const Low_Knight_Rect view = screen_rect();
+    const uint8_t scale = 2;
+
+    for (uint8_t i = 0; i < g_enemy_count; i++) {
+        const Low_Knight_Enemy* enemy = &g_enemies[i];
+        if (!enemy->active || enemy->type != ENEMY_BUSH_TILE) { continue; }
+
+        const int16_t x = (int16_t)(view.x1 + (enemy->x - g_camera_x) * scale);
+        const int16_t y = (int16_t)(view.y1 + (enemy->y - g_camera_y) * scale);
+        const uint8_t flip = enemy->way < 0;
+        const int16_t trail = (int16_t)(enemy->way * -3 * scale);
+        compose_sprite_rect_line(line, region_x, region_width, screen_y, 205, 1, 1,
+            (int16_t)(x - 4 * scale + trail * 2), (int16_t)(y - 4 * scale), scale, flip);
+        compose_sprite_rect_line(line, region_x, region_width, screen_y, 206, 1, 1,
+            (int16_t)(x - 4 * scale + trail), (int16_t)(y - 4 * scale), scale, flip);
+        compose_sprite_rect_line(line, region_x, region_width, screen_y, 207, 1, 1,
+            (int16_t)(x - 4 * scale), (int16_t)(y - 4 * scale), scale, flip);
     }
 }
 
@@ -528,6 +657,7 @@ static void compose_line(int16_t x, int16_t y, int16_t width) {
     for (int16_t col = 0; col < width; col++) { line[col] = g_pico_palette[1]; }
     compose_background_line(line, x, width, y);
     compose_level_line(line, x, width, y);
+    compose_enemies_line(line, x, width, y);
     compose_player_line(line, x, width, y);
 }
 
@@ -590,6 +720,69 @@ static void resolve_player_vertical(void) {
     g_player_vy = 0;
 }
 
+static Low_Knight_Box bush_hitbox_at(int16_t x, int16_t y) {
+    return (Low_Knight_Box){
+        (int16_t)(x - 4),
+        (int16_t)(y - 4),
+        (int16_t)(x + 4),
+        (int16_t)(y + 2),
+    };
+}
+
+static void update_bush(Low_Knight_Enemy* enemy) {
+    const Low_Knight_Rect before_rect = enemy_rect_for(enemy);
+
+    const int16_t ahead_x = (int16_t)(enemy->x + enemy->way * 7);
+    const int16_t ahead_y = (int16_t)(enemy->y + 4);
+    if (enemy->vy == 0 && !tile_is_solid_at(floor_div_tile(ahead_x), floor_div_tile(ahead_y))) {
+        enemy->way = -enemy->way;
+    }
+
+    enemy->vx = (int16_t)(enemy->way * BUSH_MOVE_SPEED_Q);
+    enemy->qx += enemy->vx;
+    enemy->x = q_to_pixel(enemy->qx);
+    Low_Knight_Box box = bush_hitbox_at(enemy->x, enemy->y);
+    if (box_overlaps_solid(box)) {
+        const int16_t push = enemy->vx > 0 ? -1 : 1;
+        for (uint8_t i = 0; i < PICO_TILE_SIZE * 2u && box_overlaps_solid(box); i++) {
+            enemy->x = (int16_t)(enemy->x + push);
+            box = bush_hitbox_at(enemy->x, enemy->y);
+        }
+        enemy->qx = (int32_t)enemy->x * PHYSICS_Q_ONE;
+        enemy->way = -enemy->way;
+    }
+
+    enemy->vy = (int16_t)(enemy->vy + BUSH_GRAVITY_Q);
+    if (enemy->vy > BUSH_MAX_FALL_Q) { enemy->vy = BUSH_MAX_FALL_Q; }
+    enemy->qy += enemy->vy;
+    enemy->y = q_to_pixel(enemy->qy);
+    box = bush_hitbox_at(enemy->x, enemy->y);
+    if (box_overlaps_solid(box)) {
+        const int16_t push = enemy->vy > 0 ? -1 : 1;
+        for (uint8_t i = 0; i < PICO_TILE_SIZE * 2u && box_overlaps_solid(box); i++) {
+            enemy->y = (int16_t)(enemy->y + push);
+            box = bush_hitbox_at(enemy->x, enemy->y);
+        }
+        enemy->qy = (int32_t)enemy->y * PHYSICS_Q_ONE;
+        enemy->vy = 0;
+    }
+
+    const Low_Knight_Rect after_rect = enemy_rect_for(enemy);
+    if (before_rect.x1 != after_rect.x1 || before_rect.y1 != after_rect.y1 ||
+        before_rect.x2 != after_rect.x2 || before_rect.y2 != after_rect.y2) {
+        mark_dirty_rect(before_rect);
+        mark_dirty_rect(after_rect);
+    }
+}
+
+static void update_enemies(void) {
+    for (uint8_t i = 0; i < g_enemy_count; i++) {
+        Low_Knight_Enemy* enemy = &g_enemies[i];
+        if (!enemy->active) { continue; }
+        if (enemy->type == ENEMY_BUSH_TILE) { update_bush(enemy); }
+    }
+}
+
 static uint8_t try_room_transition(void) {
     const Low_Knight_Room old_room = g_room;
     const int16_t world_x = (int16_t)(g_room.base_x * PICO_TILE_SIZE + g_player.x);
@@ -618,9 +811,12 @@ static uint8_t try_room_transition(void) {
     g_player.y = clamp_i16(local_y, 0, max_y);
     g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
     g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
+    g_player_vx = 0;
+    g_player_vy = 0;
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
+    g_input_locked = 1;
     update_camera(1);
     return 1;
 }
@@ -641,6 +837,7 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
+    g_input_locked = 0;
     g_last_drawn_player = g_player;
     if (!load_room(LOW_KNIGHT_START_ROOM)) { return 0; }
     update_camera(1);
@@ -653,23 +850,29 @@ void Low_Knight_Runtime_Draw(St7789* lcd) {
     Game_Graphics_Fill_Rect(lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
     render_region(lcd, screen_rect());
     g_last_drawn_player = g_player;
+    g_pending_dirty_count = 0;
 }
 
 void Low_Knight_Runtime_Draw_Dirty(St7789* lcd) {
     if (lcd == NULL || g_resources == NULL) { return; }
 
-    Low_Knight_Rect dirty = rect_union(player_rect_for(g_last_drawn_player, 2), player_rect_for(g_player, 2));
-    dirty = rect_intersect(dirty, screen_rect());
-    dirty = rect_intersect(dirty, (Low_Knight_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
-    if (rect_is_empty(dirty)) { return; }
+    if (g_pending_dirty_count == 0) {
+        mark_dirty_rect(rect_union(player_rect_for(g_last_drawn_player, 2), player_rect_for(g_player, 2)));
+    }
 
-    render_region(lcd, dirty);
+    for (uint8_t i = 0; i < g_pending_dirty_count; i++) {
+        Low_Knight_Rect dirty = rect_intersect(g_pending_dirty[i], screen_rect());
+        dirty = rect_intersect(dirty, (Low_Knight_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
+        if (!rect_is_empty(dirty)) { render_region(lcd, dirty); }
+    }
     g_last_drawn_player = g_player;
+    g_pending_dirty_count = 0;
 }
 
 Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     if (input == NULL || g_resources == NULL) { return low_knight_step_none; }
 
+    g_pending_dirty_count = 0;
     const Low_Knight_Vec2i before = g_player;
     const uint8_t before_facing_left = g_player_facing_left;
     const uint8_t before_moving = g_player_vx != 0;
@@ -678,6 +881,15 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     int8_t move_x = input->move_x;
     if (move_x < -1) { move_x = -1; }
     if (move_x > 1) { move_x = 1; }
+    uint8_t jump_pressed = input->jump_pressed;
+    uint8_t jump_released = input->jump_released;
+
+    if (g_input_locked) {
+        if (move_x == 0 && !input->jump_down) { g_input_locked = 0; }
+        move_x = 0;
+        jump_pressed = 0;
+        jump_released = 0;
+    }
 
     g_player_vx = (int16_t)move_x * PLAYER_MOVE_SPEED_Q;
     if (move_x < 0) { g_player_facing_left = 1; }
@@ -688,7 +900,7 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     } else if (g_coyote_frames > 0) {
         g_coyote_frames--;
     }
-    if (input->jump_pressed) {
+    if (jump_pressed) {
         g_jump_buffer_frames = PLAYER_JUMP_BUFFER_FRAMES;
     } else if (g_jump_buffer_frames > 0) {
         g_jump_buffer_frames--;
@@ -700,7 +912,7 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
         g_coyote_frames = 0;
         g_jump_buffer_frames = 0;
     }
-    if (input->jump_released && g_player_vy < PLAYER_JUMP_CUT_Q) { g_player_vy = PLAYER_JUMP_CUT_Q; }
+    if (jump_released && g_player_vy < PLAYER_JUMP_CUT_Q) { g_player_vy = PLAYER_JUMP_CUT_Q; }
 
     g_player_vy = (int16_t)(g_player_vy + PLAYER_GRAVITY_Q);
     if (g_player_vy > PLAYER_MAX_FALL_Q) { g_player_vy = PLAYER_MAX_FALL_Q; }
@@ -708,15 +920,17 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     resolve_player_horizontal();
     resolve_player_vertical();
     if (try_room_transition()) { return low_knight_step_full; }
+    update_enemies();
     if (update_camera(0) || before_camera_x != g_camera_x || before_camera_y != g_camera_y) {
         return low_knight_step_full;
     }
 
     if (before.x != g_player.x || before.y != g_player.y || before_facing_left != g_player_facing_left ||
         before_moving != (g_player_vx != 0)) {
-        return low_knight_step_dirty;
+        mark_dirty_rect(player_rect_for(before, 2));
+        mark_dirty_rect(player_rect_for(g_player, 2));
     }
-    return low_knight_step_none;
+    return g_pending_dirty_count > 0 ? low_knight_step_dirty : low_knight_step_none;
 }
 
 uint8_t Low_Knight_Runtime_Move_Player(int8_t dx, int8_t dy) {
