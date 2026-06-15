@@ -4,7 +4,7 @@
 
 #include "devices/msp/peripherals/hw_uart.h"
 
-#define BSP_UART_CONTINUOUS_RX_BUF_SIZE 16
+#define BSP_UART_CONTINUOUS_RX_BUF_SIZE 64
 
 typedef void (*Bsp_uart_tx_dma_done_cb_t)(void* arg);
 typedef void (*Bsp_uart_tx_done_cb_t)(void* arg);

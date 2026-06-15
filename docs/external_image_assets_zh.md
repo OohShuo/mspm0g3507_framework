@@ -152,7 +152,7 @@ UART 文件管理器和游戏主程序采用两套固件配置，以便给游戏
 #define GAME_CONSOLE_ENABLE 0
 ```
 
-同时确认波特率为 115200、选择的是连接 MCU UART 的端口，并在烧录后复位
+同时确认波特率为 921600、选择的是连接 MCU UART 的端口，并在烧录后复位
 一次开发板。COM 口能被电脑识别，不代表当前 MCU 固件正在运行文件管理协议。
 
 ### 提示 `filesystem corruption`

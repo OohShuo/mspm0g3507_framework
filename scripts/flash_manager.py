@@ -32,6 +32,14 @@ IMAGE_MAGIC = b"R565"
 IMAGE_VERSION = 1
 IMAGE_FLAG_MASK = 0x01
 IMAGE_HEADER_SIZE = 16
+VIDEO_MAGIC = b"V565"
+VIDEO_VERSION = 1
+VIDEO_HEADER_SIZE = 24
+VIDEO_FLAGS_NONE = 0
+VIDEO_FLAG_RLE = 0x01
+VIDEO_FLAG_INDEX8 = 0x02
+VIDEO_FLAG_INDEX1 = 0x04
+VIDEO_FRAME_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
 
 
 def get_serial_ports() -> List[Tuple[str, str, str]]:
@@ -139,6 +147,320 @@ def pack_image_asset(
         output.write(header)
         output.write(pixel_data)
         output.write(mask_data)
+
+
+def _fit_rgba_image(image, width: int, height: int, fit: str):
+    from PIL import Image, ImageOps
+
+    target_size = (width, height)
+    if fit == "cover":
+        return ImageOps.fit(image, target_size, method=Image.Resampling.LANCZOS)
+    if fit == "contain":
+        contained = ImageOps.contain(image, target_size, method=Image.Resampling.LANCZOS)
+        output = Image.new("RGBA", target_size, (0, 0, 0, 255))
+        output.alpha_composite(
+            contained, ((width - contained.width) // 2, (height - contained.height) // 2)
+        )
+        return output
+    if fit == "stretch":
+        return image.resize(target_size, Image.Resampling.LANCZOS)
+    raise ValueError(f"Unknown fit mode: {fit}")
+
+
+def _rgba_to_rgb565_bytes(image) -> bytes:
+    width, height = image.size
+    pixel_data = bytearray(width * height * 2)
+    pixels = image.load()
+    output_index = 0
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            red = (red * alpha) // 255
+            green = (green * alpha) // 255
+            blue = (blue * alpha) // 255
+            rgb565 = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3)
+            pixel_data[output_index] = rgb565 & 0xFF
+            pixel_data[output_index + 1] = rgb565 >> 8
+            output_index += 2
+    return bytes(pixel_data)
+
+
+def _rgba_to_rgb_image(image):
+    from PIL import Image
+
+    output = Image.new("RGBA", image.size, (0, 0, 0, 255))
+    output.alpha_composite(image.convert("RGBA"))
+    return output.convert("RGB")
+
+
+def _palette_rgb565_bytes(palette_image) -> bytes:
+    palette = (palette_image.getpalette() or [])[: 256 * 3]
+    palette += [0] * (256 * 3 - len(palette))
+    output = bytearray(512)
+    for i in range(256):
+        red, green, blue = palette[i * 3 : i * 3 + 3]
+        rgb565 = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3)
+        output[i * 2] = rgb565 & 0xFF
+        output[i * 2 + 1] = rgb565 >> 8
+    return bytes(output)
+
+
+def _mono1_palette_rgb565_bytes() -> bytes:
+    return struct.pack("<HH", 0x0000, 0xFFFF)
+
+
+def _rgba_to_mono1_bytes(image, threshold: int = 128) -> bytes:
+    rgb_image = _rgba_to_rgb_image(image)
+    width, height = rgb_image.size
+    pixels = rgb_image.load()
+    stride = (width + 7) // 8
+    output = bytearray(stride * height)
+    for y in range(height):
+        for x in range(width):
+            red, green, blue = pixels[x, y]
+            luma = (red * 30 + green * 59 + blue * 11) // 100
+            if luma >= threshold:
+                output[y * stride + x // 8] |= 1 << (7 - (x & 7))
+    return bytes(output)
+
+
+def _encode_rle_row(row_data: bytes, unit_size: int = 2) -> bytes:
+    pixel_count = len(row_data) // unit_size
+    output = bytearray()
+    pixel = 0
+
+    while pixel < pixel_count:
+        run_count = 1
+        while (
+            pixel + run_count < pixel_count
+            and run_count < 128
+            and row_data[(pixel + run_count) * unit_size : (pixel + run_count + 1) * unit_size]
+            == row_data[pixel * unit_size : (pixel + 1) * unit_size]
+        ):
+            run_count += 1
+
+        if run_count >= 3:
+            output.append(0x80 | (run_count - 1))
+            output.extend(row_data[pixel * unit_size : (pixel + 1) * unit_size])
+            pixel += run_count
+            continue
+
+        literal_start = pixel
+        pixel += run_count
+        while pixel < pixel_count and pixel - literal_start < 128:
+            lookahead_run = 1
+            while (
+                pixel + lookahead_run < pixel_count
+                and lookahead_run < 128
+                and row_data[
+                    (pixel + lookahead_run) * unit_size :
+                    (pixel + lookahead_run + 1) * unit_size
+                ]
+                == row_data[pixel * unit_size : (pixel + 1) * unit_size]
+            ):
+                lookahead_run += 1
+            if lookahead_run >= 3:
+                break
+            pixel += lookahead_run
+
+        literal_count = pixel - literal_start
+        output.append(literal_count - 1)
+        output.extend(row_data[literal_start * unit_size : pixel * unit_size])
+
+    return bytes(output)
+
+
+def _encode_rle_frame(pixel_data: bytes, width: int, height: int, unit_size: int = 2) -> bytes:
+    row_size = width * unit_size
+    output = bytearray()
+    for y in range(height):
+        encoded = _encode_rle_row(pixel_data[y * row_size : (y + 1) * row_size], unit_size)
+        if len(encoded) > 0xFFFF:
+            raise ValueError("Compressed row is too large for V565 RLE")
+        output.extend(struct.pack("<H", len(encoded)))
+        output.extend(encoded)
+    return bytes(output)
+
+
+def _iter_video_frames(source_path: str):
+    try:
+        from PIL import Image, ImageOps, ImageSequence
+    except ImportError as exc:
+        raise RuntimeError("Pillow is required: pip install pillow") from exc
+
+    if os.path.isdir(source_path):
+        names = sorted(
+            name for name in os.listdir(source_path)
+            if name.lower().endswith(VIDEO_FRAME_EXTS)
+        )
+        for name in names:
+            path = os.path.join(source_path, name)
+            with Image.open(path) as image:
+                yield ImageOps.exif_transpose(image).convert("RGBA")
+        return
+
+    try:
+        with Image.open(source_path) as image:
+            if getattr(image, "is_animated", False):
+                for frame in ImageSequence.Iterator(image):
+                    yield frame.convert("RGBA")
+            else:
+                yield ImageOps.exif_transpose(image).convert("RGBA")
+        return
+    except Exception:
+        pass
+
+    try:
+        import imageio.v3 as iio
+        from PIL import Image
+    except ImportError as exc:
+        raise RuntimeError(
+            "Video files need imageio and imageio-ffmpeg: "
+            "pip install imageio imageio-ffmpeg"
+        ) from exc
+
+    for frame in iio.imiter(source_path):
+        yield Image.fromarray(frame).convert("RGBA")
+
+
+def pack_video_asset(
+    source_path: str,
+    output_path: str,
+    width: int,
+    height: int,
+    fps: int,
+    fit: str = "cover",
+    max_frames: Optional[int] = None,
+    compression: str = "mono1-rle",
+    start_frame: int = 0,
+    end_frame: Optional[int] = None,
+) -> int:
+    """Convert a video, animated image, or frame directory into V565 frames."""
+    if width <= 0 or height <= 0 or width > 0xFFFF or height > 0xFFFF:
+        raise ValueError("Video dimensions must be in the range 1..65535")
+    if fps <= 0 or fps > 0xFFFF:
+        raise ValueError("FPS must be in the range 1..65535")
+    if max_frames is not None and max_frames <= 0:
+        raise ValueError("--max-frames must be positive")
+    if start_frame < 0:
+        raise ValueError("--start-frame must be >= 0")
+    if end_frame is not None and end_frame < start_frame:
+        raise ValueError("--end-frame must be >= --start-frame")
+    if compression not in ("none", "rle", "index8", "index8-rle", "mono1", "mono1-rle"):
+        raise ValueError(
+            "compression must be one of: none, rle, index8, index8-rle, mono1, mono1-rle"
+        )
+
+    frame_size = width * height * 2
+    frame_count = 0
+    frame_offsets: List[int] = []
+    uses_index8 = compression in ("index8", "index8-rle")
+    uses_index1 = compression in ("mono1", "mono1-rle")
+    uses_rle = compression in ("rle", "index8-rle", "mono1-rle")
+    palette_bytes = b""
+    with tempfile.NamedTemporaryFile(suffix=".v565data", delete=False) as temp:
+        temp_path = temp.name
+
+    try:
+        data_size = 0
+        frames = []
+        for source_frame_index, frame in enumerate(_iter_video_frames(source_path)):
+            if source_frame_index < start_frame:
+                continue
+            if end_frame is not None and source_frame_index > end_frame:
+                break
+            if max_frames is not None and len(frames) >= max_frames:
+                break
+            frames.append(_fit_rgba_image(frame.convert("RGBA"), width, height, fit))
+
+        frame_count = len(frames)
+        if frame_count == 0:
+            raise ValueError("No frames were found in the video source")
+
+        if uses_index8:
+            from PIL import Image
+
+            palette_source = Image.new("RGB", (width, height * frame_count))
+            for i, frame in enumerate(frames):
+                palette_source.paste(_rgba_to_rgb_image(frame), (0, i * height))
+            palette_image = palette_source.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
+            palette_bytes = _palette_rgb565_bytes(palette_image)
+        elif uses_index1:
+            palette_bytes = _mono1_palette_rgb565_bytes()
+
+        with open(temp_path, "wb") as data_output:
+            for frame in frames:
+                if uses_index8:
+                    encoded_input = _rgba_to_rgb_image(frame).quantize(
+                        palette=palette_image,
+                        dither=Image.Dither.NONE,
+                    ).tobytes()
+                    unit_size = 1
+                elif uses_index1:
+                    encoded_input = _rgba_to_mono1_bytes(frame)
+                    unit_size = 1
+                    encode_width = (width + 7) // 8
+                else:
+                    encoded_input = _rgba_to_rgb565_bytes(frame)
+                    unit_size = 2
+                    encode_width = width
+                if not uses_index1:
+                    encode_width = width
+
+                if uses_rle:
+                    frame_offsets.append(data_size)
+                    encoded_frame = _encode_rle_frame(encoded_input, encode_width, height, unit_size)
+                    data_output.write(encoded_frame)
+                    data_size += len(encoded_frame)
+                else:
+                    data_output.write(encoded_input)
+                    data_size += len(encoded_input)
+
+        if data_size > 0xFFFFFFFF:
+            raise ValueError("Packed video is too large for the V565 header")
+
+        flags = VIDEO_FLAGS_NONE
+        if uses_rle:
+            flags |= VIDEO_FLAG_RLE
+        if uses_index8:
+            flags |= VIDEO_FLAG_INDEX8
+        if uses_index1:
+            flags |= VIDEO_FLAG_INDEX1
+
+        header = struct.pack(
+            "<4sBBHHHIII",
+            VIDEO_MAGIC,
+            VIDEO_VERSION,
+            flags,
+            width,
+            height,
+            fps,
+            frame_count,
+            frame_size,
+            data_size,
+        )
+        if len(header) != VIDEO_HEADER_SIZE:
+            raise AssertionError("Unexpected video header size")
+
+        with open(output_path, "wb") as output, open(temp_path, "rb") as data_input:
+            output.write(header)
+            if uses_index8 or uses_index1:
+                output.write(palette_bytes)
+            if uses_rle:
+                for frame_offset in frame_offsets:
+                    output.write(struct.pack("<I", frame_offset))
+            while True:
+                chunk = data_input.read(64 * 1024)
+                if not chunk:
+                    break
+                output.write(chunk)
+    finally:
+        try:
+            os.remove(temp_path)
+        except FileNotFoundError:
+            pass
+
+    return frame_count
 
 
 # ── Protocol constants (must match flash_mgr.h) ──────────────────────
@@ -275,7 +597,7 @@ class FlashManager:
     port : str
         Serial device path, e.g. ``/dev/ttyUSB0`` or ``COM3``.
     baudrate : int
-        Baud rate (default 115200).
+        Baud rate (default 921600).
     timeout : float
         Per-byte read timeout in seconds (default 0.5).
     max_retries : int
@@ -288,7 +610,7 @@ class FlashManager:
     def __init__(
         self,
         port: str,
-        baudrate: int = 115200,
+        baudrate: int = 921600,
         timeout: float = 5.0,
         max_retries: int = 3,
     ):
@@ -355,6 +677,24 @@ class FlashManager:
         if max_chunk <= 0:
             raise ValueError(f"Remote path too long for any data: {len(path_bytes)}")
 
+        # Replace semantics: free old file blocks before streaming a new file.
+        # LittleFS is copy-on-write, so overwriting a large old /demo.v565 without
+        # truncating first can temporarily need old+new space in the 2 MiB partition.
+        prepare_payload = (
+            bytes([len(path_bytes)])
+            + path_bytes
+            + struct.pack("<I", 0)
+        )
+        resp = self._transact(CMD_WRITE, prepare_payload, {RESP_ACK, RESP_NAK})
+        if resp is None:
+            print(f"WRITE prepare timeout for {remote_path}")
+            return False
+        resp_cmd, _, resp_data = resp
+        if resp_cmd == RESP_NAK:
+            err = resp_data[0] if resp_data else ERR_UNKNOWN
+            print(f"WRITE prepare NAK: {_ERROR_NAMES.get(err, err)}")
+            return False
+
         with open(local_path, "rb") as f:
             while offset < file_size:
                 chunk = f.read(max_chunk)
@@ -370,6 +710,10 @@ class FlashManager:
 
                 resp = self._transact(CMD_WRITE, payload, {RESP_ACK, RESP_NAK})
                 if resp is None:
+                    print(
+                        f"WRITE timeout at offset {offset}; "
+                        "device did not acknowledge this chunk"
+                    )
                     return False
 
                 resp_cmd, _, resp_data = resp
@@ -399,6 +743,7 @@ class FlashManager:
             )
             resp = self._transact(CMD_WRITE, trunc_payload, {RESP_ACK, RESP_NAK})
             if resp is None:
+                print(f"WRITE truncate timeout at final size {file_size}")
                 return False
             resp_cmd, _, resp_data = resp
             if resp_cmd == RESP_NAK:
@@ -430,6 +775,44 @@ class FlashManager:
                 fit=fit,
                 with_mask=with_mask,
             )
+            return self.upload_file(temp_path, remote_path, progress_cb=progress_cb)
+        finally:
+            try:
+                os.remove(temp_path)
+            except FileNotFoundError:
+                pass
+
+    def upload_video(
+        self,
+        local_path: str,
+        remote_path: str,
+        width: int,
+        height: int,
+        fps: int,
+        fit: str = "cover",
+        max_frames: Optional[int] = None,
+        compression: str = "mono1-rle",
+        start_frame: int = 0,
+        end_frame: Optional[int] = None,
+        progress_cb: Optional[Callable[[int, int], None]] = None,
+    ) -> bool:
+        """Convert and upload a V565 RGB565 video asset."""
+        with tempfile.NamedTemporaryFile(suffix=".v565", delete=False) as temp:
+            temp_path = temp.name
+        try:
+            frame_count = pack_video_asset(
+                local_path,
+                temp_path,
+                width=width,
+                height=height,
+                fps=fps,
+                fit=fit,
+                max_frames=max_frames,
+                compression=compression,
+                start_frame=start_frame,
+                end_frame=end_frame,
+            )
+            print(f"Packed {frame_count} frames, {os.path.getsize(temp_path)} bytes")
             return self.upload_file(temp_path, remote_path, progress_cb=progress_cb)
         finally:
             try:
@@ -770,10 +1153,45 @@ def _main() -> int:
     import argparse
     import sys
 
+    if len(sys.argv) > 1 and sys.argv[1] == "pack-video":
+        pack_parser = argparse.ArgumentParser(description="Convert video/GIF/frames to a V565 file")
+        pack_parser.add_argument("local", help="Local video/GIF path or frame directory")
+        pack_parser.add_argument("output", help="Output .v565 file")
+        pack_parser.add_argument("--width", type=int, required=True)
+        pack_parser.add_argument("--height", type=int, required=True)
+        pack_parser.add_argument("--fps", type=int, default=8)
+        pack_parser.add_argument(
+            "--fit", choices=("cover", "contain", "stretch"), default="cover"
+        )
+        pack_parser.add_argument("--max-frames", type=int, default=None)
+        pack_parser.add_argument("--start-frame", type=int, default=0)
+        pack_parser.add_argument("--end-frame", type=int, default=None)
+        pack_parser.add_argument(
+            "--compression",
+            choices=("mono1-rle", "mono1", "index8-rle", "index8", "rle", "none"),
+            default="mono1-rle",
+        )
+        pack_args = pack_parser.parse_args(sys.argv[2:])
+        frame_count = pack_video_asset(
+            pack_args.local,
+            pack_args.output,
+            width=pack_args.width,
+            height=pack_args.height,
+            fps=pack_args.fps,
+            fit=pack_args.fit,
+            max_frames=pack_args.max_frames,
+            compression=pack_args.compression,
+            start_frame=pack_args.start_frame,
+            end_frame=pack_args.end_frame,
+        )
+        size = os.path.getsize(pack_args.output)
+        print(f"Packed {frame_count} frames, {size} bytes -> {pack_args.output}")
+        return 0
+
     parser = argparse.ArgumentParser(
         description="通过 UART 管理外部 Flash 文件")
     parser.add_argument("port", nargs="?", help="串口，例如 COM3 或 /dev/ttyUSB0")
-    parser.add_argument("--baud", type=int, default=115200, help="串口波特率")
+    parser.add_argument("--baud", type=int, default=921600, help="串口波特率")
     parser.add_argument(
         "--list-ports",
         action="store_true",
@@ -797,6 +1215,42 @@ def _main() -> int:
         "--fit", choices=("cover", "contain", "stretch"), default="cover"
     )
     p_image.add_argument("--mask", action="store_true", help="Store a 1-bit alpha mask")
+
+    p_video = sub.add_parser("upload-video", help="Convert and upload a RGB565 video asset")
+    p_video.add_argument("local", help="Local video/GIF path or frame directory")
+    p_video.add_argument("remote", help="Remote path (e.g. /demo.v565)")
+    p_video.add_argument("--width", type=int, required=True)
+    p_video.add_argument("--height", type=int, required=True)
+    p_video.add_argument("--fps", type=int, default=8)
+    p_video.add_argument(
+        "--fit", choices=("cover", "contain", "stretch"), default="cover"
+    )
+    p_video.add_argument("--max-frames", type=int, default=None)
+    p_video.add_argument("--start-frame", type=int, default=0)
+    p_video.add_argument("--end-frame", type=int, default=None)
+    p_video.add_argument(
+        "--compression",
+        choices=("mono1-rle", "mono1", "index8-rle", "index8", "rle", "none"),
+        default="mono1-rle",
+    )
+
+    p_pack_video = sub.add_parser("pack-video", help="Convert video/GIF/frames to a V565 file")
+    p_pack_video.add_argument("local", help="Local video/GIF path or frame directory")
+    p_pack_video.add_argument("output", help="Output .v565 file")
+    p_pack_video.add_argument("--width", type=int, required=True)
+    p_pack_video.add_argument("--height", type=int, required=True)
+    p_pack_video.add_argument("--fps", type=int, default=8)
+    p_pack_video.add_argument(
+        "--fit", choices=("cover", "contain", "stretch"), default="cover"
+    )
+    p_pack_video.add_argument("--max-frames", type=int, default=None)
+    p_pack_video.add_argument("--start-frame", type=int, default=0)
+    p_pack_video.add_argument("--end-frame", type=int, default=None)
+    p_pack_video.add_argument(
+        "--compression",
+        choices=("mono1-rle", "mono1", "index8-rle", "index8", "rle", "none"),
+        default="mono1-rle",
+    )
 
     p_dl = sub.add_parser("download", help="Download a file")
     p_dl.add_argument("remote", help="Remote path")
@@ -823,6 +1277,23 @@ def _main() -> int:
         except RuntimeError as exc:
             print(f"错误：{exc}", file=sys.stderr)
             return 2
+        return 0
+
+    if args.action == "pack-video":
+        frame_count = pack_video_asset(
+            args.local,
+            args.output,
+            width=args.width,
+            height=args.height,
+            fps=args.fps,
+            fit=args.fit,
+            max_frames=args.max_frames,
+            compression=args.compression,
+            start_frame=args.start_frame,
+            end_frame=args.end_frame,
+        )
+        size = os.path.getsize(args.output)
+        print(f"Packed {frame_count} frames, {size} bytes -> {args.output}")
         return 0
 
     if not args.port or not args.action:
@@ -903,6 +1374,27 @@ def _main() -> int:
             print()
             print("OK" if ok else "FAILED")
 
+        elif args.action == "upload-video":
+            print(
+                f"Converting {args.local} to {args.width}x{args.height} "
+                f"V565 at {args.fps} fps and uploading to {args.remote}"
+            )
+            ok = fm.upload_video(
+                args.local,
+                args.remote,
+                width=args.width,
+                height=args.height,
+                fps=args.fps,
+                fit=args.fit,
+                max_frames=args.max_frames,
+                compression=args.compression,
+                start_frame=args.start_frame,
+                end_frame=args.end_frame,
+                progress_cb=_progress,
+            )
+            print()
+            print("OK" if ok else "FAILED")
+
         elif args.action == "download":
             print(f"Downloading {args.remote} → {args.local}")
             ok = fm.download_file(args.remote, args.local,
@@ -943,7 +1435,7 @@ def _main() -> int:
                 "  1. 已烧录 FLASH_MGR_ENABLE=1 的最新固件并复位；\n"
                 "  2. 调试器 UART TX 接 PA11（MCU RX）；\n"
                 "  3. 调试器 UART RX 接 PA10（MCU TX）；\n"
-                "  4. 调试器与 MCU 共地，串口为 115200 8N1；\n"
+                "  4. 调试器与 MCU 共地，串口为 921600 8N1；\n"
                 "  5. 当前选择的是调试器虚拟串口。",
                 file=sys.stderr,
             )
