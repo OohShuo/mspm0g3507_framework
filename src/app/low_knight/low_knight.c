@@ -159,21 +159,27 @@ static void low_knight_task(void* arg) {
     uint32_t tick = xTaskGetTickCount();
     uint8_t last_jump_down = 0;
     uint8_t last_strike_down = 0;
+    uint8_t last_up_down = 0;
 
     while (1) {
         if (ready) {
             const uint8_t jump_down = read_jump_down();
             const uint8_t strike_down = read_strike_down();
+            const uint8_t up_down = g_joystick->y_value > JOYSTICK_MOVE_THRESHOLD;
             Low_Knight_Input input = {
                 .move_x = 0,
+                .move_y = 0,
                 .jump_down = jump_down,
                 .jump_pressed = jump_down && !last_jump_down,
                 .jump_released = !jump_down && last_jump_down,
                 .strike_down = strike_down,
                 .strike_pressed = strike_down && !last_strike_down,
+                .up_pressed = up_down && !last_up_down,
             };
             if (g_joystick->x_value < -JOYSTICK_MOVE_THRESHOLD) { input.move_x = -1; }
             if (g_joystick->x_value > JOYSTICK_MOVE_THRESHOLD) { input.move_x = 1; }
+            if (g_joystick->y_value < -JOYSTICK_MOVE_THRESHOLD) { input.move_y = -1; }
+            if (g_joystick->y_value > JOYSTICK_MOVE_THRESHOLD) { input.move_y = 1; }
 
             const Low_Knight_Step_Result step_result = Low_Knight_Runtime_Step(&input);
             if (step_result == low_knight_step_transition) {
@@ -187,6 +193,7 @@ static void low_knight_task(void* arg) {
             }
             last_jump_down = jump_down;
             last_strike_down = strike_down;
+            last_up_down = up_down;
         } else if (Storage_Is_Available()) {
             ready = Low_Knight_Resources_Open(&g_resources, LOW_KNIGHT_RESOURCE_PATH) &&
                     Low_Knight_Runtime_Init(&g_resources);
@@ -194,6 +201,7 @@ static void low_knight_task(void* arg) {
                 Low_Knight_Runtime_Draw(g_lcd);
                 last_jump_down = 0;
                 last_strike_down = 0;
+                last_up_down = 0;
             } else {
                 draw_boot_screen(0);
             }

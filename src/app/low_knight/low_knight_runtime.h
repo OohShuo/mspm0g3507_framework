@@ -12,11 +12,13 @@ typedef struct {
 
 typedef struct {
     int8_t move_x;
+    int8_t move_y;
     uint8_t jump_down;
     uint8_t jump_pressed;
     uint8_t jump_released;
     uint8_t strike_down;
     uint8_t strike_pressed;
+    uint8_t up_pressed;
 } Low_Knight_Input;
 
 typedef enum {

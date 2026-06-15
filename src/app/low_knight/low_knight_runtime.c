@@ -22,7 +22,7 @@
 #define LOW_KNIGHT_BG_TILE_W   19u
 #define LOW_KNIGHT_BG_TILE_H   20u
 #define TILE_ROW_CACHE_SIZE    64u
-#define ENEMY_TILE_CACHE_COUNT 44u
+#define ENEMY_TILE_CACHE_COUNT 46u
 
 #define PHYSICS_Q_SHIFT        8
 #define PHYSICS_Q_ONE          (1 << PHYSICS_Q_SHIFT)
@@ -74,6 +74,16 @@
 #define PLAYER_DEATH_FRAMES    45u
 #define PLAYER_HURT_KNOCKBACK_Q 768
 #define PLAYER_HURT_LIFT_Q     (-640)
+#define PLAYER_SOUL_MAX         12u
+#define PLAYER_HEAL_SOUL_COST   4u
+#define PLAYER_HEAL_FRAMES      40u
+#define PLAYER_FOCUS_INPUT_GRACE_FRAMES 3u
+#define PLAYER_DOWN_STRIKE_BOUNCE_Q (-720)
+#define BENCH_TILE              33u
+
+#define STRIKE_HORIZONTAL       0u
+#define STRIKE_UP               1u
+#define STRIKE_DOWN             2u
 
 #define COLOR_BLACK            0x0000u
 #define COLOR_RESOURCE_ERROR   0xf800u
@@ -187,11 +197,11 @@ static const uint16_t g_pico_palette[16] = {
 };
 
 static const uint8_t g_enemy_tile_cache_ids[ENEMY_TILE_CACHE_COUNT] = {
-    59, 60, 68, 69, 70, 71, 91, 92, 172, 173,
-    174, 175, 187, 188, 189, 190, 191, 192, 193, 194,
-    195, 203, 204, 205, 206, 207, 208, 209, 210, 211,
-    212, 224, 225, 226, 227, 230, 231, 240, 241, 242,
-    243, 246, 247, 248,
+    45, 59, 60, 61, 68, 69, 70, 71, 91, 92,
+    172, 173, 174, 175, 187, 188, 189, 190, 191, 192,
+    193, 194, 195, 203, 204, 205, 206, 207, 208, 209,
+    210, 211, 212, 224, 225, 226, 227, 230, 231, 240,
+    241, 242, 243, 246, 247, 248,
 };
 
 static Low_Knight_Resources* g_resources = NULL;
@@ -216,8 +226,12 @@ static uint8_t g_player_hp;
 static uint8_t g_player_invulnerable;
 static uint8_t g_player_hurt_lock;
 static uint8_t g_player_death_timer;
+static uint8_t g_player_soul;
+static uint8_t g_player_focus_timer;
+static uint8_t g_player_focus_input_grace;
 static uint8_t g_respawn_room_index;
 static Low_Knight_Vec2i g_respawn_player;
+static uint8_t g_has_bench_respawn;
 static int16_t g_camera_x;
 static int16_t g_camera_y;
 static Low_Knight_Enemy g_enemies[LOW_KNIGHT_MAX_ENEMIES];
@@ -237,6 +251,7 @@ static uint16_t g_strike_hit_mask;
 static int16_t g_strike_x;
 static int16_t g_strike_y;
 static uint8_t g_strike_facing_left;
+static uint8_t g_strike_direction;
 static uint16_t g_effect_rng;
 static uint16_t g_runtime_frame;
 
@@ -361,6 +376,13 @@ static uint8_t box_overlaps_solid(Low_Knight_Box box) {
         }
     }
     return 0;
+}
+
+static uint8_t player_is_supported(void) {
+    Low_Knight_Box box = player_hitbox_at(g_player.x, g_player.y);
+    box.top++;
+    box.bottom++;
+    return box_overlaps_solid(box);
 }
 
 static uint8_t read_map_cell(uint8_t x, uint8_t y, uint8_t* out) {
@@ -756,13 +778,14 @@ static void queue_dynamic_dirty(void) {
     }
 }
 
-static void compose_sprite_rect_line(uint16_t* line, int16_t region_x, int16_t region_width,
+static void compose_sprite_rect_line_ex(uint16_t* line, int16_t region_x, int16_t region_width,
     int16_t screen_y, uint8_t tile, uint8_t width_tiles, uint8_t height_tiles, int16_t sprite_x,
-    int16_t sprite_y, uint8_t scale, uint8_t hflip) {
+    int16_t sprite_y, uint8_t scale, uint8_t hflip, uint8_t vflip) {
     const int16_t local_y = (int16_t)(screen_y - sprite_y);
     if (local_y < 0 || local_y >= (int16_t)(height_tiles * PICO_TILE_SIZE * scale)) { return; }
 
-    const uint8_t source_y = (uint8_t)(local_y / scale);
+    uint8_t source_y = (uint8_t)(local_y / scale);
+    if (vflip) { source_y = (uint8_t)(height_tiles * PICO_TILE_SIZE - 1u - source_y); }
     const uint8_t tile_y = (uint8_t)(source_y / PICO_TILE_SIZE);
     const uint8_t tile_row = (uint8_t)(source_y & 7u);
     const int16_t sprite_width = (int16_t)(width_tiles * PICO_TILE_SIZE * scale);
@@ -790,6 +813,13 @@ static void compose_sprite_rect_line(uint16_t* line, int16_t region_x, int16_t r
         const uint8_t color = sample_packed_pixel(row_data, (uint8_t)(source_x & 7u));
         if (!is_transparent_color(color)) { line[screen_x - region_x] = g_pico_palette[color]; }
     }
+}
+
+static void compose_sprite_rect_line(uint16_t* line, int16_t region_x, int16_t region_width,
+    int16_t screen_y, uint8_t tile, uint8_t width_tiles, uint8_t height_tiles, int16_t sprite_x,
+    int16_t sprite_y, uint8_t scale, uint8_t hflip) {
+    compose_sprite_rect_line_ex(line, region_x, region_width, screen_y, tile, width_tiles,
+        height_tiles, sprite_x, sprite_y, scale, hflip, 0);
 }
 
 static void compose_enemies_line(uint16_t* line, int16_t region_x, int16_t region_width, int16_t screen_y) {
@@ -1003,11 +1033,21 @@ static void compose_strike_line(uint16_t* line, int16_t region_x, int16_t region
 
     const Low_Knight_Rect view = screen_rect();
     const uint8_t scale = 2;
-    const int16_t x = (int16_t)(view.x1 +
-        (g_strike_x - g_camera_x + (g_strike_facing_left ? -12 : 12)) * scale);
-    const int16_t y = (int16_t)(view.y1 + (g_strike_y - g_camera_y - 4) * scale);
-    compose_sprite_rect_line(line, region_x, region_width, screen_y, 59, 2, 1,
-        (int16_t)(x - 8 * scale), (int16_t)(y - 4 * scale), scale, g_strike_facing_left);
+    const int16_t player_x = (int16_t)(view.x1 + (g_strike_x - g_camera_x) * scale);
+    const int16_t player_y = (int16_t)(view.y1 + (g_strike_y - g_camera_y) * scale);
+    if (g_strike_direction == STRIKE_HORIZONTAL) {
+        const int16_t x =
+            (int16_t)(player_x + (g_strike_facing_left ? -12 : 12) * scale);
+        const int16_t y = (int16_t)(player_y - 4 * scale);
+        compose_sprite_rect_line(line, region_x, region_width, screen_y, 59, 2, 1,
+            (int16_t)(x - 8 * scale), (int16_t)(y - 4 * scale), scale, g_strike_facing_left);
+    } else {
+        const uint8_t down = g_strike_direction == STRIKE_DOWN;
+        const int16_t y = down ? (int16_t)(player_y + 2 * scale)
+                               : (int16_t)(player_y - 26 * scale);
+        compose_sprite_rect_line_ex(line, region_x, region_width, screen_y, 45, 1, 2,
+            (int16_t)(player_x - 4 * scale), y, scale, g_strike_facing_left, down);
+    }
 }
 
 static void compose_blood_line(uint16_t* line, int16_t region_x, int16_t region_width, int16_t screen_y) {
@@ -1048,6 +1088,26 @@ static void compose_hud_line(uint16_t* line, int16_t region_x, int16_t region_wi
         compose_sprite_rect_line(line, region_x, region_width, screen_y,
             i < g_player_hp ? 92u : 91u, 1, 1,
             (int16_t)(view.x1 + 12 + i * 12 * scale), (int16_t)(view.y1 + 3), scale, 0);
+    }
+
+    const int16_t soul_x = (int16_t)(view.x1 + 12);
+    const int16_t soul_y = (int16_t)(view.y1 + 22);
+    if (screen_y >= soul_y && screen_y < soul_y + 6) {
+        const int16_t fill_width = (int16_t)(g_player_soul * 6);
+        const int16_t focus_width =
+            g_player_focus_timer > 0 ? (int16_t)(g_player_focus_timer * 72 / PLAYER_HEAL_FRAMES) : 0;
+        for (int16_t screen_x = soul_x; screen_x < soul_x + 74; screen_x++) {
+            if (screen_x < region_x || screen_x >= region_x + region_width) { continue; }
+            const uint8_t border =
+                screen_y == soul_y || screen_y == soul_y + 5 ||
+                screen_x == soul_x || screen_x == soul_x + 73;
+            uint16_t color = border ? g_pico_palette[7] : g_pico_palette[1];
+            if (!border && screen_x < soul_x + 1 + fill_width) { color = g_pico_palette[12]; }
+            if (!border && focus_width > 0 && screen_x < soul_x + 1 + focus_width) {
+                color = g_pico_palette[7];
+            }
+            line[screen_x - region_x] = color;
+        }
     }
 }
 
@@ -1090,9 +1150,31 @@ static Low_Knight_Rect player_rect_for(Low_Knight_Vec2i player, uint8_t scale) {
     };
 }
 
-static Low_Knight_Rect strike_rect_at(int16_t world_x, int16_t world_y, uint8_t facing_left) {
+static Low_Knight_Rect strike_rect_at(
+    int16_t world_x, int16_t world_y, uint8_t facing_left, uint8_t direction) {
     const Low_Knight_Rect view = screen_rect();
     const uint8_t scale = 2;
+    if (direction == STRIKE_UP) {
+        const int16_t x = (int16_t)(view.x1 + (world_x - g_camera_x) * scale);
+        const int16_t y = (int16_t)(view.y1 + (world_y - g_camera_y) * scale);
+        return (Low_Knight_Rect){
+            (int16_t)(x - 5 * scale - 2),
+            (int16_t)(y - 27 * scale - 2),
+            (int16_t)(x + 5 * scale + 2),
+            (int16_t)(y + 1 * scale + 2),
+        };
+    }
+    if (direction == STRIKE_DOWN) {
+        const int16_t x = (int16_t)(view.x1 + (world_x - g_camera_x) * scale);
+        const int16_t y = (int16_t)(view.y1 + (world_y - g_camera_y) * scale);
+        return (Low_Knight_Rect){
+            (int16_t)(x - 5 * scale - 2),
+            (int16_t)(y + 1 * scale - 2),
+            (int16_t)(x + 5 * scale + 2),
+            (int16_t)(y + 27 * scale + 2),
+        };
+    }
+
     const int16_t center_x =
         (int16_t)(view.x1 + (world_x - g_camera_x + (facing_left ? -12 : 12)) * scale);
     const int16_t center_y = (int16_t)(view.y1 + (world_y - g_camera_y - 4) * scale);
@@ -1124,7 +1206,7 @@ static Low_Knight_Rect player_hud_rect(void) {
         (int16_t)(view.x1 + 10),
         (int16_t)(view.y1 + 1),
         (int16_t)(view.x1 + 12 + PLAYER_MAX_HP * 24),
-        (int16_t)(view.y1 + 21),
+        (int16_t)(view.y1 + 30),
     };
 }
 
@@ -1545,6 +1627,22 @@ static uint8_t boxes_overlap(Low_Knight_Box a, Low_Knight_Box b) {
 }
 
 static Low_Knight_Box strike_hitbox(void) {
+    if (g_strike_direction == STRIKE_UP) {
+        return (Low_Knight_Box){
+            (int16_t)(g_strike_x - 7),
+            (int16_t)(g_strike_y - 28),
+            (int16_t)(g_strike_x + 7),
+            (int16_t)(g_strike_y - 3),
+        };
+    }
+    if (g_strike_direction == STRIKE_DOWN) {
+        return (Low_Knight_Box){
+            (int16_t)(g_strike_x - 7),
+            (int16_t)(g_strike_y + 2),
+            (int16_t)(g_strike_x + 7),
+            (int16_t)(g_strike_y + 28),
+        };
+    }
     if (g_strike_facing_left) {
         return (Low_Knight_Box){
             (int16_t)(g_strike_x - 24),
@@ -1657,16 +1755,98 @@ static void spawn_player_blood(uint8_t dying) {
     }
 }
 
+static void spawn_heal_effect(void) {
+    for (uint8_t i = 0; i < 10u; i++) {
+        const uint16_t random = effect_random();
+        const int16_t x = (int16_t)(g_player.x + (int16_t)((random & 0x0fu) - 8));
+        const int16_t vx = (int16_t)(((int16_t)((random >> 4) & 0x1fu) - 16) * 5);
+        const int16_t vy = (int16_t)(-70 - ((random >> 9) & 0x7fu));
+        spawn_blood_particle(x, (int16_t)(g_player.y - 3), vx, vy,
+            (uint8_t)(1u + ((random >> 14) & 1u)), (uint8_t)(12u + (random & 7u)), 7u);
+    }
+}
+
+static uint8_t update_focus(const Low_Knight_Input* input, uint8_t controls_locked) {
+    if (input->move_y < 0) {
+        g_player_focus_input_grace = PLAYER_FOCUS_INPUT_GRACE_FRAMES;
+    } else if (g_player_focus_input_grace > 0) {
+        g_player_focus_input_grace--;
+    }
+
+    const uint8_t can_focus = !controls_locked && g_player_focus_input_grace > 0 &&
+                              (g_player_on_ground || player_is_supported()) &&
+                              g_player_hp < PLAYER_MAX_HP &&
+                              g_player_soul >= PLAYER_HEAL_SOUL_COST;
+    if (!can_focus) {
+        if (g_player_focus_timer > 0) { mark_dirty_rect(player_hud_rect()); }
+        g_player_focus_timer = 0;
+        return 0;
+    }
+
+    g_player_focus_timer++;
+    mark_dirty_rect(player_hud_rect());
+    if ((g_player_focus_timer & 3u) == 0u) {
+        const uint16_t random = effect_random();
+        spawn_blood_particle((int16_t)(g_player.x + (int16_t)((random & 7u) - 4)),
+            g_player.y, 0, -96, 1u, 12u, 7u);
+    }
+    if (g_player_focus_timer >= PLAYER_HEAL_FRAMES) {
+        g_player_focus_timer = 0;
+        g_player_soul = (uint8_t)(g_player_soul - PLAYER_HEAL_SOUL_COST);
+        g_player_hp++;
+        spawn_heal_effect();
+        mark_dirty_rect(player_hud_rect());
+    }
+    return 1;
+}
+
+static uint8_t interact_with_bench(const Low_Knight_Input* input) {
+    if (!input->up_pressed) { return 0; }
+
+    const Low_Knight_Box player_box = player_hitbox_at(g_player.x, g_player.y);
+    for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
+        for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
+            if (g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x] != BENCH_TILE) { continue; }
+            const int16_t x = (int16_t)(tile_x * PICO_TILE_SIZE);
+            const int16_t y = (int16_t)(tile_y * PICO_TILE_SIZE);
+            const Low_Knight_Box bench_box = {
+                (int16_t)(x - 4),
+                y,
+                (int16_t)(x + 12),
+                (int16_t)(y + 8),
+            };
+            if (!boxes_overlap(player_box, bench_box)) { continue; }
+
+            g_player_hp = PLAYER_MAX_HP;
+            g_player_focus_timer = 0;
+            g_player_vx = 0;
+            g_player_vy = -96;
+            g_respawn_room_index = g_room_index;
+            g_respawn_player =
+                (Low_Knight_Vec2i){g_player.x, (int16_t)(g_player.y - 3)};
+            g_has_bench_respawn = 1;
+            spawn_heal_effect();
+            mark_dirty_rect(player_hud_rect());
+            mark_dirty_rect(player_rect_for(g_player, 2));
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static void hurt_player(int16_t source_x) {
     if (g_player_invulnerable > 0 || g_player_death_timer > 0 || g_player_hp == 0) { return; }
 
     mark_dirty_rect(player_rect_for(g_player, 2));
     mark_dirty_rect(player_hud_rect());
     if (g_strike_timer > 0) {
-        mark_dirty_rect(strike_rect_at(g_strike_x, g_strike_y, g_strike_facing_left));
+        mark_dirty_rect(
+            strike_rect_at(g_strike_x, g_strike_y, g_strike_facing_left, g_strike_direction));
     }
 
     g_player_hp--;
+    g_player_focus_timer = 0;
+    g_player_focus_input_grace = 0;
     g_strike_timer = 0;
     g_strike_hit_mask = 0;
     if (g_player_hp == 0) {
@@ -1739,7 +1919,9 @@ static void strike_enemy(Low_Knight_Enemy* enemy) {
         enemy->hp = 0;
         enemy->active = 0;
     } else {
-        const int16_t knockback = g_strike_facing_left ? -3 : 3;
+        const int16_t knockback = g_strike_direction == STRIKE_HORIZONTAL
+                                      ? (g_strike_facing_left ? -3 : 3)
+                                      : 0;
         const int16_t old_x = enemy->x;
         const int32_t old_qx = enemy->qx;
         enemy->hp = (uint8_t)(enemy->hp - STRIKE_DAMAGE);
@@ -1749,7 +1931,15 @@ static void strike_enemy(Low_Knight_Enemy* enemy) {
             enemy->x = old_x;
             enemy->qx = old_qx;
         }
-        enemy->way = knockback < 0 ? 1 : -1;
+        if (g_strike_direction == STRIKE_HORIZONTAL) {
+            enemy->way = knockback < 0 ? 1 : -1;
+        }
+    }
+    if (g_player_soul < PLAYER_SOUL_MAX) { g_player_soul++; }
+    mark_dirty_rect(player_hud_rect());
+    if (g_strike_direction == STRIKE_DOWN) {
+        g_player_vy = PLAYER_DOWN_STRIKE_BOUNCE_Q;
+        g_player_on_ground = 0;
     }
     mark_dirty_rect(rect_union_visible(before,
         enemy->active ? enemy_rect_for(enemy) : (Low_Knight_Rect){0, 0, 0, 0}));
@@ -1760,13 +1950,24 @@ static void update_strike(const Low_Knight_Input* input) {
     if (g_strike_cooldown > 0) { g_strike_cooldown--; }
     if (g_strike_timer > 0) { g_strike_timer--; }
 
-    if (input->strike_pressed && g_strike_cooldown == 0 && g_player_hurt_lock == 0) {
+    if (input->strike_pressed && g_strike_cooldown == 0 && g_player_hurt_lock == 0 &&
+        g_player_focus_timer == 0) {
         g_strike_timer = STRIKE_DURATION_FRAMES;
         g_strike_cooldown = STRIKE_COOLDOWN_FRAMES;
         g_strike_hit_mask = 0;
         g_strike_x = g_player.x;
         g_strike_y = g_player.y;
         g_strike_facing_left = g_player_facing_left;
+        g_strike_direction = input->move_y > 0
+                                 ? STRIKE_UP
+                                 : (input->move_y < 0 && !g_player_on_ground ? STRIKE_DOWN
+                                                                            : STRIKE_HORIZONTAL);
+        if (g_strike_direction == STRIKE_UP) {
+            g_player_vy = (int16_t)(g_player_vy + (g_player_on_ground ? -512 : -32));
+            g_player_on_ground = 0;
+        } else if (g_strike_direction == STRIKE_DOWN) {
+            g_player_vy = (int16_t)(g_player_vy + 256);
+        }
     }
     if (g_strike_timer < STRIKE_HIT_START || g_strike_timer > STRIKE_HIT_END) { return; }
 
@@ -1796,6 +1997,9 @@ static uint8_t respawn_player(void) {
     g_player_vx = 0;
     g_player_vy = 0;
     g_player_hp = PLAYER_MAX_HP;
+    g_player_soul = 0;
+    g_player_focus_timer = 0;
+    g_player_focus_input_grace = 0;
     g_player_invulnerable = PLAYER_RESPAWN_INVULNERABLE_FRAMES;
     g_player_hurt_lock = 0;
     g_player_on_ground = 0;
@@ -1804,6 +2008,7 @@ static uint8_t respawn_player(void) {
     g_strike_timer = 0;
     g_strike_cooldown = 0;
     g_strike_hit_mask = 0;
+    g_strike_direction = STRIKE_HORIZONTAL;
     update_camera(1);
     return 1;
 }
@@ -1871,8 +2076,12 @@ static uint8_t try_room_transition(void) {
     g_jump_buffer_frames = 0;
     g_strike_timer = 0;
     g_strike_hit_mask = 0;
-    g_respawn_room_index = g_room_index;
-    g_respawn_player = g_player;
+    g_player_focus_timer = 0;
+    g_player_focus_input_grace = 0;
+    if (!g_has_bench_respawn) {
+        g_respawn_room_index = g_room_index;
+        g_respawn_player = g_player;
+    }
     update_camera(1);
     return 1;
 }
@@ -1895,15 +2104,20 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
     g_player_hp = PLAYER_MAX_HP;
+    g_player_soul = PLAYER_SOUL_MAX;
+    g_player_focus_timer = 0;
+    g_player_focus_input_grace = 0;
     g_player_invulnerable = 0;
     g_player_hurt_lock = 0;
     g_player_death_timer = 0;
+    g_has_bench_respawn = 0;
     g_strike_timer = 0;
     g_strike_cooldown = 0;
     g_strike_hit_mask = 0;
     g_strike_x = g_player.x;
     g_strike_y = g_player.y;
     g_strike_facing_left = g_player_facing_left;
+    g_strike_direction = STRIKE_HORIZONTAL;
     g_effect_rng = 0x4d2bu;
     g_runtime_frame = 0;
     g_last_drawn_player = g_player;
@@ -1958,7 +2172,8 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     const uint8_t before_strike_timer = g_strike_timer;
     const Low_Knight_Rect before_strike_rect =
         before_strike_timer > 0
-            ? strike_rect_at(g_strike_x, g_strike_y, g_strike_facing_left)
+            ? strike_rect_at(
+                  g_strike_x, g_strike_y, g_strike_facing_left, g_strike_direction)
             : (Low_Knight_Rect){0, 0, 0, 0};
     const int16_t before_camera_x = g_camera_x;
     const int16_t before_camera_y = g_camera_y;
@@ -1980,6 +2195,7 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     if (g_player_invulnerable > 0) { g_player_invulnerable--; }
     const uint8_t controls_locked = g_player_hurt_lock > 0;
     if (g_player_hurt_lock > 0) { g_player_hurt_lock--; }
+    const uint8_t focusing = update_focus(input, controls_locked);
 
     int8_t move_x = input->move_x;
     if (move_x < -1) { move_x = -1; }
@@ -1987,11 +2203,12 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     uint8_t jump_pressed = input->jump_pressed;
     uint8_t jump_released = input->jump_released;
 
-    if (!controls_locked) {
+    if (!controls_locked && !focusing) {
         g_player_vx = (int16_t)move_x * PLAYER_MOVE_SPEED_Q;
         if (move_x < 0) { g_player_facing_left = 1; }
         if (move_x > 0) { g_player_facing_left = 0; }
     } else {
+        if (focusing) { g_player_vx = 0; }
         jump_pressed = 0;
         jump_released = 0;
         g_jump_buffer_frames = 0;
@@ -2021,10 +2238,11 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
 
     resolve_player_horizontal();
     resolve_player_vertical();
+    const uint8_t bench_used = interact_with_bench(input);
     if (try_room_transition()) { return low_knight_step_transition; }
     update_blood_particles();
     update_enemies();
-    update_strike(input);
+    if (!bench_used) { update_strike(input); }
     check_player_damage();
     if ((g_runtime_frame % ENEMY_REDRAW_DIVIDER) == 0u) {
         queue_dynamic_dirty();
@@ -2044,7 +2262,8 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
         mark_dirty_rect(player_rect_for(g_player, 2));
     }
     if (before_strike_timer == 0 && g_strike_timer > 0) {
-        mark_dirty_rect(strike_rect_at(g_strike_x, g_strike_y, g_strike_facing_left));
+        mark_dirty_rect(
+            strike_rect_at(g_strike_x, g_strike_y, g_strike_facing_left, g_strike_direction));
     } else if (before_strike_timer > 0 && g_strike_timer == 0) {
         mark_dirty_rect(before_strike_rect);
     }
