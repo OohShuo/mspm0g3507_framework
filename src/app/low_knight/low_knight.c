@@ -157,7 +157,12 @@ static void low_knight_task(void* arg) {
             if (g_joystick->x_value < -JOYSTICK_MOVE_THRESHOLD) { input.move_x = -1; }
             if (g_joystick->x_value > JOYSTICK_MOVE_THRESHOLD) { input.move_x = 1; }
 
-            if (Low_Knight_Runtime_Step(&input)) { Low_Knight_Runtime_Draw_Dirty(g_lcd); }
+            const Low_Knight_Step_Result step_result = Low_Knight_Runtime_Step(&input);
+            if (step_result == low_knight_step_full) {
+                Low_Knight_Runtime_Draw(g_lcd);
+            } else if (step_result == low_knight_step_dirty) {
+                Low_Knight_Runtime_Draw_Dirty(g_lcd);
+            }
             last_jump_down = jump_down;
         } else if (Storage_Is_Available()) {
             ready = Low_Knight_Resources_Open(&g_resources, LOW_KNIGHT_RESOURCE_PATH) &&

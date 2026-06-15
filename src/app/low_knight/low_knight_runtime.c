@@ -36,6 +36,8 @@
 #define PLAYER_JUMP_CUT_Q      (-180)
 #define PLAYER_COYOTE_FRAMES   3u
 #define PLAYER_JUMP_BUFFER_FRAMES 4u
+#define ROOM_ENTRY_INSET       24
+#define CAMERA_PAGE_STEP       32
 
 #define COLOR_BLACK            0x0000u
 #define COLOR_RESOURCE_ERROR   0xf800u
@@ -103,6 +105,7 @@ static const uint16_t g_pico_palette[16] = {
 };
 
 static Low_Knight_Resources* g_resources = NULL;
+static uint8_t g_room_index;
 static Low_Knight_Room g_room;
 static uint8_t g_room_tiles[LOW_KNIGHT_MAX_ROOM_W * LOW_KNIGHT_MAX_ROOM_H];
 static uint8_t g_background_tiles[LOW_KNIGHT_BG_TILE_W * LOW_KNIGHT_BG_TILE_H];
@@ -114,9 +117,12 @@ static int32_t g_player_qx;
 static int32_t g_player_qy;
 static int16_t g_player_vx;
 static int16_t g_player_vy;
+static uint8_t g_player_facing_left;
 static uint8_t g_player_on_ground;
 static uint8_t g_coyote_frames;
 static uint8_t g_jump_buffer_frames;
+static int16_t g_camera_x;
+static int16_t g_camera_y;
 
 static uint8_t sample_packed_pixel(const uint8_t* bytes, uint8_t pixel_index) {
     const uint8_t packed = bytes[pixel_index / 2u];
@@ -130,6 +136,12 @@ static int16_t q_to_pixel(int32_t q) {
 static void sync_player_from_q(void) {
     g_player.x = q_to_pixel(g_player_qx);
     g_player.y = q_to_pixel(g_player_qy);
+}
+
+static int16_t clamp_i16(int16_t value, int16_t min_value, int16_t max_value) {
+    if (value < min_value) { return min_value; }
+    if (value > max_value) { return max_value; }
+    return value;
 }
 
 static uint8_t is_transparent_color(uint8_t color) {
@@ -149,13 +161,69 @@ static Low_Knight_Box player_hitbox_at(int16_t x, int16_t y) {
     };
 }
 
+static uint8_t room_contains_world_tile(uint8_t room_index, int16_t tile_x, int16_t tile_y) {
+    if (room_index >= (uint8_t)(sizeof(g_rooms) / sizeof(g_rooms[0]))) { return 0; }
+    const Low_Knight_Room* room = &g_rooms[room_index];
+    if (room->width == 0 || room->height == 0) { return 0; }
+
+    return tile_x >= room->base_x && tile_y >= room->base_y &&
+           tile_x < (int16_t)(room->base_x + room->width) &&
+           tile_y < (int16_t)(room->base_y + room->height);
+}
+
+static uint8_t find_room_for_world_pixel(int16_t world_x, int16_t world_y, uint8_t* out_room_index) {
+    if (out_room_index == NULL || world_x < 0 || world_y < 0) { return 0; }
+
+    const int16_t tile_x = (int16_t)(world_x / PICO_TILE_SIZE);
+    const int16_t tile_y = (int16_t)(world_y / PICO_TILE_SIZE);
+    for (uint8_t i = 0; i < (uint8_t)(sizeof(g_rooms) / sizeof(g_rooms[0])); i++) {
+        if (room_contains_world_tile(i, tile_x, tile_y)) {
+            *out_room_index = i;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static uint8_t update_camera(uint8_t snap) {
+    const int16_t old_x = g_camera_x;
+    const int16_t old_y = g_camera_y;
+    const int16_t max_x =
+        g_room.width * PICO_TILE_SIZE > PICO_SCREEN_SIZE ? (int16_t)(g_room.width * PICO_TILE_SIZE - PICO_SCREEN_SIZE)
+                                                         : 0;
+    const int16_t max_y =
+        g_room.height * PICO_TILE_SIZE > PICO_SCREEN_SIZE ? (int16_t)(g_room.height * PICO_TILE_SIZE - PICO_SCREEN_SIZE)
+                                                          : 0;
+
+    if (snap) {
+        g_camera_x = clamp_i16((int16_t)(g_player.x - PICO_SCREEN_SIZE / 2), 0, max_x);
+        g_camera_y = clamp_i16((int16_t)(g_player.y - PICO_SCREEN_SIZE / 2), 0, max_y);
+    } else {
+        const int16_t center_x = clamp_i16((int16_t)(g_player.x - PICO_SCREEN_SIZE / 2), 0, max_x);
+        const int16_t center_y = clamp_i16((int16_t)(g_player.y - PICO_SCREEN_SIZE / 2), 0, max_y);
+        g_camera_x = clamp_i16((int16_t)((center_x + CAMERA_PAGE_STEP / 2) / CAMERA_PAGE_STEP * CAMERA_PAGE_STEP),
+            0, max_x);
+        g_camera_y = clamp_i16((int16_t)((center_y + CAMERA_PAGE_STEP / 2) / CAMERA_PAGE_STEP * CAMERA_PAGE_STEP),
+            0, max_y);
+    }
+
+    return old_x != g_camera_x || old_y != g_camera_y;
+}
+
 static int16_t floor_div_tile(int16_t value) {
     if (value >= 0) { return (int16_t)(value / PICO_TILE_SIZE); }
     return (int16_t)(-(((-value) + PICO_TILE_SIZE - 1) / PICO_TILE_SIZE));
 }
 
 static uint8_t tile_is_solid_at(int16_t tile_x, int16_t tile_y) {
-    if (tile_x < 0 || tile_y < 0 || tile_x >= g_room.width || tile_y >= g_room.height) { return 1; }
+    if (tile_x < 0 || tile_y < 0 || tile_x >= g_room.width || tile_y >= g_room.height) {
+        const int16_t world_tile_x = (int16_t)(g_room.base_x + tile_x);
+        const int16_t world_tile_y = (int16_t)(g_room.base_y + tile_y);
+        for (uint8_t i = 0; i < (uint8_t)(sizeof(g_rooms) / sizeof(g_rooms[0])); i++) {
+            if (i != g_room_index && room_contains_world_tile(i, world_tile_x, world_tile_y)) { return 0; }
+        }
+        return 1;
+    }
     const uint8_t tile = g_room_tiles[(uint16_t)tile_y * g_room.width + (uint8_t)tile_x];
     return (g_tile_flags[tile] & 0x01u) != 0u;
 }
@@ -259,6 +327,16 @@ static uint8_t cache_background_map(void) {
     return 1;
 }
 
+static uint8_t load_room(uint8_t room_index) {
+    if (room_index >= (uint8_t)(sizeof(g_rooms) / sizeof(g_rooms[0]))) { return 0; }
+    if (g_rooms[room_index].width == 0 || g_rooms[room_index].height == 0) { return 0; }
+
+    g_room_index = room_index;
+    g_room = g_rooms[g_room_index];
+    if (!unpack_room(&g_room)) { return 0; }
+    return g_room.no_background || cache_background_map();
+}
+
 static Low_Knight_Rect screen_rect(void) {
     const int16_t view_w = (int16_t)(PICO_SCREEN_SIZE * 2);
     const int16_t view_h = (int16_t)(PICO_SCREEN_SIZE * 2);
@@ -293,22 +371,38 @@ static Low_Knight_Rect rect_union(Low_Knight_Rect a, Low_Knight_Rect b) {
 
 static uint8_t rect_is_empty(Low_Knight_Rect r) { return r.x1 >= r.x2 || r.y1 >= r.y2; }
 
-static void compose_sprite_tile_line(uint16_t* line, int16_t region_x, int16_t region_width,
-    int16_t screen_y, uint8_t tile, int16_t sprite_x, int16_t sprite_y, uint8_t scale) {
-    uint8_t row_data[4];
-
+static void compose_sprite_rect_line(uint16_t* line, int16_t region_x, int16_t region_width,
+    int16_t screen_y, uint8_t tile, uint8_t width_tiles, uint8_t height_tiles, int16_t sprite_x,
+    int16_t sprite_y, uint8_t scale, uint8_t hflip) {
     const int16_t local_y = (int16_t)(screen_y - sprite_y);
-    if (local_y < 0 || local_y >= (int16_t)(PICO_TILE_SIZE * scale)) { return; }
-    if (!read_gfx_tile_row(tile, (uint8_t)(local_y / scale), row_data)) { return; }
+    if (local_y < 0 || local_y >= (int16_t)(height_tiles * PICO_TILE_SIZE * scale)) { return; }
 
+    const uint8_t source_y = (uint8_t)(local_y / scale);
+    const uint8_t tile_y = (uint8_t)(source_y / PICO_TILE_SIZE);
+    const uint8_t tile_row = (uint8_t)(source_y & 7u);
+    const int16_t sprite_width = (int16_t)(width_tiles * PICO_TILE_SIZE * scale);
     const int16_t start = sprite_x > region_x ? sprite_x : region_x;
-    const int16_t end = sprite_x + PICO_TILE_SIZE * scale < region_x + region_width
-                            ? (int16_t)(sprite_x + PICO_TILE_SIZE * scale)
+    const int16_t end = sprite_x + sprite_width < region_x + region_width
+                            ? (int16_t)(sprite_x + sprite_width)
                             : (int16_t)(region_x + region_width);
+
+    uint8_t cached_tile = 0xffu;
+    uint8_t row_data[4];
     for (int16_t screen_x = start; screen_x < end; screen_x++) {
         const int16_t local_x = (int16_t)(screen_x - sprite_x);
-        if (local_x < 0 || local_x >= (int16_t)(PICO_TILE_SIZE * scale)) { continue; }
-        const uint8_t color = sample_packed_pixel(row_data, (uint8_t)(local_x / scale));
+        if (local_x < 0 || local_x >= sprite_width) { continue; }
+
+        uint8_t source_x = (uint8_t)(local_x / scale);
+        if (hflip) { source_x = (uint8_t)(width_tiles * PICO_TILE_SIZE - 1u - source_x); }
+
+        const uint8_t tile_x = (uint8_t)(source_x / PICO_TILE_SIZE);
+        const uint8_t draw_tile = (uint8_t)(tile + tile_y * 16u + tile_x);
+        if (draw_tile != cached_tile) {
+            if (!read_gfx_tile_row(draw_tile, tile_row, row_data)) { return; }
+            cached_tile = draw_tile;
+        }
+
+        const uint8_t color = sample_packed_pixel(row_data, (uint8_t)(source_x & 7u));
         if (!is_transparent_color(color)) { line[screen_x - region_x] = g_pico_palette[color]; }
     }
 }
@@ -366,16 +460,17 @@ static void compose_background_line(uint16_t* line, int16_t region_x, int16_t re
     const uint8_t map_height = g_room.has_water ? 20u : 10u;
 
     compose_map_region_line(line, region_x, region_width, screen_y, LOW_KNIGHT_BG_TILE_X, LOW_KNIGHT_BG_TILE_Y,
-        (int16_t)(view.x1 - 2 * scale), view.y1, 19, map_height, scale);
+        (int16_t)(view.x1 - 2 * scale - g_camera_x), (int16_t)(view.y1 - g_camera_y), 19, map_height, scale);
     compose_map_region_line(line, region_x, region_width, screen_y, LOW_KNIGHT_BG_TILE_X, LOW_KNIGHT_BG_TILE_Y,
-        (int16_t)(view.x1 - 2 * scale), (int16_t)(view.y1 + 4 * scale), 19, map_height, scale);
+        (int16_t)(view.x1 - 2 * scale - g_camera_x / 2),
+        (int16_t)(view.y1 + 4 * scale - g_camera_y / 2), 19, map_height, scale);
 }
 
 static void compose_level_line(uint16_t* line, int16_t region_x, int16_t region_width, int16_t screen_y) {
     const Low_Knight_Rect view = screen_rect();
     const uint8_t scale = 2;
-    const int16_t pico_y = (int16_t)((screen_y - view.y1) / scale);
-    if (pico_y < 0 || pico_y >= PICO_SCREEN_SIZE) { return; }
+    const int16_t pico_y = (int16_t)((screen_y - view.y1) / scale + g_camera_y);
+    if (pico_y < 0 || pico_y >= (int16_t)(g_room.height * PICO_TILE_SIZE)) { return; }
 
     const uint8_t tile_y = (uint8_t)(pico_y / PICO_TILE_SIZE);
     if (tile_y >= g_room.height) { return; }
@@ -383,8 +478,8 @@ static void compose_level_line(uint16_t* line, int16_t region_x, int16_t region_
 
     int16_t x = region_x;
     while (x < region_x + region_width) {
-        const int16_t pico_x = (int16_t)((x - view.x1) / scale);
-        if (pico_x < 0 || pico_x >= PICO_SCREEN_SIZE) {
+        const int16_t pico_x = (int16_t)((x - view.x1) / scale + g_camera_x);
+        if (pico_x < 0 || pico_x >= (int16_t)(g_room.width * PICO_TILE_SIZE)) {
             x++;
             continue;
         }
@@ -404,7 +499,7 @@ static void compose_level_line(uint16_t* line, int16_t region_x, int16_t region_
         uint8_t row_data[4];
         if (!read_gfx_tile_row(tile, tile_row, row_data)) { return; }
 
-        const int16_t tile_screen_x = (int16_t)(view.x1 + tile_x * PICO_TILE_SIZE * scale);
+        const int16_t tile_screen_x = (int16_t)(view.x1 + (tile_x * PICO_TILE_SIZE - g_camera_x) * scale);
         const int16_t tile_end = (int16_t)(tile_screen_x + PICO_TILE_SIZE * scale);
         const int16_t end = tile_end < region_x + region_width ? tile_end : (int16_t)(region_x + region_width);
         for (; x < end; x++) {
@@ -418,14 +513,14 @@ static void compose_level_line(uint16_t* line, int16_t region_x, int16_t region_
 static void compose_player_line(uint16_t* line, int16_t region_x, int16_t region_width, int16_t screen_y) {
     const Low_Knight_Rect view = screen_rect();
     const uint8_t scale = 2;
-    const int16_t x = (int16_t)(view.x1 + g_player.x * scale);
-    const int16_t y = (int16_t)(view.y1 + g_player.y * scale);
+    const int16_t x = (int16_t)(view.x1 + (g_player.x - g_camera_x) * scale);
+    const int16_t y = (int16_t)(view.y1 + (g_player.y - g_camera_y) * scale);
+    const uint8_t body_tile = g_player_vx != 0 ? 76u : 78u;
 
-    compose_sprite_tile_line(line, region_x, region_width, screen_y, 78, (int16_t)(x - 8 * scale),
-        (int16_t)(y - 4 * scale), scale);
-    compose_sprite_tile_line(line, region_x, region_width, screen_y, 79, x, (int16_t)(y - 4 * scale), scale);
-    compose_sprite_tile_line(line, region_x, region_width, screen_y, 47, (int16_t)(x - 4 * scale),
-        (int16_t)(y - 12 * scale), scale);
+    compose_sprite_rect_line(line, region_x, region_width, screen_y, body_tile, 2, 1,
+        (int16_t)(x - 8 * scale), (int16_t)(y - 4 * scale), scale, g_player_facing_left);
+    compose_sprite_rect_line(line, region_x, region_width, screen_y, 47, 1, 1,
+        (int16_t)(x - 4 * scale), (int16_t)(y - 12 * scale), scale, g_player_facing_left);
 }
 
 static void compose_line(int16_t x, int16_t y, int16_t width) {
@@ -453,8 +548,8 @@ static void render_region(St7789* lcd, Low_Knight_Rect rect) {
 
 static Low_Knight_Rect player_rect_for(Low_Knight_Vec2i player, uint8_t scale) {
     const Low_Knight_Rect view = screen_rect();
-    const int16_t x = (int16_t)(view.x1 + player.x * scale);
-    const int16_t y = (int16_t)(view.y1 + player.y * scale);
+    const int16_t x = (int16_t)(view.x1 + (player.x - g_camera_x) * scale);
+    const int16_t y = (int16_t)(view.y1 + (player.y - g_camera_y) * scale);
     return (Low_Knight_Rect){
         (int16_t)(x - 8 * scale - 2),
         (int16_t)(y - 12 * scale - 2),
@@ -495,6 +590,41 @@ static void resolve_player_vertical(void) {
     g_player_vy = 0;
 }
 
+static uint8_t try_room_transition(void) {
+    const Low_Knight_Room old_room = g_room;
+    const int16_t world_x = (int16_t)(g_room.base_x * PICO_TILE_SIZE + g_player.x);
+    const int16_t world_y = (int16_t)(g_room.base_y * PICO_TILE_SIZE + g_player.y);
+    uint8_t next_room = g_room_index;
+    if (!find_room_for_world_pixel(world_x, world_y, &next_room) || next_room == g_room_index) { return 0; }
+
+    if (!load_room(next_room)) { return 0; }
+    const int16_t max_x = (int16_t)(g_room.width * PICO_TILE_SIZE - 1);
+    const int16_t max_y = (int16_t)(g_room.height * PICO_TILE_SIZE - 1);
+    int16_t local_x = (int16_t)(world_x - g_room.base_x * PICO_TILE_SIZE);
+    int16_t local_y = (int16_t)(world_y - g_room.base_y * PICO_TILE_SIZE);
+
+    if ((int16_t)(g_room.base_x + g_room.width) <= old_room.base_x) {
+        local_x = (int16_t)(g_room.width * PICO_TILE_SIZE - ROOM_ENTRY_INSET);
+    } else if (g_room.base_x >= (int16_t)(old_room.base_x + old_room.width)) {
+        local_x = ROOM_ENTRY_INSET;
+    }
+    if ((int16_t)(g_room.base_y + g_room.height) <= old_room.base_y) {
+        local_y = (int16_t)(g_room.height * PICO_TILE_SIZE - ROOM_ENTRY_INSET);
+    } else if (g_room.base_y >= (int16_t)(old_room.base_y + old_room.height)) {
+        local_y = ROOM_ENTRY_INSET;
+    }
+
+    g_player.x = clamp_i16(local_x, 0, max_x);
+    g_player.y = clamp_i16(local_y, 0, max_y);
+    g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
+    g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
+    g_player_on_ground = 0;
+    g_coyote_frames = 0;
+    g_jump_buffer_frames = 0;
+    update_camera(1);
+    return 1;
+}
+
 uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     if (resources == NULL || !resources->is_open) { return 0; }
     g_resources = resources;
@@ -507,12 +637,14 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
     g_player_vx = 0;
     g_player_vy = 0;
+    g_player_facing_left = 1;
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
     g_last_drawn_player = g_player;
-    if (!unpack_room(&g_room)) { return 0; }
-    return g_room.no_background || cache_background_map();
+    if (!load_room(LOW_KNIGHT_START_ROOM)) { return 0; }
+    update_camera(1);
+    return 1;
 }
 
 void Low_Knight_Runtime_Draw(St7789* lcd) {
@@ -535,15 +667,21 @@ void Low_Knight_Runtime_Draw_Dirty(St7789* lcd) {
     g_last_drawn_player = g_player;
 }
 
-uint8_t Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
-    if (input == NULL || g_resources == NULL) { return 0; }
+Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
+    if (input == NULL || g_resources == NULL) { return low_knight_step_none; }
 
     const Low_Knight_Vec2i before = g_player;
+    const uint8_t before_facing_left = g_player_facing_left;
+    const uint8_t before_moving = g_player_vx != 0;
+    const int16_t before_camera_x = g_camera_x;
+    const int16_t before_camera_y = g_camera_y;
     int8_t move_x = input->move_x;
     if (move_x < -1) { move_x = -1; }
     if (move_x > 1) { move_x = 1; }
 
     g_player_vx = (int16_t)move_x * PLAYER_MOVE_SPEED_Q;
+    if (move_x < 0) { g_player_facing_left = 1; }
+    if (move_x > 0) { g_player_facing_left = 0; }
 
     if (g_player_on_ground) {
         g_coyote_frames = PLAYER_COYOTE_FRAMES;
@@ -569,7 +707,16 @@ uint8_t Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
 
     resolve_player_horizontal();
     resolve_player_vertical();
-    return before.x != g_player.x || before.y != g_player.y;
+    if (try_room_transition()) { return low_knight_step_full; }
+    if (update_camera(0) || before_camera_x != g_camera_x || before_camera_y != g_camera_y) {
+        return low_knight_step_full;
+    }
+
+    if (before.x != g_player.x || before.y != g_player.y || before_facing_left != g_player_facing_left ||
+        before_moving != (g_player_vx != 0)) {
+        return low_knight_step_dirty;
+    }
+    return low_knight_step_none;
 }
 
 uint8_t Low_Knight_Runtime_Move_Player(int8_t dx, int8_t dy) {

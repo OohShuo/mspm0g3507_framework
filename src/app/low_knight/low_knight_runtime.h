@@ -17,9 +17,15 @@ typedef struct {
     uint8_t jump_released;
 } Low_Knight_Input;
 
+typedef enum {
+    low_knight_step_none = 0,
+    low_knight_step_dirty = 1,
+    low_knight_step_full = 2,
+} Low_Knight_Step_Result;
+
 uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources);
 void Low_Knight_Runtime_Draw(St7789* lcd);
 void Low_Knight_Runtime_Draw_Dirty(St7789* lcd);
-uint8_t Low_Knight_Runtime_Step(const Low_Knight_Input* input);
+Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input);
 uint8_t Low_Knight_Runtime_Move_Player(int8_t dx, int8_t dy);
 Low_Knight_Vec2i Low_Knight_Runtime_Get_Player(void);
