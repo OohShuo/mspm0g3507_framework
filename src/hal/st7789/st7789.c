@@ -140,8 +140,7 @@ void St7789_Send_Color(
     bswap16_inplace(pixels, pixels_len);
 }
 
-void St7789_Begin_Write(
-    St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
+void St7789_Begin_Write(St7789* obj, int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
     const uint8_t caset_cmd = ST7789_CASET;
     const uint8_t caset_args[4] = {
         (uint8_t)(x1 >> 8),
