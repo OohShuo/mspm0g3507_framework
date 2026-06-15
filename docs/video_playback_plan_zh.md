@@ -48,6 +48,11 @@ python scripts/flash_manager.py pack-video input.mp4 build/demo.v565 --width 160
 python scripts/flash_manager.py pack-video input.mp4 build/part.v565 --width 160 --height 120 --fps 8 --start-frame 240 --end-frame 1200
 ```
 
+`--start-frame` 和 `--end-frame` 指源视频帧号。对于 MP4 等带 FPS
+元数据的视频，工具会按源 FPS 自动抽帧到 `--fps`，例如 30 FPS
+源视频指定 `--fps 8` 时只保留时间轴上需要的帧，不会把全部源帧按
+8 FPS 慢放。帧目录没有源 FPS 元数据，因此仍按一张图片对应一帧处理。
+
 如果要对比体积，可以指定压缩模式：
 
 ```powershell

@@ -323,6 +323,31 @@ def _iter_video_frames(source_path: str):
         yield Image.fromarray(frame).convert("RGBA")
 
 
+def _probe_source_fps(source_path: str) -> Optional[float]:
+    if os.path.isdir(source_path):
+        return None
+
+    try:
+        from PIL import Image
+
+        with Image.open(source_path) as image:
+            if getattr(image, "is_animated", False):
+                duration_ms = image.info.get("duration")
+                if duration_ms and duration_ms > 0:
+                    return 1000.0 / float(duration_ms)
+            return None
+    except Exception:
+        pass
+
+    try:
+        import imageio.v3 as iio
+
+        source_fps = float(iio.immeta(source_path).get("fps", 0))
+        return source_fps if source_fps > 0 else None
+    except Exception:
+        return None
+
+
 def pack_video_asset(
     source_path: str,
     output_path: str,
@@ -364,18 +389,32 @@ def pack_video_asset(
     try:
         data_size = 0
         frames = []
+        source_fps = _probe_source_fps(source_path)
+        sample_step = source_fps / fps if source_fps is not None and source_fps > fps else 1.0
+        next_sample_frame = 0.0
+        source_frames_in_range = 0
         for source_frame_index, frame in enumerate(_iter_video_frames(source_path)):
             if source_frame_index < start_frame:
                 continue
             if end_frame is not None and source_frame_index > end_frame:
                 break
+            relative_frame = source_frame_index - start_frame
+            source_frames_in_range += 1
+            if relative_frame + 1e-9 < next_sample_frame:
+                continue
             if max_frames is not None and len(frames) >= max_frames:
                 break
             frames.append(_fit_rgba_image(frame.convert("RGBA"), width, height, fit))
+            next_sample_frame += sample_step
 
         frame_count = len(frames)
         if frame_count == 0:
             raise ValueError("No frames were found in the video source")
+        if source_fps is not None and source_fps > fps:
+            print(
+                f"Resampled {source_frames_in_range} source frames "
+                f"from {source_fps:g} fps to {frame_count} frames at {fps} fps"
+            )
 
         if uses_index8:
             from PIL import Image

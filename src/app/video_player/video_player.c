@@ -99,6 +99,26 @@ static uint8_t open_video(void) {
     return 0;
 }
 
+static TickType_t video_frame_ticks(void) {
+    TickType_t ticks = (TickType_t)(configTICK_RATE_HZ / g_video.fps);
+    return ticks == 0 ? 1 : ticks;
+}
+
+static uint8_t advance_frame(uint32_t* frame_index, uint32_t count) {
+#if VIDEO_PLAYER_LOOP
+    count %= g_video.frame_count;
+    *frame_index = (*frame_index + count) % g_video.frame_count;
+    return 1;
+#else
+    if (count >= g_video.frame_count - *frame_index) {
+        *frame_index = g_video.frame_count - 1u;
+        return 0;
+    }
+    *frame_index += count;
+    return 1;
+#endif
+}
+
 static void video_player_task(void* arg) {
     (void)arg;
     video_player_init_hardware();
@@ -115,7 +135,8 @@ static void video_player_task(void* arg) {
     uint32_t frame_index = 0;
     uint8_t paused = 0;
     Button_state last_button_state = button_state_up;
-    uint32_t tick = xTaskGetTickCount();
+    TickType_t frame_ticks = ready ? video_frame_ticks() : 1;
+    TickType_t next_frame_tick = xTaskGetTickCount();
 
     while (1) {
         if (!ready) {
@@ -123,7 +144,8 @@ static void video_player_task(void* arg) {
                 ready = 1;
                 frame_index = 0;
                 Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-                tick = xTaskGetTickCount();
+                frame_ticks = video_frame_ticks();
+                next_frame_tick = xTaskGetTickCount();
             } else {
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
@@ -134,33 +156,45 @@ static void video_player_task(void* arg) {
         if (button_state == button_state_up && last_button_state == button_state_down) {
             paused = !paused;
             if (paused) { draw_status("PAUSED", "PRESS RESUME", COLOR_YELLOW); }
-            tick = xTaskGetTickCount();
+            next_frame_tick = xTaskGetTickCount();
         }
         last_button_state = button_state;
 
-        if (!paused) {
-            if (!draw_video_frame(frame_index)) {
-                ready = 0;
-                Video_Asset_Close(&g_video);
-                draw_status("READ ERROR", "CHECK FILE", COLOR_RED);
-                continue;
-            }
-
-            frame_index++;
-            if (frame_index >= g_video.frame_count) {
-#if VIDEO_PLAYER_LOOP
-                frame_index = 0;
-#else
-                paused = 1;
-                frame_index = g_video.frame_count - 1u;
-                draw_status("FINISHED", "PRESS REPLAY", COLOR_GREEN);
-#endif
-            }
+        if (paused) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
         }
 
-        uint32_t frame_ms = 1000u / g_video.fps;
-        if (frame_ms == 0) { frame_ms = 1; }
-        vTaskDelayUntil(&tick, pdMS_TO_TICKS(frame_ms));
+        TickType_t now = xTaskGetTickCount();
+        const int32_t wait_ticks = (int32_t)(next_frame_tick - now);
+        if (wait_ticks > 0) {
+            vTaskDelay((TickType_t)wait_ticks);
+            now = xTaskGetTickCount();
+        }
+
+        const TickType_t lateness = now - next_frame_tick;
+        if (lateness >= frame_ticks) {
+            const uint32_t skipped = (uint32_t)(lateness / frame_ticks);
+            if (!advance_frame(&frame_index, skipped)) {
+                paused = 1;
+                draw_status("FINISHED", "PRESS REPLAY", COLOR_GREEN);
+                continue;
+            }
+            next_frame_tick += skipped * frame_ticks;
+        }
+
+        if (!draw_video_frame(frame_index)) {
+            ready = 0;
+            Video_Asset_Close(&g_video);
+            draw_status("READ ERROR", "CHECK FILE", COLOR_RED);
+            continue;
+        }
+
+        next_frame_tick += frame_ticks;
+        if (!advance_frame(&frame_index, 1u)) {
+            paused = 1;
+            draw_status("FINISHED", "PRESS REPLAY", COLOR_GREEN);
+        }
     }
 }
 
