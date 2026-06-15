@@ -4,16 +4,16 @@
 #include <string.h>
 
 #if FRAMEWORK_USE_LFS
-#include "lfs.h"
-#include "storage.h"
+    #include "lfs.h"
+    #include "storage.h"
 #endif
 
 #include "rtt_log.h"
 
-#define SCORE_STORE_MAGIC       0x53434f52u
-#define SCORE_STORE_VERSION     2u
-#define SCORE_STORE_MAX_GAMES   8u
-#define SCORE_STORE_PATH        "/scores.bin"
+#define SCORE_STORE_MAGIC     0x53434f52u
+#define SCORE_STORE_VERSION   2u
+#define SCORE_STORE_MAX_GAMES 8u
+#define SCORE_STORE_PATH      "/scores.bin"
 
 typedef struct {
     uint32_t magic;
@@ -60,14 +60,12 @@ static uint32_t calculate_checksum(const Score_file* file) {
 }
 
 static uint32_t calculate_v1_checksum(const Score_file_v1* file) {
-    return calculate_checksum_words(
-        file, (sizeof(Score_file_v1) / sizeof(uint32_t)) - 1u);
+    return calculate_checksum_words(file, (sizeof(Score_file_v1) / sizeof(uint32_t)) - 1u);
 }
 
 static void migrate_v1(const Score_file_v1* old_file, uint8_t game_count) {
     reset_scores(game_count);
-    const uint8_t copy_count =
-        old_file->game_count < game_count ? (uint8_t)old_file->game_count : game_count;
+    const uint8_t copy_count = old_file->game_count < game_count ? (uint8_t)old_file->game_count : game_count;
     for (uint8_t game = 0; game < copy_count; game++) {
         if (old_file->scores[game] == 0) { continue; }
         Score_entry* entry = &g_scores.entries[game][0];
@@ -98,8 +96,8 @@ static uint8_t load_scores(uint8_t game_count) {
     } else if (file_size == (lfs_soff_t)sizeof(Score_file_v1)) {
         Score_file_v1 old_file;
         read_size = lfs_file_read(lfs, &file, &old_file, sizeof(old_file));
-        if (read_size == sizeof(old_file) && old_file.magic == SCORE_STORE_MAGIC &&
-            old_file.version == 1u && old_file.game_count <= SCORE_STORE_MAX_GAMES &&
+        if (read_size == sizeof(old_file) && old_file.magic == SCORE_STORE_MAGIC && old_file.version == 1u &&
+            old_file.game_count <= SCORE_STORE_MAX_GAMES &&
             old_file.checksum == calculate_v1_checksum(&old_file)) {
             migrate_v1(&old_file, game_count);
             migrated = 1;
@@ -110,8 +108,7 @@ static uint8_t load_scores(uint8_t game_count) {
     if (migrated) { return 1; }
 
     if (read_size != sizeof(g_scores) || g_scores.magic != SCORE_STORE_MAGIC ||
-        g_scores.version != SCORE_STORE_VERSION ||
-        g_scores.game_count > SCORE_STORE_MAX_GAMES ||
+        g_scores.version != SCORE_STORE_VERSION || g_scores.game_count > SCORE_STORE_MAX_GAMES ||
         g_scores.checksum != calculate_checksum(&g_scores)) {
         return 0;
     }
@@ -189,8 +186,7 @@ uint8_t Score_Store_Qualifies(uint8_t game_index, uint32_t score) {
 }
 
 uint8_t Score_Store_Add(uint8_t game_index, const char* name, uint32_t score) {
-    if (game_index >= g_scores.game_count || name == NULL ||
-        !Score_Store_Qualifies(game_index, score)) {
+    if (game_index >= g_scores.game_count || name == NULL || !Score_Store_Qualifies(game_index, score)) {
         return 0xffu;
     }
 
@@ -204,8 +200,7 @@ uint8_t Score_Store_Add(uint8_t game_index, const char* name, uint32_t score) {
     }
     if (insert_at >= SCORE_STORE_TOP_COUNT) { return 0xffu; }
 
-    const uint8_t last =
-        count < SCORE_STORE_TOP_COUNT ? count : (uint8_t)(SCORE_STORE_TOP_COUNT - 1u);
+    const uint8_t last = count < SCORE_STORE_TOP_COUNT ? count : (uint8_t)(SCORE_STORE_TOP_COUNT - 1u);
     for (uint8_t rank = last; rank > insert_at; rank--) {
         g_scores.entries[game_index][rank] = g_scores.entries[game_index][rank - 1u];
     }
@@ -214,11 +209,9 @@ uint8_t Score_Store_Add(uint8_t game_index, const char* name, uint32_t score) {
     memset(entry, 0, sizeof(*entry));
     for (uint8_t i = 0; i < SCORE_STORE_NAME_LENGTH && name[i] != '\0'; i++) {
         const char character = name[i];
-        entry->name[i] =
-            ((character >= 'A' && character <= 'Z') ||
-                (character >= '0' && character <= '9'))
-                ? character
-                : '-';
+        entry->name[i] = ((character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9'))
+                             ? character
+                             : '-';
     }
     entry->score = score;
     if (count < SCORE_STORE_TOP_COUNT) { g_scores.entry_count[game_index] = count + 1u; }
@@ -231,9 +224,7 @@ uint8_t Score_Store_Get_Count(uint8_t game_index) {
 }
 
 const Score_entry* Score_Store_Get_Entry(uint8_t game_index, uint8_t rank) {
-    if (game_index >= g_scores.game_count || rank >= g_scores.entry_count[game_index]) {
-        return NULL;
-    }
+    if (game_index >= g_scores.game_count || rank >= g_scores.entry_count[game_index]) { return NULL; }
     return &g_scores.entries[game_index][rank];
 }
 

@@ -15,7 +15,7 @@ static void normalize_debug_reset(void) {
     if (cause == DL_SYSCTL_RESET_CAUSE_SYSRST_DEBUG_TRIGGERED ||
         cause == DL_SYSCTL_RESET_CAUSE_CPURST_DEBUG_TRIGGERED) {
         DL_SYSCTL_resetDevice(DL_SYSCTL_RESET_BOOT);
-        while (1) { }
+        while (1) {}
     }
 #endif
 }

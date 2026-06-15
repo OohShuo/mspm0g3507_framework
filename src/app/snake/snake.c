@@ -179,8 +179,8 @@ static uint32_t move_interval(void) {
 static void end_game(Snake_state state) {
     g_state = state;
     if (g_hardware.buzzer != NULL) {
-        Buzzer_Play_Music(g_hardware.buzzer,
-            state == snake_state_win ? music_idx_victory : music_idx_defeat, 0);
+        Buzzer_Play_Music(
+            g_hardware.buzzer, state == snake_state_win ? music_idx_victory : music_idx_defeat, 0);
     }
     render_hud();
 }

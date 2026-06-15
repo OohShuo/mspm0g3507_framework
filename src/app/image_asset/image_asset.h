@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #if FRAMEWORK_USE_LFS
-#include "lfs.h"
+    #include "lfs.h"
 #endif
 
 #define IMAGE_ASSET_FLAG_MASK 0x01u
@@ -24,7 +24,5 @@ typedef struct {
 
 uint8_t Image_Asset_Open(Image_asset* image, const char* path);
 void Image_Asset_Close(Image_asset* image);
-uint8_t Image_Asset_Prepare_Raw_Cache(
-    Image_asset* image, uint32_t address, uint32_t capacity);
-uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x,
-    uint16_t width, uint16_t* pixels);
+uint8_t Image_Asset_Prepare_Raw_Cache(Image_asset* image, uint32_t address, uint32_t capacity);
+uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x, uint16_t width, uint16_t* pixels);
