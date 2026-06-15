@@ -109,7 +109,6 @@
 
 #define BOSS_KEY(x, y)          ((uint16_t)(((uint16_t)(y) << 7) | (uint16_t)(x)))
 #define BOSS_SPAWN_DELAY_FRAMES 45u
-#define ROOM_ITEM_DENSE_LIMIT   12u
 
 #define STRIKE_HORIZONTAL       0u
 #define STRIKE_UP               1u
@@ -510,6 +509,10 @@ static uint8_t is_transparent_color(uint8_t color) {
     return color == 14u;
 }
 
+static uint8_t room_is_deferred_special_room(uint8_t room_index) {
+    return room_index == 16u || room_index == 18u;
+}
+
 static Low_Knight_Box player_hitbox_at(int16_t x, int16_t y) {
     return (Low_Knight_Box){
         (int16_t)(x + PLAYER_HIT_LEFT),
@@ -535,6 +538,7 @@ static uint8_t find_room_for_world_pixel(int16_t world_x, int16_t world_y, uint8
     const int16_t tile_x = (int16_t)(world_x / PICO_TILE_SIZE);
     const int16_t tile_y = (int16_t)(world_y / PICO_TILE_SIZE);
     for (uint8_t i = 0; i < (uint8_t)(sizeof(g_rooms) / sizeof(g_rooms[0])); i++) {
+        if (room_is_deferred_special_room(i)) { continue; }
         if (room_contains_world_tile(i, tile_x, tile_y)) {
             *out_room_index = i;
             return 1;
@@ -545,6 +549,7 @@ static uint8_t find_room_for_world_pixel(int16_t world_x, int16_t world_y, uint8
 
 static uint8_t room_has_neighbor_at(int16_t tile_x, int16_t tile_y) {
     for (uint8_t i = 0; i < (uint8_t)(sizeof(g_rooms) / sizeof(g_rooms[0])); i++) {
+        if (room_is_deferred_special_room(i)) { continue; }
         if (i != g_room_index && room_contains_world_tile(i, tile_x, tile_y)) { return 1; }
     }
     return 0;
@@ -896,36 +901,25 @@ static void spawn_room_items(void) {
     memset(g_items, 0, sizeof(g_items));
     g_item_count = 0;
     g_item_active_count = 0;
-    uint8_t dense_item_count = 0;
-
-    for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
-        for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
-            if (!is_item_spawn_tile(g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x])) { continue; }
-            if (++dense_item_count > ROOM_ITEM_DENSE_LIMIT) {
-                for (uint8_t clear_y = 0; clear_y < g_room.height; clear_y++) {
-                    for (uint8_t clear_x = 0; clear_x < g_room.width; clear_x++) {
-                        uint8_t* tile = &g_room_tiles[(uint16_t)clear_y * g_room.width + clear_x];
-                        if (is_item_spawn_tile(*tile)) { *tile = 0u; }
-                    }
-                }
-                return;
-            }
-        }
-    }
+    const uint8_t suppress_items = room_is_deferred_special_room(g_room_index);
 
     for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
         for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
             uint8_t* tile = &g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x];
             if (!is_item_spawn_tile(*tile)) { continue; }
-            if (*tile == REMNANT_TILE && remnant_tile_is_clustered(tile_x, tile_y)) { continue; }
 
-            const uint16_t key = item_key_for(tile_x, tile_y);
             const uint8_t item_tile = *tile;
-            if (item_key_collected(key)) {
+            if (suppress_items) {
                 *tile = 0u;
                 continue;
             }
-            if (g_item_count >= LOW_KNIGHT_MAX_ITEMS) { continue; }
+            if (item_tile == REMNANT_TILE && remnant_tile_is_clustered(tile_x, tile_y)) { continue; }
+
+            const uint16_t key = item_key_for(tile_x, tile_y);
+            if (item_key_collected(key) || g_item_count >= LOW_KNIGHT_MAX_ITEMS) {
+                *tile = 0u;
+                continue;
+            }
             *tile = 0u;
 
             Low_Knight_Item* item = &g_items[g_item_count++];
