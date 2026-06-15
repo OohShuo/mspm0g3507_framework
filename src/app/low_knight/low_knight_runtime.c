@@ -23,6 +23,20 @@
 #define LOW_KNIGHT_BG_TILE_H   20u
 #define TILE_ROW_CACHE_SIZE    128u
 
+#define PHYSICS_Q_SHIFT        8
+#define PHYSICS_Q_ONE          (1 << PHYSICS_Q_SHIFT)
+#define PLAYER_HIT_LEFT        (-3)
+#define PLAYER_HIT_RIGHT       3
+#define PLAYER_HIT_TOP         (-10)
+#define PLAYER_HIT_BOTTOM      0
+#define PLAYER_MOVE_SPEED_Q    448
+#define PLAYER_GRAVITY_Q       72
+#define PLAYER_MAX_FALL_Q      832
+#define PLAYER_JUMP_Q          (-1000)
+#define PLAYER_JUMP_CUT_Q      (-180)
+#define PLAYER_COYOTE_FRAMES   3u
+#define PLAYER_JUMP_BUFFER_FRAMES 4u
+
 #define COLOR_BLACK            0x0000u
 #define COLOR_RESOURCE_ERROR   0xf800u
 
@@ -49,6 +63,13 @@ typedef struct {
     uint8_t valid;
     uint8_t data[4];
 } Tile_Row_Cache_Entry;
+
+typedef struct {
+    int16_t left;
+    int16_t top;
+    int16_t right;
+    int16_t bottom;
+} Low_Knight_Box;
 
 static const Low_Knight_Room g_rooms[] = {
     {0, 0, 84, 64, 20, 16, 1, 0},
@@ -85,13 +106,30 @@ static Low_Knight_Resources* g_resources = NULL;
 static Low_Knight_Room g_room;
 static uint8_t g_room_tiles[LOW_KNIGHT_MAX_ROOM_W * LOW_KNIGHT_MAX_ROOM_H];
 static uint8_t g_background_tiles[LOW_KNIGHT_BG_TILE_W * LOW_KNIGHT_BG_TILE_H];
+static uint8_t g_tile_flags[LOW_KNIGHT_GFF_SIZE];
 static Tile_Row_Cache_Entry g_tile_row_cache[TILE_ROW_CACHE_SIZE];
 static Low_Knight_Vec2i g_player;
 static Low_Knight_Vec2i g_last_drawn_player;
+static int32_t g_player_qx;
+static int32_t g_player_qy;
+static int16_t g_player_vx;
+static int16_t g_player_vy;
+static uint8_t g_player_on_ground;
+static uint8_t g_coyote_frames;
+static uint8_t g_jump_buffer_frames;
 
 static uint8_t sample_packed_pixel(const uint8_t* bytes, uint8_t pixel_index) {
     const uint8_t packed = bytes[pixel_index / 2u];
     return (pixel_index & 1u) == 0 ? (uint8_t)(packed >> 4) : (uint8_t)(packed & 0x0fu);
+}
+
+static int16_t q_to_pixel(int32_t q) {
+    return (int16_t)((q + (PHYSICS_Q_ONE / 2)) >> PHYSICS_Q_SHIFT);
+}
+
+static void sync_player_from_q(void) {
+    g_player.x = q_to_pixel(g_player_qx);
+    g_player.y = q_to_pixel(g_player_qy);
 }
 
 static uint8_t is_transparent_color(uint8_t color) {
@@ -100,6 +138,40 @@ static uint8_t is_transparent_color(uint8_t color) {
      * marks color 14 transparent. Color 0 is a visible ink color here.
      */
     return color == 14u;
+}
+
+static Low_Knight_Box player_hitbox_at(int16_t x, int16_t y) {
+    return (Low_Knight_Box){
+        (int16_t)(x + PLAYER_HIT_LEFT),
+        (int16_t)(y + PLAYER_HIT_TOP),
+        (int16_t)(x + PLAYER_HIT_RIGHT),
+        (int16_t)(y + PLAYER_HIT_BOTTOM),
+    };
+}
+
+static int16_t floor_div_tile(int16_t value) {
+    if (value >= 0) { return (int16_t)(value / PICO_TILE_SIZE); }
+    return (int16_t)(-(((-value) + PICO_TILE_SIZE - 1) / PICO_TILE_SIZE));
+}
+
+static uint8_t tile_is_solid_at(int16_t tile_x, int16_t tile_y) {
+    if (tile_x < 0 || tile_y < 0 || tile_x >= g_room.width || tile_y >= g_room.height) { return 1; }
+    const uint8_t tile = g_room_tiles[(uint16_t)tile_y * g_room.width + (uint8_t)tile_x];
+    return (g_tile_flags[tile] & 0x01u) != 0u;
+}
+
+static uint8_t box_overlaps_solid(Low_Knight_Box box) {
+    const int16_t left_tile = floor_div_tile(box.left);
+    const int16_t top_tile = floor_div_tile(box.top);
+    const int16_t right_tile = floor_div_tile((int16_t)(box.right - 1));
+    const int16_t bottom_tile = floor_div_tile((int16_t)(box.bottom - 1));
+
+    for (int16_t ty = top_tile; ty <= bottom_tile; ty++) {
+        for (int16_t tx = left_tile; tx <= right_tile; tx++) {
+            if (tile_is_solid_at(tx, ty)) { return 1; }
+        }
+    }
+    return 0;
 }
 
 static uint8_t read_map_cell(uint8_t x, uint8_t y, uint8_t* out) {
@@ -391,13 +463,53 @@ static Low_Knight_Rect player_rect_for(Low_Knight_Vec2i player, uint8_t scale) {
     };
 }
 
+static void resolve_player_horizontal(void) {
+    g_player_qx += g_player_vx;
+    sync_player_from_q();
+    Low_Knight_Box box = player_hitbox_at(g_player.x, g_player.y);
+    if (!box_overlaps_solid(box)) { return; }
+
+    const int16_t push = g_player_vx > 0 ? -1 : 1;
+    for (uint8_t i = 0; i < PICO_TILE_SIZE * 2u && box_overlaps_solid(box); i++) {
+        g_player.x = (int16_t)(g_player.x + push);
+        box = player_hitbox_at(g_player.x, g_player.y);
+    }
+    g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
+    g_player_vx = 0;
+}
+
+static void resolve_player_vertical(void) {
+    g_player_qy += g_player_vy;
+    sync_player_from_q();
+    Low_Knight_Box box = player_hitbox_at(g_player.x, g_player.y);
+    g_player_on_ground = 0;
+    if (!box_overlaps_solid(box)) { return; }
+
+    const int16_t push = g_player_vy > 0 ? -1 : 1;
+    for (uint8_t i = 0; i < PICO_TILE_SIZE * 2u && box_overlaps_solid(box); i++) {
+        g_player.y = (int16_t)(g_player.y + push);
+        box = player_hitbox_at(g_player.x, g_player.y);
+    }
+    g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
+    if (g_player_vy > 0) { g_player_on_ground = 1; }
+    g_player_vy = 0;
+}
+
 uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     if (resources == NULL || !resources->is_open) { return 0; }
     g_resources = resources;
     g_room = g_rooms[LOW_KNIGHT_START_ROOM];
     memset(g_tile_row_cache, 0, sizeof(g_tile_row_cache));
+    if (!Low_Knight_Resources_Read_Gff(g_resources, 0, g_tile_flags, sizeof(g_tile_flags))) { return 0; }
     g_player.x = (int16_t)(892 - (int16_t)g_room.base_x * PICO_TILE_SIZE);
     g_player.y = (int16_t)(583 - (int16_t)g_room.base_y * PICO_TILE_SIZE);
+    g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
+    g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
+    g_player_vx = 0;
+    g_player_vy = 0;
+    g_player_on_ground = 0;
+    g_coyote_frames = 0;
+    g_jump_buffer_frames = 0;
     g_last_drawn_player = g_player;
     if (!unpack_room(&g_room)) { return 0; }
     return g_room.no_background || cache_background_map();
@@ -423,6 +535,43 @@ void Low_Knight_Runtime_Draw_Dirty(St7789* lcd) {
     g_last_drawn_player = g_player;
 }
 
+uint8_t Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
+    if (input == NULL || g_resources == NULL) { return 0; }
+
+    const Low_Knight_Vec2i before = g_player;
+    int8_t move_x = input->move_x;
+    if (move_x < -1) { move_x = -1; }
+    if (move_x > 1) { move_x = 1; }
+
+    g_player_vx = (int16_t)move_x * PLAYER_MOVE_SPEED_Q;
+
+    if (g_player_on_ground) {
+        g_coyote_frames = PLAYER_COYOTE_FRAMES;
+    } else if (g_coyote_frames > 0) {
+        g_coyote_frames--;
+    }
+    if (input->jump_pressed) {
+        g_jump_buffer_frames = PLAYER_JUMP_BUFFER_FRAMES;
+    } else if (g_jump_buffer_frames > 0) {
+        g_jump_buffer_frames--;
+    }
+
+    if (g_jump_buffer_frames > 0 && g_coyote_frames > 0) {
+        g_player_vy = PLAYER_JUMP_Q;
+        g_player_on_ground = 0;
+        g_coyote_frames = 0;
+        g_jump_buffer_frames = 0;
+    }
+    if (input->jump_released && g_player_vy < PLAYER_JUMP_CUT_Q) { g_player_vy = PLAYER_JUMP_CUT_Q; }
+
+    g_player_vy = (int16_t)(g_player_vy + PLAYER_GRAVITY_Q);
+    if (g_player_vy > PLAYER_MAX_FALL_Q) { g_player_vy = PLAYER_MAX_FALL_Q; }
+
+    resolve_player_horizontal();
+    resolve_player_vertical();
+    return before.x != g_player.x || before.y != g_player.y;
+}
+
 uint8_t Low_Knight_Runtime_Move_Player(int8_t dx, int8_t dy) {
     const int16_t max_x = (int16_t)g_room.width * PICO_TILE_SIZE - 1;
     const int16_t max_y = (int16_t)g_room.height * PICO_TILE_SIZE - 1;
@@ -433,6 +582,8 @@ uint8_t Low_Knight_Runtime_Move_Player(int8_t dx, int8_t dy) {
     if (g_player.y < 0) { g_player.y = 0; }
     if (g_player.x > max_x) { g_player.x = max_x; }
     if (g_player.y > max_y) { g_player.y = max_y; }
+    g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
+    g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
     return before.x != g_player.x || before.y != g_player.y;
 }
 

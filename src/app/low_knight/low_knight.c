@@ -42,6 +42,11 @@ static Button* g_button = NULL;
 static Buzzer* g_buzzer = NULL;
 static Low_Knight_Resources g_resources;
 
+static uint8_t read_jump_down(void) {
+    return Button_Get_State(g_button) == button_state_down ||
+           Bsp_Gpio_Read(GPIO_SW_BTN_IDX) == bsp_gpio_state_reset;
+}
+
 static void draw_centered(const char* text, int32_t y, uint8_t scale, uint16_t color) {
     int32_t length = 0;
     while (text[length] != '\0') { length++; }
@@ -138,28 +143,28 @@ static void low_knight_task(void* arg) {
         ready = 0;
     }
     uint32_t tick = xTaskGetTickCount();
-    uint8_t input_divider = 0;
+    uint8_t last_jump_down = 0;
 
     while (1) {
         if (ready) {
-            int8_t dx = 0;
-            int8_t dy = 0;
-            input_divider++;
-            if (input_divider >= 2u) {
-                input_divider = 0;
-                if (g_joystick->x_value < -JOYSTICK_MOVE_THRESHOLD) { dx = -2; }
-                if (g_joystick->x_value > JOYSTICK_MOVE_THRESHOLD) { dx = 2; }
-                if (g_joystick->y_value < -JOYSTICK_MOVE_THRESHOLD) { dy = 2; }
-                if (g_joystick->y_value > JOYSTICK_MOVE_THRESHOLD) { dy = -2; }
-            }
-            if (dx != 0 || dy != 0) {
-                if (Low_Knight_Runtime_Move_Player(dx, dy)) { Low_Knight_Runtime_Draw_Dirty(g_lcd); }
-            }
+            const uint8_t jump_down = read_jump_down();
+            Low_Knight_Input input = {
+                .move_x = 0,
+                .jump_down = jump_down,
+                .jump_pressed = jump_down && !last_jump_down,
+                .jump_released = !jump_down && last_jump_down,
+            };
+            if (g_joystick->x_value < -JOYSTICK_MOVE_THRESHOLD) { input.move_x = -1; }
+            if (g_joystick->x_value > JOYSTICK_MOVE_THRESHOLD) { input.move_x = 1; }
+
+            if (Low_Knight_Runtime_Step(&input)) { Low_Knight_Runtime_Draw_Dirty(g_lcd); }
+            last_jump_down = jump_down;
         } else if (Storage_Is_Available()) {
             ready = Low_Knight_Resources_Open(&g_resources, LOW_KNIGHT_RESOURCE_PATH) &&
                     Low_Knight_Runtime_Init(&g_resources);
             if (ready) {
                 Low_Knight_Runtime_Draw(g_lcd);
+                last_jump_down = 0;
             } else {
                 draw_boot_screen(0);
             }

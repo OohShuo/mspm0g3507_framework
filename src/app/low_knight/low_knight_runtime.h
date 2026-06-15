@@ -10,8 +10,16 @@ typedef struct {
     int16_t y;
 } Low_Knight_Vec2i;
 
+typedef struct {
+    int8_t move_x;
+    uint8_t jump_down;
+    uint8_t jump_pressed;
+    uint8_t jump_released;
+} Low_Knight_Input;
+
 uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources);
 void Low_Knight_Runtime_Draw(St7789* lcd);
 void Low_Knight_Runtime_Draw_Dirty(St7789* lcd);
+uint8_t Low_Knight_Runtime_Step(const Low_Knight_Input* input);
 uint8_t Low_Knight_Runtime_Move_Player(int8_t dx, int8_t dy);
 Low_Knight_Vec2i Low_Knight_Runtime_Get_Player(void);
