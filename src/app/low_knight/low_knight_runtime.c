@@ -37,6 +37,7 @@
 #define PLAYER_COYOTE_FRAMES   3u
 #define PLAYER_JUMP_BUFFER_FRAMES 4u
 #define ROOM_ENTRY_INSET       24
+#define ROOM_CORNER_MARGIN     24
 #define LOW_KNIGHT_MAX_ENEMIES 12u
 #define ENEMY_BUSH_TILE        207u
 #define BUSH_MOVE_SPEED_Q      192
@@ -138,7 +139,6 @@ static uint8_t g_player_facing_left;
 static uint8_t g_player_on_ground;
 static uint8_t g_coyote_frames;
 static uint8_t g_jump_buffer_frames;
-static uint8_t g_input_locked;
 static int16_t g_camera_x;
 static int16_t g_camera_y;
 static Low_Knight_Enemy g_enemies[LOW_KNIGHT_MAX_ENEMIES];
@@ -783,7 +783,37 @@ static void update_enemies(void) {
     }
 }
 
+static void constrain_corner_transition(void) {
+    const int16_t room_width_px = (int16_t)(g_room.width * PICO_TILE_SIZE);
+    if (g_player.x >= 0 && g_player.x < room_width_px) { return; }
+
+    int16_t probe_world_y = 0;
+    uint8_t toward_vertical_exit = 0;
+    if (g_player_vy < 0 && g_player.y < ROOM_CORNER_MARGIN) {
+        probe_world_y = (int16_t)(g_room.base_y * PICO_TILE_SIZE - 1);
+        toward_vertical_exit = 1;
+    } else if (g_player_vy > 0 &&
+               g_player.y > (int16_t)(g_room.height * PICO_TILE_SIZE - ROOM_CORNER_MARGIN)) {
+        probe_world_y = (int16_t)((g_room.base_y + g_room.height) * PICO_TILE_SIZE);
+        toward_vertical_exit = 1;
+    }
+    if (!toward_vertical_exit) { return; }
+
+    const int16_t clamped_local_x = clamp_i16(g_player.x, 0, (int16_t)(room_width_px - 1));
+    const int16_t probe_world_x = (int16_t)(g_room.base_x * PICO_TILE_SIZE + clamped_local_x);
+    uint8_t vertical_room = g_room_index;
+    if (!find_room_for_world_pixel(probe_world_x, probe_world_y, &vertical_room) ||
+        vertical_room == g_room_index) {
+        return;
+    }
+
+    g_player.x = clamped_local_x;
+    g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
+    g_player_vx = 0;
+}
+
 static uint8_t try_room_transition(void) {
+    constrain_corner_transition();
     const Low_Knight_Room old_room = g_room;
     const int16_t world_x = (int16_t)(g_room.base_x * PICO_TILE_SIZE + g_player.x);
     const int16_t world_y = (int16_t)(g_room.base_y * PICO_TILE_SIZE + g_player.y);
@@ -811,12 +841,9 @@ static uint8_t try_room_transition(void) {
     g_player.y = clamp_i16(local_y, 0, max_y);
     g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
     g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
-    g_player_vx = 0;
-    g_player_vy = 0;
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
-    g_input_locked = 1;
     update_camera(1);
     return 1;
 }
@@ -837,7 +864,6 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
-    g_input_locked = 0;
     g_last_drawn_player = g_player;
     if (!load_room(LOW_KNIGHT_START_ROOM)) { return 0; }
     update_camera(1);
@@ -884,13 +910,6 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     uint8_t jump_pressed = input->jump_pressed;
     uint8_t jump_released = input->jump_released;
 
-    if (g_input_locked) {
-        if (move_x == 0 && !input->jump_down) { g_input_locked = 0; }
-        move_x = 0;
-        jump_pressed = 0;
-        jump_released = 0;
-    }
-
     g_player_vx = (int16_t)move_x * PLAYER_MOVE_SPEED_Q;
     if (move_x < 0) { g_player_facing_left = 1; }
     if (move_x > 0) { g_player_facing_left = 0; }
@@ -919,10 +938,10 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
 
     resolve_player_horizontal();
     resolve_player_vertical();
-    if (try_room_transition()) { return low_knight_step_full; }
+    if (try_room_transition()) { return low_knight_step_transition; }
     update_enemies();
     if (update_camera(0) || before_camera_x != g_camera_x || before_camera_y != g_camera_y) {
-        return low_knight_step_full;
+        return low_knight_step_transition;
     }
 
     if (before.x != g_player.x || before.y != g_player.y || before_facing_left != g_player_facing_left ||

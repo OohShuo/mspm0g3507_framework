@@ -34,6 +34,7 @@
 #define COLOR_DARK    0x1082u
 
 #define LOW_KNIGHT_FRAME_MS 33u
+#define LOW_KNIGHT_TRANSITION_HOLD_MS 20u
 #define JOYSTICK_MOVE_THRESHOLD 0.45f
 
 static St7789* g_lcd = NULL;
@@ -158,7 +159,11 @@ static void low_knight_task(void* arg) {
             if (g_joystick->x_value > JOYSTICK_MOVE_THRESHOLD) { input.move_x = 1; }
 
             const Low_Knight_Step_Result step_result = Low_Knight_Runtime_Step(&input);
-            if (step_result == low_knight_step_full) {
+            if (step_result == low_knight_step_transition) {
+                Low_Knight_Runtime_Draw(g_lcd);
+                vTaskDelay(pdMS_TO_TICKS(LOW_KNIGHT_TRANSITION_HOLD_MS));
+                tick = xTaskGetTickCount();
+            } else if (step_result == low_knight_step_full) {
                 Low_Knight_Runtime_Draw(g_lcd);
             } else if (step_result == low_knight_step_dirty) {
                 Low_Knight_Runtime_Draw_Dirty(g_lcd);

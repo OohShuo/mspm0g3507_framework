@@ -21,6 +21,7 @@ typedef enum {
     low_knight_step_none = 0,
     low_knight_step_dirty = 1,
     low_knight_step_full = 2,
+    low_knight_step_transition = 3,
 } Low_Knight_Step_Result;
 
 uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources);
