@@ -47,6 +47,7 @@
 #define LOW_KNIGHT_MAX_PROJECTILES 8u
 #define LOW_KNIGHT_MAX_BLOOD_PARTICLES 12u
 #define LOW_KNIGHT_MAX_ITEMS   8u
+#define LOW_KNIGHT_MAX_PORTALS 8u
 #define LOW_KNIGHT_MAX_COLLECTED_ITEMS 32u
 #define ENEMY_FLY_TILE         71u
 #define ENEMY_AMBUSH_TILE      108u
@@ -94,6 +95,15 @@
 #define BENCH_TILE              33u
 #define REMNANT_TILE            49u
 #define NAIL_ITEM_TILE          111u
+#define PORTAL_LEFT_TILE        12u
+#define PORTAL_RIGHT_TILE       13u
+#define PORTAL_UP_TILE          14u
+#define PORTAL_DOWN_TILE        15u
+#define BOSS_GATE_TOP_TILE      2u
+#define BOSS_GATE_BODY_TILE     18u
+#define BOSS_FIGHT_TILE         66u
+#define BOSS_CORNER_TILE        83u
+#define BANNER_TILE             64u
 
 #define STRIKE_HORIZONTAL       0u
 #define STRIKE_UP               1u
@@ -209,6 +219,13 @@ typedef struct {
     uint8_t active;
 } Low_Knight_Item;
 
+typedef struct {
+    int16_t x;
+    int16_t y;
+    uint8_t tile;
+    uint8_t active;
+} Low_Knight_Portal;
+
 static const Low_Knight_Room g_rooms[] = {
     {0, 0, 84, 64, 20, 16, 1, 0},
     {33, 1, 56, 64, 28, 16, 1, 0},
@@ -311,6 +328,7 @@ static Low_Knight_Enemy g_enemies[LOW_KNIGHT_MAX_ENEMIES];
 static Low_Knight_Projectile g_projectiles[LOW_KNIGHT_MAX_PROJECTILES];
 static Low_Knight_Blood_Particle g_blood_particles[LOW_KNIGHT_MAX_BLOOD_PARTICLES];
 static Low_Knight_Item g_items[LOW_KNIGHT_MAX_ITEMS];
+static Low_Knight_Portal g_portals[LOW_KNIGHT_MAX_PORTALS];
 static uint16_t g_collected_item_keys[LOW_KNIGHT_MAX_COLLECTED_ITEMS];
 static Low_Knight_Rect g_last_drawn_enemy_rects[LOW_KNIGHT_MAX_ENEMIES];
 static Low_Knight_Rect g_last_drawn_projectile_rects[LOW_KNIGHT_MAX_PROJECTILES];
@@ -319,6 +337,7 @@ static uint8_t g_last_drawn_projectile_active[LOW_KNIGHT_MAX_PROJECTILES];
 static uint8_t g_enemy_count;
 static uint8_t g_item_count;
 static uint8_t g_item_active_count;
+static uint8_t g_portal_count;
 static uint8_t g_collected_item_count;
 static Low_Knight_Rect g_pending_dirty[LOW_KNIGHT_MAX_DIRTY_RECTS];
 static uint8_t g_pending_dirty_count;
@@ -645,6 +664,16 @@ static uint8_t is_item_spawn_tile(uint8_t tile) {
            (tile >= 6u && tile <= 11u) || tile == NAIL_ITEM_TILE || tile == REMNANT_TILE;
 }
 
+static uint8_t is_portal_tile(uint8_t tile) {
+    return tile >= PORTAL_LEFT_TILE && tile <= PORTAL_DOWN_TILE;
+}
+
+static uint8_t is_deferred_entity_tile(uint8_t tile) {
+    return tile == 4u || tile == 5u || tile == BOSS_GATE_TOP_TILE ||
+           tile == BOSS_GATE_BODY_TILE || tile == BOSS_FIGHT_TILE ||
+           tile == BOSS_CORNER_TILE || tile == BANNER_TILE;
+}
+
 static uint16_t item_key_for(uint8_t tile_x, uint8_t tile_y) {
     const uint16_t world_x = (uint16_t)(g_room.base_x + tile_x);
     const uint16_t world_y = (uint16_t)(g_room.base_y + tile_y);
@@ -661,6 +690,29 @@ static uint8_t item_key_collected(uint16_t key) {
 static void remember_collected_item(uint16_t key) {
     if (item_key_collected(key) || g_collected_item_count >= LOW_KNIGHT_MAX_COLLECTED_ITEMS) { return; }
     g_collected_item_keys[g_collected_item_count++] = key;
+}
+
+static void prepare_room_special_tiles(void) {
+    memset(g_portals, 0, sizeof(g_portals));
+    g_portal_count = 0;
+
+    for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
+        for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
+            uint8_t* tile = &g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x];
+            if (is_portal_tile(*tile)) {
+                if (g_portal_count < LOW_KNIGHT_MAX_PORTALS) {
+                    Low_Knight_Portal* portal = &g_portals[g_portal_count++];
+                    portal->x = (int16_t)(tile_x * PICO_TILE_SIZE);
+                    portal->y = (int16_t)(tile_y * PICO_TILE_SIZE);
+                    portal->tile = *tile;
+                    portal->active = 1;
+                }
+                *tile = 0u;
+            } else if (is_deferred_entity_tile(*tile)) {
+                *tile = 0u;
+            }
+        }
+    }
 }
 
 static void spawn_room_enemies(void) {
@@ -810,6 +862,7 @@ static uint8_t load_room(uint8_t room_index) {
     g_room = g_rooms[g_room_index];
     update_room_exit_flags();
     if (!unpack_room(&g_room)) { return 0; }
+    prepare_room_special_tiles();
     spawn_room_enemies();
     spawn_room_items();
     return g_room.no_background || cache_background_map();
@@ -2670,6 +2723,101 @@ static uint8_t respawn_player(void) {
     return 1;
 }
 
+static void reset_transition_state(void) {
+    g_player_on_ground = 0;
+    g_coyote_frames = 0;
+    g_jump_buffer_frames = 0;
+    g_strike_timer = 0;
+    g_strike_hit_mask = 0;
+    g_player_focus_timer = 0;
+    g_player_focus_input_grace = 0;
+    g_player_air_jumps_used = 0;
+    g_player_air_dash_available = 1;
+    g_player_dash_timer = 0;
+    g_player_wall_dir = 0;
+    g_item_showcase_active = 0;
+    if (!g_has_bench_respawn) {
+        g_respawn_room_index = g_room_index;
+        g_respawn_player = g_player;
+    }
+    update_camera(1);
+}
+
+static uint8_t enter_room_at_world_pixel(int16_t world_x, int16_t world_y, int16_t vx, int16_t vy) {
+    uint8_t next_room = g_room_index;
+    if (!find_room_for_world_pixel(world_x, world_y, &next_room) || next_room == g_room_index) { return 0; }
+    if (!load_room(next_room)) { return 0; }
+
+    const int16_t max_x = (int16_t)(g_room.width * PICO_TILE_SIZE - 1);
+    const int16_t max_y = (int16_t)(g_room.height * PICO_TILE_SIZE - 1);
+    g_player.x = clamp_i16((int16_t)(world_x - g_room.base_x * PICO_TILE_SIZE), 0, max_x);
+    g_player.y = clamp_i16((int16_t)(world_y - g_room.base_y * PICO_TILE_SIZE), 0, max_y);
+    g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
+    g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
+    g_player_vx = vx;
+    g_player_vy = vy;
+    reset_transition_state();
+    return 1;
+}
+
+static Low_Knight_Box portal_box_for(const Low_Knight_Portal* portal) {
+    if (portal->tile == PORTAL_LEFT_TILE) {
+        return (Low_Knight_Box){portal->x, portal->y, (int16_t)(portal->x + 2), (int16_t)(portal->y + 8)};
+    }
+    if (portal->tile == PORTAL_RIGHT_TILE) {
+        return (Low_Knight_Box){(int16_t)(portal->x + 6), portal->y, (int16_t)(portal->x + 8),
+            (int16_t)(portal->y + 8)};
+    }
+    if (portal->tile == PORTAL_UP_TILE) {
+        return (Low_Knight_Box){portal->x, portal->y, (int16_t)(portal->x + 8), (int16_t)(portal->y + 2)};
+    }
+    return (Low_Knight_Box){portal->x, (int16_t)(portal->y + 6), (int16_t)(portal->x + 8),
+        (int16_t)(portal->y + 8)};
+}
+
+static uint8_t portal_direction_matches(const Low_Knight_Portal* portal, const Low_Knight_Input* input) {
+    if (portal->tile == PORTAL_LEFT_TILE) { return g_player_vx < 0 || input->move_x < 0; }
+    if (portal->tile == PORTAL_RIGHT_TILE) { return g_player_vx > 0 || input->move_x > 0; }
+    if (portal->tile == PORTAL_UP_TILE) { return g_player_vy < 0 || input->move_y > 0; }
+    return g_player_vy > 0 || input->move_y < 0;
+}
+
+static uint8_t try_portal_transition(const Low_Knight_Input* input) {
+    if (g_portal_count == 0 || input == NULL) { return 0; }
+
+    const Low_Knight_Box player_box = player_hitbox_at(g_player.x, g_player.y);
+    for (uint8_t i = 0; i < g_portal_count; i++) {
+        const Low_Knight_Portal* portal = &g_portals[i];
+        if (!portal->active || !boxes_overlap(player_box, portal_box_for(portal)) ||
+            !portal_direction_matches(portal, input)) {
+            continue;
+        }
+
+        int16_t offset_x = 0;
+        int16_t offset_y = 0;
+        int16_t exit_vx = 0;
+        int16_t exit_vy = 0;
+        if (portal->tile == PORTAL_LEFT_TILE) {
+            offset_x = -9;
+            exit_vx = -128;
+        } else if (portal->tile == PORTAL_RIGHT_TILE) {
+            offset_x = 9;
+            exit_vx = 128;
+        } else if (portal->tile == PORTAL_UP_TILE) {
+            offset_y = -18;
+            exit_vy = -410;
+        } else {
+            offset_y = 9;
+            exit_vy = 96;
+        }
+
+        const int16_t world_x = (int16_t)(g_room.base_x * PICO_TILE_SIZE + g_player.x + offset_x);
+        const int16_t world_y = (int16_t)(g_room.base_y * PICO_TILE_SIZE + g_player.y + offset_y);
+        if (enter_room_at_world_pixel(world_x, world_y, exit_vx, exit_vy)) { return 1; }
+    }
+    return 0;
+}
+
 static void constrain_corner_transition(void) {
     const int16_t room_width_px = (int16_t)(g_room.width * PICO_TILE_SIZE);
     if (g_player.x >= 0 && g_player.x < room_width_px) { return; }
@@ -2728,23 +2876,7 @@ static uint8_t try_room_transition(void) {
     g_player.y = clamp_i16(local_y, 0, max_y);
     g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
     g_player_qy = (int32_t)g_player.y * PHYSICS_Q_ONE;
-    g_player_on_ground = 0;
-    g_coyote_frames = 0;
-    g_jump_buffer_frames = 0;
-    g_strike_timer = 0;
-    g_strike_hit_mask = 0;
-    g_player_focus_timer = 0;
-    g_player_focus_input_grace = 0;
-    g_player_air_jumps_used = 0;
-    g_player_air_dash_available = 1;
-    g_player_dash_timer = 0;
-    g_player_wall_dir = 0;
-    g_item_showcase_active = 0;
-    if (!g_has_bench_respawn) {
-        g_respawn_room_index = g_room_index;
-        g_respawn_player = g_player;
-    }
-    update_camera(1);
+    reset_transition_state();
     return 1;
 }
 
@@ -2969,6 +3101,7 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
         g_player_dash_timer = 0;
     }
     const uint8_t bench_used = interact_with_bench(input);
+    if (try_portal_transition(input)) { return low_knight_step_transition; }
     if (check_item_pickups()) { return low_knight_step_dirty; }
     if (try_room_transition()) { return low_knight_step_transition; }
     update_blood_particles();
