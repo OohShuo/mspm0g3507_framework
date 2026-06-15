@@ -120,8 +120,8 @@ static void render_hud(void) {
     Game_Graphics_Draw_Text(g_hardware.lcd, 6, 22, "LIVES", 1, COLOR_WHITE);
     Game_Graphics_Draw_U32(g_hardware.lcd, 54, 22, g_lives, 1, 1, COLOR_PADDLE);
 
-    /* Clear bottom status bar before drawing new text */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 290, SCREEN_WIDTH, 30, COLOR_BLACK);
+    /* Clear status text line (7px glyph at y=300) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 300, SCREEN_WIDTH, 7, COLOR_BLACK);
     if (g_state == breakout_state_serving) {
         Game_Graphics_Draw_Text(g_hardware.lcd, 53, 300, "PRESS TO LAUNCH", 1, COLOR_WHITE);
     } else if (g_state == breakout_state_over) {
