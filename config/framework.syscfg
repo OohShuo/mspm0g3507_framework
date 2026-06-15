@@ -79,11 +79,16 @@ const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 
 GPIO1.$name                              = "GPIO_GRP_0";
 GPIO1.port                               = "PORTA";
+GPIO1.associatedPins.create(2);
 GPIO1.associatedPins[0].$name            = "PIN_0";
 GPIO1.associatedPins[0].assignedPin      = "25";
 GPIO1.associatedPins[0].direction        = "INPUT";
 GPIO1.associatedPins[0].internalResistor = "PULL_UP";
 GPIO1.associatedPins[0].pin.$assign      = "PA25";
+GPIO1.associatedPins[1].$name            = "PIN_1";
+GPIO1.associatedPins[1].assignedPin      = "18";
+GPIO1.associatedPins[1].direction        = "INPUT";
+GPIO1.associatedPins[1].pin.$assign      = "PA18";
 
 GPIO2.$name                              = "GPIO_GRP_1";
 GPIO2.port                               = "PORTB";

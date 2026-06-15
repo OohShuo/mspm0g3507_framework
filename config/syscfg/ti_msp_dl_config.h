@@ -211,6 +211,9 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 /* Defines for PIN_0: GPIOA.25 with pinCMx 55 on package pin 26 */
 #define GPIO_GRP_0_PIN_0_PIN                                    (DL_GPIO_PIN_25)
 #define GPIO_GRP_0_PIN_0_IOMUX                                   (IOMUX_PINCM55)
+/* Defines for PIN_1: GPIOA.18 with pinCMx 40 on package pin 11 */
+#define GPIO_GRP_0_PIN_1_PIN                                    (DL_GPIO_PIN_18)
+#define GPIO_GRP_0_PIN_1_IOMUX                                   (IOMUX_PINCM40)
 /* Port definition for Pin Group GPIO_GRP_1 */
 #define GPIO_GRP_1_PORT                                                  (GPIOB)
 
