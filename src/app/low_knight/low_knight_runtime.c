@@ -41,7 +41,7 @@
 #define ROOM_CORNER_MARGIN     24
 #define LOW_KNIGHT_MAX_ENEMIES 12u
 #define LOW_KNIGHT_MAX_PROJECTILES 8u
-#define LOW_KNIGHT_MAX_BLOOD_PARTICLES 20u
+#define LOW_KNIGHT_MAX_BLOOD_PARTICLES 12u
 #define ENEMY_FLY_TILE         71u
 #define ENEMY_AMBUSH_TILE      108u
 #define ENEMY_MOSS_TILE        172u
@@ -66,6 +66,8 @@
 #define STRIKE_HIT_END         5u
 #define STRIKE_DAMAGE          5u
 #define BLOOD_COLOR            9u
+#define BLOOD_REDRAW_DIVIDER   2u
+#define BLOOD_PHYSICS_SUBSTEPS 2u
 #define PLAYER_BLOOD_COLOR     0u
 #define PLAYER_MAX_HP          5u
 #define PLAYER_INVULNERABLE_FRAMES 60u
@@ -1697,7 +1699,7 @@ static void spawn_enemy_blood(const Low_Knight_Enemy* enemy, uint8_t dying) {
     const Low_Knight_Box box = enemy_hitbox_at(enemy, enemy->x, enemy->y);
     const int16_t center_x = (int16_t)((box.left + box.right) / 2);
     const int16_t center_y = (int16_t)((box.top + box.bottom) / 2);
-    const uint8_t count = dying ? 16u : 6u;
+    const uint8_t count = dying ? 9u : 4u;
 
     for (uint8_t i = 0; i < count; i++) {
         const uint16_t random = effect_random();
@@ -1713,18 +1715,22 @@ static void spawn_enemy_blood(const Low_Knight_Enemy* enemy, uint8_t dying) {
 }
 
 static void update_blood_particles(void) {
+    if ((g_runtime_frame % BLOOD_REDRAW_DIVIDER) != 0u) { return; }
+
     for (uint8_t i = 0; i < LOW_KNIGHT_MAX_BLOOD_PARTICLES; i++) {
         Low_Knight_Blood_Particle* particle = &g_blood_particles[i];
         if (!particle->active) { continue; }
         const Low_Knight_Rect before = blood_particle_rect_for(particle);
 
-        particle->vx = (int16_t)((int32_t)particle->vx * 244 / 256);
-        particle->vy = (int16_t)((int32_t)particle->vy * 244 / 256 + 10);
-        particle->qx += particle->vx;
-        particle->qy += particle->vy;
+        for (uint8_t step = 0; step < BLOOD_PHYSICS_SUBSTEPS && particle->life > 0; step++) {
+            particle->vx = (int16_t)((int32_t)particle->vx * 244 / 256);
+            particle->vy = (int16_t)((int32_t)particle->vy * 244 / 256 + 10);
+            particle->qx += particle->vx;
+            particle->qy += particle->vy;
+            particle->life--;
+        }
         particle->x = q_to_pixel(particle->qx);
         particle->y = q_to_pixel(particle->qy);
-        if (particle->life > 0) { particle->life--; }
         if (particle->life == 0) {
             particle->active = 0;
             mark_dirty_rect(before);
@@ -1740,7 +1746,7 @@ static void spawn_player_blood(uint8_t dying) {
     const Low_Knight_Box box = player_hitbox_at(g_player.x, g_player.y);
     const int16_t center_x = (int16_t)((box.left + box.right) / 2);
     const int16_t center_y = (int16_t)((box.top + box.bottom) / 2);
-    const uint8_t count = dying ? 18u : 10u;
+    const uint8_t count = dying ? 10u : 6u;
 
     for (uint8_t i = 0; i < count; i++) {
         const uint16_t random = effect_random();
