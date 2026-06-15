@@ -6,6 +6,7 @@
 #include "bsp_spi.h"
 
 #define Bsp_Spi_Write Bsp_Soft_Spi_Write
+#define Bsp_Spi_Write_Swapped16 Bsp_Soft_Spi_Write_Swapped16
 
 static void busy_wait_ms(uint32_t ms) {
     volatile uint32_t cycles = ms * 80U * 1000U;
@@ -73,12 +74,6 @@ static void send_cmd(
     cs_high(obj);
 }
 
-static void bswap16_inplace(uint8_t* data, uint32_t byte_count) {
-    uint16_t* px = (uint16_t*)data;
-    const uint32_t n = byte_count / 2;
-    for (uint32_t i = 0; i < n; i++) { px[i] = (uint16_t)((px[i] << 8) | (px[i] >> 8)); }
-}
-
 // === Public API ===
 static St7789 s_lcd_storage;
 
@@ -130,14 +125,12 @@ void St7789_Send_Cmd(
 
 void St7789_Send_Color(
     St7789* obj, const uint8_t* cmd, uint32_t cmd_len, uint8_t* pixels, uint32_t pixels_len) {
-    bswap16_inplace(pixels, pixels_len);
     cs_low(obj);
     dc_cmd(obj);
     Bsp_Spi_Write(obj->config.spi_idx, cmd, cmd_len);
     dc_data(obj);
-    Bsp_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
+    Bsp_Spi_Write_Swapped16(obj->config.spi_idx, pixels, pixels_len);
     cs_high(obj);
-    bswap16_inplace(pixels, pixels_len);
 }
 
 void St7789_Begin_Write(
@@ -169,9 +162,7 @@ void St7789_Begin_Write(
 
 void St7789_Write_Pixels(St7789* obj, uint8_t* pixels, uint32_t pixels_len) {
     if (obj == NULL || pixels == NULL || pixels_len == 0) { return; }
-    bswap16_inplace(pixels, pixels_len);
-    Bsp_Spi_Write(obj->config.spi_idx, pixels, pixels_len);
-    bswap16_inplace(pixels, pixels_len);
+    Bsp_Spi_Write_Swapped16(obj->config.spi_idx, pixels, pixels_len);
 }
 
 void St7789_End_Write(St7789* obj) {

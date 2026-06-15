@@ -7,10 +7,14 @@
 
 #define VIDEO_ASSET_MAX_DECODE_ROW_BYTES 512u
 #define VIDEO_ASSET_FRAME_CACHE_SIZE     2048u
+#define VIDEO_ASSET_FRAME_CACHE_MAX_ROWS 320u
 
 static uint8_t g_frame_cache[VIDEO_ASSET_FRAME_CACHE_SIZE];
 static uint8_t g_rle_row_buffer[VIDEO_ASSET_MAX_DECODE_ROW_BYTES];
 static uint8_t g_index1_row_buffer[VIDEO_ASSET_MAX_DECODE_ROW_BYTES];
+static uint16_t g_frame_cache_row_offsets[VIDEO_ASSET_FRAME_CACHE_MAX_ROWS];
+static uint16_t g_frame_cache_row_count = 0;
+static uint8_t g_frame_cache_rows_valid = 0;
 
 #if FRAMEWORK_USE_LFS
 static uint16_t read_u16_le(const uint8_t* data) {
@@ -93,16 +97,44 @@ static uint8_t load_frame_cache(Video_asset* video, uint32_t frame_index) {
     if (!read_frame_data_size(video, frame_index, &offset, &size) ||
         size == 0u || size > sizeof(g_frame_cache)) {
         video->cached_frame_valid = 0;
+        g_frame_cache_rows_valid = 0;
+        g_frame_cache_row_count = 0;
         return 0;
     }
     if (!read_exact(video, offset, g_frame_cache, size)) {
         video->cached_frame_valid = 0;
+        g_frame_cache_rows_valid = 0;
+        g_frame_cache_row_count = 0;
         return 0;
     }
 
     video->cached_frame_index = frame_index;
     video->cached_frame_size = (uint16_t)size;
     video->cached_frame_valid = 1;
+    g_frame_cache_rows_valid = 0;
+    g_frame_cache_row_count = 0;
+
+    if (video->height <= VIDEO_ASSET_FRAME_CACHE_MAX_ROWS) {
+        uint32_t row_offset = 0;
+        uint8_t rows_valid = 1;
+        for (uint16_t row = 0; row < video->height; row++) {
+            if (row_offset + 2u > size) {
+                rows_valid = 0;
+                break;
+            }
+            g_frame_cache_row_offsets[row] = (uint16_t)row_offset;
+            const uint16_t encoded_len = read_u16_le(&g_frame_cache[row_offset]);
+            row_offset += 2u + encoded_len;
+            if (row_offset > size) {
+                rows_valid = 0;
+                break;
+            }
+        }
+        if (rows_valid && row_offset == size) {
+            g_frame_cache_row_count = video->height;
+            g_frame_cache_rows_valid = 1;
+        }
+    }
     return 1;
 }
 
@@ -171,11 +203,15 @@ static uint8_t decode_rle_encoded_row(
 
 static uint8_t read_cached_rle_row(Video_asset* video, uint16_t y, uint16_t* pixels) {
     uint32_t offset = 0;
-    for (uint16_t row = 0; row < y; row++) {
-        if (offset + 2u > video->cached_frame_size) { return 0; }
-        const uint16_t encoded_len = read_u16_le(&g_frame_cache[offset]);
-        offset += 2u + encoded_len;
-        if (offset > video->cached_frame_size) { return 0; }
+    if (g_frame_cache_rows_valid && y < g_frame_cache_row_count) {
+        offset = g_frame_cache_row_offsets[y];
+    } else {
+        for (uint16_t row = 0; row < y; row++) {
+            if (offset + 2u > video->cached_frame_size) { return 0; }
+            const uint16_t encoded_len = read_u16_le(&g_frame_cache[offset]);
+            offset += 2u + encoded_len;
+            if (offset > video->cached_frame_size) { return 0; }
+        }
     }
 
     if (offset + 2u > video->cached_frame_size) { return 0; }
@@ -291,6 +327,8 @@ uint8_t Video_Asset_Open(Video_asset* video, const char* path) {
     video->cached_frame_index = UINT32_MAX;
     video->cached_frame_size = 0;
     video->cached_frame_valid = 0;
+    g_frame_cache_rows_valid = 0;
+    g_frame_cache_row_count = 0;
     return 1;
 #else
     (void)path;
