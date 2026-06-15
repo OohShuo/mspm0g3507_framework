@@ -29,7 +29,6 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CFG_PATH = ROOT / "config" / "config.yaml"
-BUILD_DIR = ROOT / "build"
 
 # cmake -G values for the supported yaml `generator:` values.
 GENERATOR_MAP = {
@@ -125,16 +124,20 @@ def run(cmd: list[str], cwd: pathlib.Path) -> None:
 
 def main() -> None:
     cfg = load_config()
+
+    # Use separate build dir for VM to avoid ARM/x86 conflicts.
+    build_dir = ROOT / ("build_vm" if _is_truthy(cfg.get("FRAMEWORK_VIRTUAL_DEVICE")) else "build")
+
     cmake_cmd = build_cmake_command(cfg)
 
-    BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    run(cmake_cmd, BUILD_DIR)
+    build_dir.mkdir(parents=True, exist_ok=True)
+    run(cmake_cmd, build_dir)
 
     # Generator-agnostic build: avoids the trap of trying to spawn
     # `unix makefiles` when the generator is "Unix Makefiles".
     nproc = str(os.cpu_count() or 1)
     build_cmd = ["cmake", "--build", ".", "-j", nproc]
-    run(build_cmd, BUILD_DIR)
+    run(build_cmd, build_dir)
 
 
 if __name__ == "__main__":
