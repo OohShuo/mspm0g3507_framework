@@ -31,10 +31,14 @@ static void on_rx(Com_uart* obj, const uint8_t* data, uint32_t len, uint8_t flag
     memcpy(buf, data, n);
     buf[n] = '\0';
 
+#if FRAMEWORK_USE_RTT
     for (uint32_t i = 0; i < n; i++) {
         char c = ((data[i] >= 32 && data[i] <= 126) || data[i] == '\n') ? (char)data[i] : '.';
         printf("%c", c);
     }
+#else
+    (void)n;
+#endif
 
     Com_Uart_Send(obj, data, len);
 }

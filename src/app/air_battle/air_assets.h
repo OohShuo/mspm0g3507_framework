@@ -13,7 +13,6 @@ typedef struct {
     const uint8_t* mask;
 } Air_sprite;
 
-extern const uint16_t air_background[AIR_BACKGROUND_WIDTH * AIR_BACKGROUND_HEIGHT];
 extern const Air_sprite air_sprite_hero;
 extern const Air_sprite air_sprite_mob;
 extern const Air_sprite air_sprite_elite;

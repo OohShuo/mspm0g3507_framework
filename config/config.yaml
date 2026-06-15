@@ -4,6 +4,7 @@ build:
   graphviz: ON # ON | OFF — appends --graphviz=framework.dot
 
   FRAMEWORK_USE_FREERTOS: ON
-  FRAMEWORK_USE_RTT: ON
+  FRAMEWORK_USE_RTT: OFF
   FRAMEWORK_USE_LVGL: OFF
   FRAMEWORK_USE_LFS: ON
+  FRAMEWORK_USE_UART: OFF

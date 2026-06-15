@@ -438,6 +438,6 @@ static void console_task(void* arg) {
 }
 
 void Game_Console_Task_Def(void) {
-    const BaseType_t result = xTaskCreate(console_task, "Game", 768, NULL, 1, NULL);
+    const BaseType_t result = xTaskCreate(console_task, "Game", 1024, NULL, 1, NULL);
     configASSERT(result == pdPASS);
 }
