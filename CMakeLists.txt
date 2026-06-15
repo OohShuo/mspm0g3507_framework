@@ -18,6 +18,8 @@ if(FRAMEWORK_VIRTUAL_DEVICE)
 
     project(framework LANGUAGES C CXX)
 
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
     include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
     foreach(_k IN LISTS _framework_use_keys)
@@ -39,7 +41,7 @@ if(FRAMEWORK_VIRTUAL_DEVICE)
 
     find_package(SDL2 REQUIRED)
 
-    add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${ASSETS_C}")
+    add_executable(${PROJECT_NAME}_vm "${ENTRANCE_MAIN_C}" "${ASSETS_C}")
 
     # Dummy targets for HAL/BSP/syscall/ti — the VM library replaces all of them
     add_library(hal INTERFACE)
@@ -58,9 +60,9 @@ if(FRAMEWORK_VIRTUAL_DEVICE)
     # app inherits VM's PUBLIC include paths (hal, bsp, freertos headers)
     target_link_libraries(app PRIVATE vm)
 
-    target_link_libraries(${PROJECT_NAME}.elf PRIVATE vm app lib)
-    target_link_libraries(${PROJECT_NAME}.elf PRIVATE ${SDL2_LIBRARIES})
-    target_include_directories(${PROJECT_NAME}.elf PRIVATE ${SDL2_INCLUDE_DIRS})
+    target_link_libraries(${PROJECT_NAME}_vm PRIVATE vm app lib)
+    target_link_libraries(${PROJECT_NAME}_vm PRIVATE ${SDL2_LIBRARIES})
+    target_include_directories(${PROJECT_NAME}_vm PRIVATE ${SDL2_INCLUDE_DIRS})
 
     print_blankline()
 
