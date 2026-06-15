@@ -641,7 +641,7 @@ static uint8_t enemy_start_hp(uint8_t type) {
 }
 
 static uint8_t is_item_spawn_tile(uint8_t tile) {
-    return tile == 3u || tile == 19u || tile == 35u || tile == 4u || tile == 5u ||
+    return tile == 3u || tile == 19u || tile == 35u ||
            (tile >= 6u && tile <= 11u) || tile == NAIL_ITEM_TILE || tile == REMNANT_TILE;
 }
 
