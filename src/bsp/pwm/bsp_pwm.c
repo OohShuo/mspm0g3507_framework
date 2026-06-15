@@ -34,14 +34,29 @@ void Bsp_Pwm_Set_Duty(uint32_t idx, float duty) {
     DL_Timer_setCaptureCompareValue(bsp_pwm_instances[idx].timer, ccr_value, bsp_pwm_instances[idx].channel);
 }
 
+void Bsp_Pwm_Set_Duty_U8(uint32_t idx, uint8_t duty) {
+    if (idx >= PWM_NUM) return;
+
+    const uint32_t load_value =
+        DL_Timer_getLoadValue(bsp_pwm_instances[idx].timer);
+    const uint32_t ccr_value =
+        (load_value * (uint32_t)duty + 127u) / 255u;
+    DL_Timer_setCaptureCompareValue(
+        bsp_pwm_instances[idx].timer, ccr_value,
+        bsp_pwm_instances[idx].channel);
+}
+
 void Bsp_Pwm_Set_Freq(uint32_t idx, uint32_t freq) {
     if (idx >= PWM_NUM) return;
 
     if (freq == 0) {
         DL_Timer_setLoadValue(bsp_pwm_instances[idx].timer, 0xFFFFFFFF);
     } else {
-        uint32_t load_value = bsp_pwm_instances[idx].clk_freq / freq;
-        if (load_value > 0xFFFFFFFF) load_value = 0xFFFFFFFF;
+        uint32_t load_value = 1;
+        if (freq < bsp_pwm_instances[idx].clk_freq) {
+            load_value =
+                (bsp_pwm_instances[idx].clk_freq + freq / 2u) / freq;
+        }
         DL_Timer_setLoadValue(bsp_pwm_instances[idx].timer, load_value);
     }
 }
@@ -63,6 +78,11 @@ void Bsp_Pwm_Stop(uint32_t idx) {
 void Bsp_Pwm_Init(void) {}
 
 void Bsp_Pwm_Set_Duty(uint32_t idx, float duty) {
+    (void)idx;
+    (void)duty;
+}
+
+void Bsp_Pwm_Set_Duty_U8(uint32_t idx, uint8_t duty) {
     (void)idx;
     (void)duty;
 }

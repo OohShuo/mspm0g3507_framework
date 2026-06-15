@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include "app_config.h"
+#include "audio_player.h"
 #include "flash_mgr.h"
 #include "game_console.h"
 #include "low_knight.h"
@@ -14,7 +15,9 @@ void App_Init(void) {
 }
 
 void App_Task_Def(void) {
-#if VIDEO_PLAYER_ENABLE
+#if AUDIO_PLAYER_ENABLE
+    Audio_Player_Task_Def();
+#elif VIDEO_PLAYER_ENABLE
     Video_Player_Task_Def();
 #elif LOW_KNIGHT_STANDALONE_ENABLE
     Low_Knight_Task_Def();

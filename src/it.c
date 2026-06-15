@@ -1,4 +1,5 @@
 #include "FreeRTOS.h"
+#include "audio_player.h"
 #include "bsp_adc.h"
 #include "bsp_spi.h"
 #include "bsp_uart.h"
@@ -21,6 +22,8 @@ void TIMA1_IRQHandler(void) {
             break;
     }
 }
+
+void TIMG6_IRQHandler(void) { Audio_Player_Irq_Handler(); }
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
     printf("STACK OVERFLOW: %s\n", pcTaskName);

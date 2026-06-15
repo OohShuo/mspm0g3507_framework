@@ -49,6 +49,11 @@ static const uint8_t sfx_priorities[buzzer_sfx_count] = {
     [buzzer_sfx_life_lost] = 4,
 };
 
+static float duty_from_volume(uint8_t volume_percent) {
+    if (volume_percent > 100u) { volume_percent = 100u; }
+    return 0.15f + 0.0035f * volume_percent;
+}
+
 static void silence(Buzzer* obj) {
     if (obj == NULL || !obj->output_active) { return; }
     Bsp_Pwm_Stop(obj->config.pwm_idx);
@@ -62,10 +67,9 @@ static void output_frequency(Buzzer* obj, uint16_t frequency_hz, uint8_t volume_
         return;
     }
 
-    if (volume_percent > 100u) { volume_percent = 100u; }
     Bsp_Pwm_Stop(obj->config.pwm_idx);
     Bsp_Pwm_Set_Freq(obj->config.pwm_idx, frequency_hz);
-    Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0.15f + 0.0035f * volume_percent);
+    Bsp_Pwm_Set_Duty(obj->config.pwm_idx, duty_from_volume(volume_percent));
     Bsp_Pwm_Start(obj->config.pwm_idx);
     obj->output_active = 1;
     obj->output_frequency = frequency_hz;
@@ -130,6 +134,7 @@ static uint8_t update_track(Buzzer* obj, Buzzer_track* track, uint32_t now) {
                 (uint16_t)((int32_t)note->frequency_hz + delta * (int32_t)elapsed / (int32_t)gate_time);
             if (frequency != obj->output_frequency) {
                 Bsp_Pwm_Set_Freq(obj->config.pwm_idx, frequency);
+                Bsp_Pwm_Set_Duty(obj->config.pwm_idx, duty_from_volume(note->volume_percent));
                 obj->output_frequency = frequency;
             }
         }

@@ -82,6 +82,7 @@
 | PA2 | SPI1 CS |
 | PA10 | UART0 TX |
 | PA11 | UART0 RX |
+| PA12 | 蜂鸣器 PWM（TIMA0 CC3） |
 | PA14 | TFT 背光 (BLK) |
 | PA15 | TFT 数据/命令 (DC) |
 | PA16 | TFT 复位 (RST) |

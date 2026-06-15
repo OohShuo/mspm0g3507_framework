@@ -17,7 +17,9 @@ Usage:
 """
 
 import os
+import shutil
 import struct
+import subprocess
 import tempfile
 import time
 import binascii
@@ -40,6 +42,246 @@ VIDEO_FLAG_RLE = 0x01
 VIDEO_FLAG_INDEX8 = 0x02
 VIDEO_FLAG_INDEX1 = 0x04
 VIDEO_FRAME_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+AUDIO_MAGIC = b"AUD1"
+AUDIO_VERSION = 1
+AUDIO_CODEC_PCM8 = 1
+AUDIO_CODEC_PDM1 = 2
+AUDIO_CODEC_ADPCM4 = 3
+AUDIO_HEADER_SIZE = 16
+AUDIO_LFS_PARTITION_SIZE = 2 * 1024 * 1024
+
+IMA_INDEX_TABLE = (-1, -1, -1, -1, 2, 4, 6, 8)
+IMA_STEP_TABLE = (
+    7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31,
+    34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130,
+    143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449,
+    494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411,
+    1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026,
+    4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442,
+    11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623,
+    27086, 29794, 32767,
+)
+
+
+def _ima_adpcm_encode_sample(
+    sample: int, predictor: int, step_index: int
+) -> Tuple[int, int, int]:
+    step = IMA_STEP_TABLE[step_index]
+    difference = sample - predictor
+    code = 0
+    if difference < 0:
+        code = 8
+        difference = -difference
+
+    reconstructed = step >> 3
+    if difference >= step:
+        code |= 4
+        difference -= step
+        reconstructed += step
+    if difference >= step >> 1:
+        code |= 2
+        difference -= step >> 1
+        reconstructed += step >> 1
+    if difference >= step >> 2:
+        code |= 1
+        reconstructed += step >> 2
+
+    predictor += -reconstructed if code & 8 else reconstructed
+    predictor = max(-32768, min(32767, predictor))
+    step_index += IMA_INDEX_TABLE[code & 7]
+    step_index = max(0, min(88, step_index))
+    return code, predictor, step_index
+
+
+def pack_audio_asset(
+    source_path: str,
+    output_path: str,
+    codec: str = "adpcm4",
+    start_seconds: float = 0.0,
+    duration_seconds: Optional[float] = None,
+    end_seconds: Optional[float] = None,
+) -> Tuple[int, int]:
+    """Convert any FFmpeg-supported audio source to the MCU AUD1 format."""
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        raise RuntimeError("FFmpeg is required and must be available in PATH")
+    if not os.path.isfile(source_path):
+        raise FileNotFoundError(source_path)
+    if start_seconds < 0:
+        raise ValueError("Audio start time cannot be negative")
+    if duration_seconds is not None and duration_seconds <= 0:
+        raise ValueError("Audio duration must be greater than zero")
+    if end_seconds is not None and end_seconds <= start_seconds:
+        raise ValueError("Audio end time must be greater than start time")
+    if duration_seconds is not None and end_seconds is not None:
+        raise ValueError("--duration and --end cannot be used together")
+    if end_seconds is not None:
+        duration_seconds = end_seconds - start_seconds
+
+    if codec == "pcm8":
+        codec_id = AUDIO_CODEC_PCM8
+        sample_rate = 8000
+        sample_format = "u8"
+        pcm_codec = "pcm_u8"
+    elif codec == "adpcm4":
+        codec_id = AUDIO_CODEC_ADPCM4
+        sample_rate = 8000
+        sample_format = "s16le"
+        pcm_codec = "pcm_s16le"
+    elif codec == "pdm1":
+        codec_id = AUDIO_CODEC_PDM1
+        sample_rate = 32000
+        sample_format = "s16le"
+        pcm_codec = "pcm_s16le"
+    else:
+        raise ValueError(f"Unknown audio codec: {codec}")
+
+    command = [
+        ffmpeg,
+        "-v", "error",
+    ]
+    if start_seconds > 0:
+        command.extend(["-ss", str(start_seconds)])
+    command.extend([
+        "-i", source_path,
+        "-map", "0:a:0",
+        "-vn",
+    ])
+    if duration_seconds is not None:
+        command.extend(["-t", str(duration_seconds)])
+    command.extend([
+        "-ac", "1",
+        "-ar", str(sample_rate),
+        "-af",
+        "highpass=f=250,lowpass=f=3400,"
+        "dynaudnorm=f=100:g=15:p=0.95:m=12,"
+        "alimiter=limit=0.95",
+        "-f", sample_format,
+        "-acodec", pcm_codec,
+        "pipe:1",
+    ])
+
+    sample_count = 0
+    data_size = 0
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if process.stdout is None or process.stderr is None:
+        raise RuntimeError("Failed to start FFmpeg")
+
+    with open(output_path, "wb+") as output:
+        output.write(b"\x00" * AUDIO_HEADER_SIZE)
+
+        if codec == "pcm8":
+            while True:
+                chunk = process.stdout.read(16384)
+                if not chunk:
+                    break
+                output.write(chunk)
+                sample_count += len(chunk)
+                data_size += len(chunk)
+        elif codec == "pdm1":
+            error = 0
+            packed_byte = 0
+            packed_bits = 0
+            carry = b""
+            while True:
+                chunk = process.stdout.read(16384)
+                if not chunk:
+                    break
+                chunk = carry + chunk
+                carry = chunk[-1:] if len(chunk) & 1 else b""
+                if carry:
+                    chunk = chunk[:-1]
+
+                for (sample,) in struct.iter_unpack("<h", chunk):
+                    shaped = sample + error
+                    if shaped >= 0:
+                        bit = 1
+                        quantized = 32767
+                    else:
+                        bit = 0
+                        quantized = -32768
+                    error = shaped - quantized
+                    if error > 65535:
+                        error = 65535
+                    elif error < -65535:
+                        error = -65535
+
+                    packed_byte = (packed_byte << 1) | bit
+                    packed_bits += 1
+                    sample_count += 1
+                    if packed_bits == 8:
+                        output.write(bytes([packed_byte]))
+                        data_size += 1
+                        packed_byte = 0
+                        packed_bits = 0
+
+            if packed_bits:
+                output.write(bytes([packed_byte << (8 - packed_bits)]))
+                data_size += 1
+        else:
+            predictor = 0
+            step_index = 0
+            packed_byte = 0
+            packed_nibbles = 0
+            carry = b""
+            last_sample = 0
+            while True:
+                chunk = process.stdout.read(16384)
+                if not chunk:
+                    break
+                chunk = carry + chunk
+                carry = chunk[-1:] if len(chunk) & 1 else b""
+                if carry:
+                    chunk = chunk[:-1]
+
+                for (sample,) in struct.iter_unpack("<h", chunk):
+                    last_sample = sample
+                    code, predictor, step_index = _ima_adpcm_encode_sample(
+                        sample, predictor, step_index
+                    )
+                    if packed_nibbles == 0:
+                        packed_byte = code
+                        packed_nibbles = 1
+                    else:
+                        output.write(bytes([packed_byte | (code << 4)]))
+                        data_size += 1
+                        packed_nibbles = 0
+                    sample_count += 1
+
+            if packed_nibbles:
+                code, predictor, step_index = _ima_adpcm_encode_sample(
+                    last_sample, predictor, step_index
+                )
+                output.write(bytes([packed_byte | (code << 4)]))
+                data_size += 1
+                sample_count += 1
+
+        stderr = process.stderr.read().decode("utf-8", errors="replace")
+        return_code = process.wait()
+        if return_code != 0:
+            raise RuntimeError(f"FFmpeg conversion failed: {stderr.strip()}")
+        if sample_count == 0 or data_size == 0:
+            raise RuntimeError("The source contains no decodable audio samples")
+
+        header = struct.pack(
+            "<4sBBHII",
+            AUDIO_MAGIC,
+            AUDIO_VERSION,
+            codec_id,
+            sample_rate,
+            sample_count,
+            data_size,
+        )
+        if len(header) != AUDIO_HEADER_SIZE:
+            raise AssertionError("Unexpected audio header size")
+        output.seek(0)
+        output.write(header)
+
+    return sample_count, data_size
 
 
 def get_serial_ports() -> List[Tuple[str, str, str]]:
@@ -859,6 +1101,47 @@ class FlashManager:
             except FileNotFoundError:
                 pass
 
+    def upload_audio(
+        self,
+        local_path: str,
+        remote_path: str,
+        codec: str = "adpcm4",
+        start_seconds: float = 0.0,
+        duration_seconds: Optional[float] = None,
+        end_seconds: Optional[float] = None,
+        progress_cb: Optional[Callable[[int, int], None]] = None,
+    ) -> bool:
+        """Convert and upload a streamable AUD1 sampled-audio asset."""
+        with tempfile.NamedTemporaryFile(suffix=".aud", delete=False) as temp:
+            temp_path = temp.name
+        try:
+            sample_count, data_size = pack_audio_asset(
+                local_path,
+                temp_path,
+                codec=codec,
+                start_seconds=start_seconds,
+                duration_seconds=duration_seconds,
+                end_seconds=end_seconds,
+            )
+            packed_size = os.path.getsize(temp_path)
+            print(
+                f"Packed {sample_count} samples, {data_size} audio bytes "
+                f"({packed_size} bytes with header)"
+            )
+            if packed_size >= AUDIO_LFS_PARTITION_SIZE:
+                print(
+                    "WARNING: audio is larger than the 2 MiB LittleFS "
+                    "partition; trim it or use ADPCM4"
+                )
+            return self.upload_file(
+                temp_path, remote_path, progress_cb=progress_cb
+            )
+        finally:
+            try:
+                os.remove(temp_path)
+            except FileNotFoundError:
+                pass
+
     def download_file(
         self,
         remote_path: str,
@@ -1192,6 +1475,39 @@ def _main() -> int:
     import argparse
     import sys
 
+    if len(sys.argv) > 1 and sys.argv[1] == "pack-audio":
+        pack_parser = argparse.ArgumentParser(
+            description="Convert audio/video input to an AUD1 sampled-audio file"
+        )
+        pack_parser.add_argument("local", help="Input MP3/WAV/AAC/video path")
+        pack_parser.add_argument("output", help="Output .aud file")
+        pack_parser.add_argument(
+            "--codec", choices=("adpcm4", "pcm8", "pdm1"), default="adpcm4"
+        )
+        pack_parser.add_argument("--start", type=float, default=0.0)
+        pack_parser.add_argument("--duration", type=float, default=None)
+        pack_parser.add_argument("--end", type=float, default=None)
+        pack_args = pack_parser.parse_args(sys.argv[2:])
+        sample_count, data_size = pack_audio_asset(
+            pack_args.local,
+            pack_args.output,
+            codec=pack_args.codec,
+            start_seconds=pack_args.start,
+            duration_seconds=pack_args.duration,
+            end_seconds=pack_args.end,
+        )
+        duration = sample_count / (32000 if pack_args.codec == "pdm1" else 8000)
+        print(
+            f"Packed {sample_count} samples, {data_size} audio bytes, "
+            f"{duration:.2f} s -> {pack_args.output}"
+        )
+        if os.path.getsize(pack_args.output) >= AUDIO_LFS_PARTITION_SIZE:
+            print(
+                "WARNING: output is larger than the 2 MiB LittleFS "
+                "partition; trim it or use ADPCM4"
+            )
+        return 0
+
     if len(sys.argv) > 1 and sys.argv[1] == "pack-video":
         pack_parser = argparse.ArgumentParser(description="Convert video/GIF/frames to a V565 file")
         pack_parser.add_argument("local", help="Local video/GIF path or frame directory")
@@ -1272,6 +1588,18 @@ def _main() -> int:
         choices=("mono1-rle", "mono1", "index8-rle", "index8", "rle", "none"),
         default="mono1-rle",
     )
+
+    p_audio = sub.add_parser(
+        "upload-audio", help="Convert and upload sampled audio"
+    )
+    p_audio.add_argument("local", help="Input MP3/WAV/AAC/video path")
+    p_audio.add_argument("remote", help="Remote path (e.g. /demo.aud)")
+    p_audio.add_argument(
+        "--codec", choices=("adpcm4", "pcm8", "pdm1"), default="adpcm4"
+    )
+    p_audio.add_argument("--start", type=float, default=0.0)
+    p_audio.add_argument("--duration", type=float, default=None)
+    p_audio.add_argument("--end", type=float, default=None)
 
     p_pack_video = sub.add_parser("pack-video", help="Convert video/GIF/frames to a V565 file")
     p_pack_video.add_argument("local", help="Local video/GIF path or frame directory")
@@ -1429,6 +1757,23 @@ def _main() -> int:
                 compression=args.compression,
                 start_frame=args.start_frame,
                 end_frame=args.end_frame,
+                progress_cb=_progress,
+            )
+            print()
+            print("OK" if ok else "FAILED")
+
+        elif args.action == "upload-audio":
+            print(
+                f"Converting {args.local} to {args.codec.upper()} sampled audio "
+                f"and uploading to {args.remote}"
+            )
+            ok = fm.upload_audio(
+                args.local,
+                args.remote,
+                codec=args.codec,
+                start_seconds=args.start,
+                duration_seconds=args.duration,
+                end_seconds=args.end,
                 progress_cb=_progress,
             )
             print()
