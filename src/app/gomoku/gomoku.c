@@ -23,7 +23,7 @@
 #define COLOR_WHITE     0xffffu
 #define COLOR_CYAN      0x07ffu
 #define COLOR_YELLOW    0xffe0u
-#define COLOR_BOARD     0x8e1cu  /* #E7C390 goban beige in BGR565 */
+#define COLOR_BOARD     0x8e1cu /* #E7C390 goban beige in BGR565 */
 #define COLOR_GRID      0x632cu
 #define COLOR_CURSOR    0xf800u /* bright red */
 #define COLOR_PLAYER    0x0000u /* black stones */
@@ -372,7 +372,7 @@ Game_result Gomoku_Update(const Game_input* input) {
             g_board[g_cursor_y][g_cursor_x] = 1;
             render_stone_at(g_cursor_x, g_cursor_y, 1);
             draw_cursor_at(g_cursor_x, g_cursor_y); /* redraw cursor on top for visual feedback */
-            g_move_count++; /* count player stones */
+            g_move_count++;                         /* count player stones */
 
             if (check_win_at(g_cursor_x, g_cursor_y)) {
                 g_winner = 1;

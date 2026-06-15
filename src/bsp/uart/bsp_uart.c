@@ -295,9 +295,11 @@ void Bsp_Uart_Read(uint32_t idx, uint8_t* data, uint32_t len) {
     (void)len;
 }
 
-void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms) {
+void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms, uint8_t* buf, uint32_t max_len) {
     (void)idx;
     (void)idle_timeout_ms;
+    (void)buf;
+    (void)max_len;
 }
 
 void Bsp_Uart_Stop_Continuous_Rx(uint32_t idx) { (void)idx; }
@@ -332,9 +334,10 @@ void Bsp_Uart_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_uart_rx_dma_done_cb_t cb
     (void)cb_arg;
 }
 
-void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb) {
+void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb, void* cb_arg) {
     (void)idx;
     (void)cb;
+    (void)cb_arg;
 }
 
 void Bsp_Uart_Irq_Handler(UART_Regs* uart_inst) { (void)uart_inst; }
