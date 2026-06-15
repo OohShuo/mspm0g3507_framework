@@ -285,6 +285,7 @@ Game_result Game_2048_Update(const Game_input* input) {
         if (g_moved) {
             spawn_tile();
             force_render();
+            render_hud();
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
 
             if (has_2048() && g_state == state_playing) {

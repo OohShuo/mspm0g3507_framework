@@ -190,7 +190,6 @@ static void ai_move(void) {
     if (best_score >= 0) {
         g_board[best_y][best_x] = 2;
         render_stone_at(best_x, best_y, 2);
-        g_move_count++;
         if (check_win_at(best_x, best_y)) {
             g_winner = 2;
             g_state = gomoku_state_over;
@@ -373,15 +372,26 @@ Game_result Gomoku_Update(const Game_input* input) {
             g_board[g_cursor_y][g_cursor_x] = 1;
             render_stone_at(g_cursor_x, g_cursor_y, 1);
             draw_cursor_at(g_cursor_x, g_cursor_y); /* redraw cursor on top for visual feedback */
+            g_move_count++; /* count player stones */
 
-            g_move_count++;
             if (check_win_at(g_cursor_x, g_cursor_y)) {
                 g_winner = 1;
                 g_state = gomoku_state_over;
-                /* Fewer moves = higher score: max(10, 200 - moves*10) */
+                /* Piecewise score: fewer moves = higher.
+                   ≤20→1000, 20-50→200, 50-100→50, 100-200→1, >200→1 */
                 {
-                    const int32_t raw = 200 - (int32_t)g_move_count * 10;
-                    g_score = (uint32_t)(raw > 10 ? raw : 10);
+                    const uint8_t m = g_move_count;
+                    if (m <= 20) {
+                        g_score = 1000;
+                    } else if (m <= 50) {
+                        g_score = 1000u - (uint32_t)(m - 20) * 800u / 30u;
+                    } else if (m <= 100) {
+                        g_score = 200u - (uint32_t)(m - 50) * 150u / 50u;
+                    } else if (m <= 200) {
+                        g_score = 50u - (uint32_t)(m - 100) * 49u / 100u;
+                    } else {
+                        g_score = 1;
+                    }
                 }
                 Buzzer_Play_Music(g_hardware.buzzer, music_idx_victory, 0);
             } else {
