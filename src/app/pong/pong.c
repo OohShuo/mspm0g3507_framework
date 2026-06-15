@@ -109,8 +109,9 @@ static void render_hud(void) {
     Game_Graphics_Draw_Text(g_hardware.lcd, 140, 10, "AI", 2, COLOR_YELLOW);
     Game_Graphics_Draw_U32(g_hardware.lcd, 188, 10, g_ai_score, 1, 2, COLOR_YELLOW);
 
-    /* Clear bottom status bar before drawing new text */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 282, SCREEN_WIDTH, 38, COLOR_BLACK);
+    /* Clear status text rows (7px glyphs at y=284 and y=300) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 284, SCREEN_WIDTH, 7, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 300, SCREEN_WIDTH, 7, COLOR_BLACK);
     if (g_state == pong_state_serving) {
         Game_Graphics_Draw_Text(g_hardware.lcd, 53, 300, "PRESS TO SERVE", 1, COLOR_WHITE);
     } else if (g_state == pong_state_over) {

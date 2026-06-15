@@ -178,6 +178,40 @@ static void draw_pong_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 17, y + 16, 5, 5, COLOR_WHITE);
 }
 
+static void draw_gomoku_icon(int32_t x, int32_t y) {
+    /* Mini board grid */
+    for (int32_t i = 0; i < 4; i++) {
+        Game_Graphics_Fill_Rect(g_lcd, x + 6 + i * 12, y + 4, 1, 36, COLOR_DARK);
+        Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 6 + i * 12, 36, 1, COLOR_DARK);
+    }
+    /* Black stone */
+    for (int32_t dy = -4; dy <= 4; dy++) {
+        for (int32_t dx = -4; dx <= 4; dx++) {
+            if (dx * dx + dy * dy > 16) { continue; }
+            Game_Graphics_Fill_Rect(g_lcd, x + 18 + dx, y + 16 + dy, 1, 1, COLOR_BLACK);
+        }
+    }
+    /* White stone */
+    for (int32_t dy = -4; dy <= 4; dy++) {
+        for (int32_t dx = -4; dx <= 4; dx++) {
+            if (dx * dx + dy * dy > 16) { continue; }
+            Game_Graphics_Fill_Rect(g_lcd, x + 30 + dx, y + 28 + dy, 1, 1, COLOR_WHITE);
+        }
+    }
+}
+
+static void draw_2048_icon(int32_t x, int32_t y) {
+    /* 4x4 mini grid */
+    for (int32_t r = 0; r < 4; r++) {
+        for (int32_t c = 0; c < 4; c++) {
+            Game_Graphics_Fill_Rect(g_lcd, x + 4 + c * 10, y + 6 + r * 10, 8, 8, COLOR_DARK);
+        }
+    }
+    /* "2048" tile highlight */
+    Game_Graphics_Fill_Rect(g_lcd, x + 24, y + 16, 8, 8, COLOR_YELLOW);
+    Game_Graphics_Draw_Text(g_lcd, x + 2, y + 7, "2", 1, COLOR_CYAN);
+}
+
 static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     const Game_descriptor* game = Game_Registry_Get(game_index);
     if (game == NULL) { return; }
@@ -209,6 +243,12 @@ static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     } else if (game->icon == game_icon_pong) {
         draw_pong_icon(38, y + 12);
         Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_GREEN);
+    } else if (game->icon == game_icon_gomoku) {
+        draw_gomoku_icon(38, y + 8);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_CYAN);
+    } else if (game->icon == game_icon_2048) {
+        draw_2048_icon(38, y + 10);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_YELLOW);
     } else {
         draw_air_icon(39, y + 11);
         Game_Graphics_Draw_Text(g_lcd, 99, y + 12, game->name, 2, COLOR_CYAN);

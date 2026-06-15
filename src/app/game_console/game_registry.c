@@ -4,6 +4,8 @@
 
 #include "air_battle.h"
 #include "breakout.h"
+#include "game_2048.h"
+#include "gomoku.h"
 #include "pacman.h"
 #include "pong.h"
 #include "racing.h"
@@ -83,6 +85,24 @@ static const Game_descriptor g_games[] = {
         .update = Pong_Update,
         .get_score = Pong_Get_Score,
         .is_finished = Pong_Is_Finished,
+    },
+    {
+        .name = "GOMOKU",
+        .icon = game_icon_gomoku,
+        .id = game_id_gomoku,
+        .init = Gomoku_Init,
+        .update = Gomoku_Update,
+        .get_score = Gomoku_Get_Score,
+        .is_finished = Gomoku_Is_Finished,
+    },
+    {
+        .name = "2048",
+        .icon = game_icon_2048,
+        .id = game_id_2048,
+        .init = Game_2048_Init,
+        .update = Game_2048_Update,
+        .get_score = Game_2048_Get_Score,
+        .is_finished = Game_2048_Is_Finished,
     },
 };
 
