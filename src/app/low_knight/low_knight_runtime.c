@@ -48,6 +48,8 @@
 #define LOW_KNIGHT_MAX_BLOOD_PARTICLES 12u
 #define LOW_KNIGHT_MAX_ITEMS   8u
 #define LOW_KNIGHT_MAX_PORTALS 8u
+#define LOW_KNIGHT_MAX_BOSS_GATES 6u
+#define LOW_KNIGHT_MAX_COMPLETED_BOSSES 4u
 #define LOW_KNIGHT_MAX_COLLECTED_ITEMS 32u
 #define ENEMY_FLY_TILE         71u
 #define ENEMY_AMBUSH_TILE      108u
@@ -104,6 +106,10 @@
 #define BOSS_FIGHT_TILE         66u
 #define BOSS_CORNER_TILE        83u
 #define BANNER_TILE             64u
+
+#define BOSS_KEY(x, y)          ((uint16_t)(((uint16_t)(y) << 7) | (uint16_t)(x)))
+#define BOSS_SPAWN_DELAY_FRAMES 45u
+#define ROOM_ITEM_DENSE_LIMIT   12u
 
 #define STRIKE_HORIZONTAL       0u
 #define STRIKE_UP               1u
@@ -226,6 +232,33 @@ typedef struct {
     uint8_t active;
 } Low_Knight_Portal;
 
+typedef struct {
+    uint8_t tile_x;
+    uint8_t tile_y;
+    uint8_t tile;
+} Low_Knight_Boss_Gate;
+
+typedef struct {
+    int16_t dx;
+    int16_t dy;
+    uint8_t type;
+    uint8_t hp;
+} Low_Knight_Boss_Spawn;
+
+typedef struct {
+    Low_Knight_Box box;
+    int16_t center_x;
+    int16_t center_y;
+    uint16_t key;
+    uint8_t present;
+    uint8_t completed;
+    uint8_t active;
+    uint8_t round;
+    uint8_t timer;
+    uint8_t tracked_start;
+    uint8_t tracked_count;
+} Low_Knight_Boss_Fight;
+
 static const Low_Knight_Room g_rooms[] = {
     {0, 0, 84, 64, 20, 16, 1, 0},
     {33, 1, 56, 64, 28, 16, 1, 0},
@@ -281,6 +314,38 @@ static const uint8_t g_enemy_tile_cache_ids[ENEMY_TILE_CACHE_COUNT] = {
     241, 242, 243, 246, 247, 248,
 };
 
+static const Low_Knight_Boss_Spawn g_boss_100_32_wave0[] = {
+    {-48, 0, ENEMY_FATGUY_TILE, 40},
+    {24, 0, ENEMY_BALLGUY_TILE, 40},
+};
+
+static const Low_Knight_Boss_Spawn g_boss_15_86_wave0[] = {
+    {-32, -16, ENEMY_MOSS_TILE, 30},
+};
+
+static const Low_Knight_Boss_Spawn g_boss_15_86_wave1[] = {
+    {40, -16, ENEMY_MOSS_TILE, 30},
+    {-32, -16, ENEMY_MOSS_TILE, 30},
+};
+
+static const Low_Knight_Boss_Spawn g_boss_83_18_wave0[] = {
+    {16, -35, ENEMY_FLY_TILE, 7},
+    {-16, -35, ENEMY_FLY_TILE, 7},
+    {0, 16, ENEMY_MOSS_TILE, 30},
+};
+
+static const Low_Knight_Boss_Spawn g_boss_83_18_wave1[] = {
+    {40, -16, ENEMY_FATGUY_TILE, 40},
+    {-24, 16, ENEMY_LIMPER_TILE, 7},
+    {40, 16, ENEMY_LIMPER_TILE, 7},
+};
+
+static const Low_Knight_Boss_Spawn g_boss_83_18_wave2[] = {
+    {40, -16, ENEMY_BALLGUY_TILE, 40},
+    {-40, -32, ENEMY_BEE_TILE, 20},
+    {40, -32, ENEMY_BEE_TILE, 20},
+};
+
 static Low_Knight_Resources* g_resources = NULL;
 static uint8_t g_room_index;
 static uint8_t g_room_exit_flags;
@@ -329,7 +394,10 @@ static Low_Knight_Projectile g_projectiles[LOW_KNIGHT_MAX_PROJECTILES];
 static Low_Knight_Blood_Particle g_blood_particles[LOW_KNIGHT_MAX_BLOOD_PARTICLES];
 static Low_Knight_Item g_items[LOW_KNIGHT_MAX_ITEMS];
 static Low_Knight_Portal g_portals[LOW_KNIGHT_MAX_PORTALS];
+static Low_Knight_Boss_Gate g_boss_gates[LOW_KNIGHT_MAX_BOSS_GATES];
+static Low_Knight_Boss_Fight g_boss_fight;
 static uint16_t g_collected_item_keys[LOW_KNIGHT_MAX_COLLECTED_ITEMS];
+static uint16_t g_completed_boss_keys[LOW_KNIGHT_MAX_COMPLETED_BOSSES];
 static Low_Knight_Rect g_last_drawn_enemy_rects[LOW_KNIGHT_MAX_ENEMIES];
 static Low_Knight_Rect g_last_drawn_projectile_rects[LOW_KNIGHT_MAX_PROJECTILES];
 static uint16_t g_last_drawn_enemy_visuals[LOW_KNIGHT_MAX_ENEMIES];
@@ -338,7 +406,9 @@ static uint8_t g_enemy_count;
 static uint8_t g_item_count;
 static uint8_t g_item_active_count;
 static uint8_t g_portal_count;
+static uint8_t g_boss_gate_count;
 static uint8_t g_collected_item_count;
+static uint8_t g_completed_boss_count;
 static Low_Knight_Rect g_pending_dirty[LOW_KNIGHT_MAX_DIRTY_RECTS];
 static uint8_t g_pending_dirty_count;
 static uint8_t g_dynamic_redraw_due;
@@ -674,10 +744,14 @@ static uint8_t is_deferred_entity_tile(uint8_t tile) {
            tile == BOSS_CORNER_TILE || tile == BANNER_TILE;
 }
 
+static uint16_t key_for_world_tile(uint8_t world_x, uint8_t world_y) {
+    return (uint16_t)(((uint16_t)world_y << 7) | world_x);
+}
+
 static uint16_t item_key_for(uint8_t tile_x, uint8_t tile_y) {
     const uint16_t world_x = (uint16_t)(g_room.base_x + tile_x);
     const uint16_t world_y = (uint16_t)(g_room.base_y + tile_y);
-    return (uint16_t)((world_y << 7) | world_x);
+    return key_for_world_tile((uint8_t)world_x, (uint8_t)world_y);
 }
 
 static uint8_t item_key_collected(uint16_t key) {
@@ -692,9 +766,50 @@ static void remember_collected_item(uint16_t key) {
     g_collected_item_keys[g_collected_item_count++] = key;
 }
 
+static uint8_t boss_key_completed(uint16_t key) {
+    for (uint8_t i = 0; i < g_completed_boss_count; i++) {
+        if (g_completed_boss_keys[i] == key) { return 1; }
+    }
+    return 0;
+}
+
+static void remember_completed_boss(uint16_t key) {
+    if (boss_key_completed(key) || g_completed_boss_count >= LOW_KNIGHT_MAX_COMPLETED_BOSSES) { return; }
+    g_completed_boss_keys[g_completed_boss_count++] = key;
+}
+
+static uint8_t remnant_tile_is_clustered(uint8_t tile_x, uint8_t tile_y) {
+    static const int8_t offsets[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+    for (uint8_t i = 0; i < 4u; i++) {
+        const int16_t x = (int16_t)tile_x + offsets[i][0];
+        const int16_t y = (int16_t)tile_y + offsets[i][1];
+        if (x < 0 || y < 0 || x >= g_room.width || y >= g_room.height) { continue; }
+        if (g_room_tiles[(uint16_t)y * g_room.width + (uint8_t)x] == REMNANT_TILE) { return 1; }
+    }
+    return 0;
+}
+
+static void set_boss_gates_closed(uint8_t closed) {
+    for (uint8_t i = 0; i < g_boss_gate_count; i++) {
+        const Low_Knight_Boss_Gate* gate = &g_boss_gates[i];
+        if (gate->tile_x >= g_room.width || gate->tile_y >= g_room.height) { continue; }
+        g_room_tiles[(uint16_t)gate->tile_y * g_room.width + gate->tile_x] =
+            closed ? gate->tile : 0u;
+    }
+}
+
 static void prepare_room_special_tiles(void) {
     memset(g_portals, 0, sizeof(g_portals));
+    memset(g_boss_gates, 0, sizeof(g_boss_gates));
+    memset(&g_boss_fight, 0, sizeof(g_boss_fight));
     g_portal_count = 0;
+    g_boss_gate_count = 0;
+    uint8_t has_boss_start = 0;
+    uint8_t has_boss_corner = 0;
+    int16_t boss_start_x = 0;
+    int16_t boss_start_y = 0;
+    int16_t boss_corner_x = 0;
+    int16_t boss_corner_y = 0;
 
     for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
         for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
@@ -708,10 +823,42 @@ static void prepare_room_special_tiles(void) {
                     portal->active = 1;
                 }
                 *tile = 0u;
+            } else if (*tile == BOSS_FIGHT_TILE) {
+                has_boss_start = 1;
+                boss_start_x = (int16_t)(tile_x * PICO_TILE_SIZE);
+                boss_start_y = (int16_t)(tile_y * PICO_TILE_SIZE);
+                g_boss_fight.key = key_for_world_tile(
+                    (uint8_t)(g_room.base_x + tile_x), (uint8_t)(g_room.base_y + tile_y));
+                *tile = 0u;
+            } else if (*tile == BOSS_CORNER_TILE) {
+                has_boss_corner = 1;
+                boss_corner_x = (int16_t)(tile_x * PICO_TILE_SIZE + 9);
+                boss_corner_y = (int16_t)(tile_y * PICO_TILE_SIZE + 9);
+                *tile = 0u;
+            } else if (*tile == BOSS_GATE_TOP_TILE || *tile == BOSS_GATE_BODY_TILE) {
+                if (g_boss_gate_count < LOW_KNIGHT_MAX_BOSS_GATES) {
+                    Low_Knight_Boss_Gate* gate = &g_boss_gates[g_boss_gate_count++];
+                    gate->tile_x = tile_x;
+                    gate->tile_y = tile_y;
+                    gate->tile = *tile;
+                }
+                *tile = 0u;
             } else if (is_deferred_entity_tile(*tile)) {
                 *tile = 0u;
             }
         }
+    }
+
+    if (has_boss_start && has_boss_corner && g_boss_fight.key != BOSS_KEY(106, 68)) {
+        const int16_t x1 = boss_start_x < boss_corner_x ? boss_start_x : boss_corner_x;
+        const int16_t y1 = boss_start_y < boss_corner_y ? boss_start_y : boss_corner_y;
+        const int16_t x2 = boss_start_x > boss_corner_x ? boss_start_x : boss_corner_x;
+        const int16_t y2 = boss_start_y > boss_corner_y ? boss_start_y : boss_corner_y;
+        g_boss_fight.box = (Low_Knight_Box){x1, y1, x2, y2};
+        g_boss_fight.center_x = (int16_t)((x1 + x2) / 2);
+        g_boss_fight.center_y = (int16_t)((y1 + y2) / 2);
+        g_boss_fight.present = 1;
+        g_boss_fight.completed = boss_key_completed(g_boss_fight.key);
     }
 }
 
@@ -749,11 +896,28 @@ static void spawn_room_items(void) {
     memset(g_items, 0, sizeof(g_items));
     g_item_count = 0;
     g_item_active_count = 0;
+    uint8_t dense_item_count = 0;
+
+    for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
+        for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
+            if (!is_item_spawn_tile(g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x])) { continue; }
+            if (++dense_item_count > ROOM_ITEM_DENSE_LIMIT) {
+                for (uint8_t clear_y = 0; clear_y < g_room.height; clear_y++) {
+                    for (uint8_t clear_x = 0; clear_x < g_room.width; clear_x++) {
+                        uint8_t* tile = &g_room_tiles[(uint16_t)clear_y * g_room.width + clear_x];
+                        if (is_item_spawn_tile(*tile)) { *tile = 0u; }
+                    }
+                }
+                return;
+            }
+        }
+    }
 
     for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
         for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
             uint8_t* tile = &g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x];
             if (!is_item_spawn_tile(*tile)) { continue; }
+            if (*tile == REMNANT_TILE && remnant_tile_is_clustered(tile_x, tile_y)) { continue; }
 
             const uint16_t key = item_key_for(tile_x, tile_y);
             const uint8_t item_tile = *tile;
@@ -778,6 +942,36 @@ static void spawn_room_items(void) {
             }
         }
     }
+}
+
+static uint8_t boss_reward_tile(uint16_t key) {
+    if (key == BOSS_KEY(100, 32)) { return 35u; }
+    return 0u;
+}
+
+static void spawn_item_at(uint8_t tile, int16_t x, int16_t y, uint16_t key) {
+    if (tile == 0u || item_key_collected(key) || g_item_count >= LOW_KNIGHT_MAX_ITEMS) { return; }
+
+    Low_Knight_Item* item = &g_items[g_item_count++];
+    item->tile = tile;
+    item->key = key;
+    item->active = 1;
+    item->x = x;
+    item->y = y;
+    g_item_active_count++;
+}
+
+static void spawn_completed_boss_reward(void) {
+    if (!g_boss_fight.present || !g_boss_fight.completed) { return; }
+
+    const uint8_t tile = boss_reward_tile(g_boss_fight.key);
+    if (tile == 0u) { return; }
+
+    const int16_t reward_x = (int16_t)(g_boss_fight.center_x - 16);
+    const int16_t reward_y = g_boss_fight.center_y;
+    const uint8_t world_x = (uint8_t)(g_room.base_x + clamp_i16(reward_x / PICO_TILE_SIZE, 0, g_room.width - 1));
+    const uint8_t world_y = (uint8_t)(g_room.base_y + clamp_i16(reward_y / PICO_TILE_SIZE, 0, g_room.height - 1));
+    spawn_item_at(tile, reward_x, reward_y, key_for_world_tile(world_x, world_y));
 }
 
 static int8_t enemy_tile_cache_slot(uint8_t tile) {
@@ -865,6 +1059,7 @@ static uint8_t load_room(uint8_t room_index) {
     prepare_room_special_tiles();
     spawn_room_enemies();
     spawn_room_items();
+    spawn_completed_boss_reward();
     return g_room.no_background || cache_background_map();
 }
 
@@ -2450,6 +2645,127 @@ static uint8_t check_item_pickups(void) {
     return 0;
 }
 
+static uint8_t boss_wave_for(
+    uint16_t key, uint8_t round, const Low_Knight_Boss_Spawn** out_spawns) {
+    *out_spawns = NULL;
+    if (key == BOSS_KEY(100, 32)) {
+        if (round == 0u) {
+            *out_spawns = g_boss_100_32_wave0;
+            return (uint8_t)(sizeof(g_boss_100_32_wave0) / sizeof(g_boss_100_32_wave0[0]));
+        }
+        return 0;
+    }
+    if (key == BOSS_KEY(15, 86)) {
+        if (round == 0u) {
+            *out_spawns = g_boss_15_86_wave0;
+            return (uint8_t)(sizeof(g_boss_15_86_wave0) / sizeof(g_boss_15_86_wave0[0]));
+        }
+        if (round == 1u) {
+            *out_spawns = g_boss_15_86_wave1;
+            return (uint8_t)(sizeof(g_boss_15_86_wave1) / sizeof(g_boss_15_86_wave1[0]));
+        }
+        return 0;
+    }
+    if (key == BOSS_KEY(83, 18)) {
+        if (round == 0u) {
+            *out_spawns = g_boss_83_18_wave0;
+            return (uint8_t)(sizeof(g_boss_83_18_wave0) / sizeof(g_boss_83_18_wave0[0]));
+        }
+        if (round == 1u) {
+            *out_spawns = g_boss_83_18_wave1;
+            return (uint8_t)(sizeof(g_boss_83_18_wave1) / sizeof(g_boss_83_18_wave1[0]));
+        }
+        if (round == 2u) {
+            *out_spawns = g_boss_83_18_wave2;
+            return (uint8_t)(sizeof(g_boss_83_18_wave2) / sizeof(g_boss_83_18_wave2[0]));
+        }
+    }
+    return 0;
+}
+
+static uint8_t boss_tracked_enemies_alive(void) {
+    const uint8_t end = (uint8_t)(g_boss_fight.tracked_start + g_boss_fight.tracked_count);
+    for (uint8_t i = g_boss_fight.tracked_start; i < end && i < g_enemy_count; i++) {
+        if (g_enemies[i].active) { return 1; }
+    }
+    return 0;
+}
+
+static void spawn_boss_enemy(const Low_Knight_Boss_Spawn* spawn) {
+    if (spawn == NULL || g_enemy_count >= LOW_KNIGHT_MAX_ENEMIES) { return; }
+
+    Low_Knight_Enemy* enemy = &g_enemies[g_enemy_count++];
+    memset(enemy, 0, sizeof(*enemy));
+    enemy->x = clamp_i16((int16_t)(g_boss_fight.center_x + spawn->dx), 0,
+        (int16_t)(g_room.width * PICO_TILE_SIZE - 1));
+    enemy->y = clamp_i16((int16_t)(g_boss_fight.center_y + spawn->dy), 0,
+        (int16_t)(g_room.height * PICO_TILE_SIZE - 1));
+    enemy->qx = (int32_t)enemy->x * PHYSICS_Q_ONE;
+    enemy->qy = (int32_t)enemy->y * PHYSICS_Q_ONE;
+    enemy->weapon_qx = enemy->qx;
+    enemy->weapon_qy = (int32_t)(enemy->y - 4) * PHYSICS_Q_ONE;
+    enemy->way = g_player.x < enemy->x ? -1 : 1;
+    enemy->type = spawn->type;
+    enemy->active = 1;
+    enemy->hp = spawn->hp != 0u ? spawn->hp : enemy_start_hp(enemy->type);
+    enemy->phase = (uint8_t)(g_runtime_frame + g_enemy_count * 17u);
+    enemy->timer = (uint16_t)(20u + enemy->phase);
+    spawn_enemy_blood(enemy, 0);
+}
+
+static void complete_boss_fight(void) {
+    g_boss_fight.active = 0;
+    g_boss_fight.completed = 1;
+    remember_completed_boss(g_boss_fight.key);
+    set_boss_gates_closed(0);
+    spawn_completed_boss_reward();
+    mark_dirty_rect(screen_rect());
+    g_dynamic_redraw_due = 1;
+}
+
+static uint8_t update_boss_fight(void) {
+    if (!g_boss_fight.present || g_boss_fight.completed) { return 0; }
+
+    if (!g_boss_fight.active) {
+        if (!boxes_overlap(player_hitbox_at(g_player.x, g_player.y), g_boss_fight.box)) { return 0; }
+        g_boss_fight.active = 1;
+        g_boss_fight.round = 0;
+        g_boss_fight.timer = BOSS_SPAWN_DELAY_FRAMES;
+        g_boss_fight.tracked_start = 0;
+        g_boss_fight.tracked_count = 0;
+        set_boss_gates_closed(1);
+        mark_dirty_rect(screen_rect());
+        return 1;
+    }
+
+    if (g_boss_fight.tracked_count > 0u) {
+        if (boss_tracked_enemies_alive()) { return 0; }
+        g_boss_fight.tracked_count = 0;
+        g_boss_fight.round++;
+        g_boss_fight.timer = BOSS_SPAWN_DELAY_FRAMES;
+        return 1;
+    }
+
+    if (g_boss_fight.timer > 0u) {
+        g_boss_fight.timer--;
+        return 0;
+    }
+
+    const Low_Knight_Boss_Spawn* spawns = NULL;
+    const uint8_t spawn_count = boss_wave_for(g_boss_fight.key, g_boss_fight.round, &spawns);
+    if (spawn_count == 0u) {
+        complete_boss_fight();
+        return 1;
+    }
+
+    g_boss_fight.tracked_start = g_enemy_count;
+    for (uint8_t i = 0; i < spawn_count; i++) { spawn_boss_enemy(&spawns[i]); }
+    g_boss_fight.tracked_count = (uint8_t)(g_enemy_count - g_boss_fight.tracked_start);
+    mark_dirty_rect(screen_rect());
+    g_dynamic_redraw_due = 1;
+    return 1;
+}
+
 static uint8_t update_focus(const Low_Knight_Input* input, uint8_t controls_locked) {
     if (input->move_y < 0) {
         g_player_focus_input_grace = PLAYER_FOCUS_INPUT_GRACE_FRAMES;
@@ -2904,7 +3220,9 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_cheat_enabled = 0;
     g_cheat_sequence_index = 0;
     g_cheat_last_direction = 0;
+    g_completed_boss_count = 0;
     g_collected_item_count = 0;
+    memset(g_completed_boss_keys, 0, sizeof(g_completed_boss_keys));
     memset(g_collected_item_keys, 0, sizeof(g_collected_item_keys));
     g_player_air_jumps_used = 0;
     g_player_air_dash_available = 1;
@@ -3105,6 +3423,7 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     if (check_item_pickups()) { return low_knight_step_dirty; }
     if (try_room_transition()) { return low_knight_step_transition; }
     update_blood_particles();
+    update_boss_fight();
     update_enemies();
     if (!bench_used) { update_strike(input); }
     check_player_damage();
