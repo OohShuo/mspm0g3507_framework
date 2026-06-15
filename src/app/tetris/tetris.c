@@ -14,7 +14,7 @@
 #define CELL_SIZE       10
 #define BOARD_X         ((SCREEN_WIDTH - BOARD_COLS * CELL_SIZE) / 2)
 #define BOARD_Y         52
-#define PREVIEW_X       170
+#define PREVIEW_X       178
 #define PREVIEW_Y       56
 #define PREVIEW_CELL    8
 
@@ -76,11 +76,31 @@ static uint32_t g_last_drop = 0;
 static uint32_t g_last_das = 0;
 static uint8_t g_das_fired = 0;
 static uint8_t g_das_direction = 0;
+static uint32_t g_last_das_down = 0;
+static uint8_t g_das_down_fired = 0;
 static uint32_t g_random_state = 0x2e71b864u;
+static int8_t g_bag[7];
+static uint8_t g_bag_idx = 7; /* 7 = need refill */
 
 static uint32_t random_next(void) {
     g_random_state = g_random_state * 1664525u + 1013904223u;
     return g_random_state;
+}
+
+/* 7-bag randomizer: shuffle all 7 pieces, deal one at a time — no long droughts */
+static int8_t bag_next(void) {
+    if (g_bag_idx >= 7) {
+        for (uint8_t i = 0; i < 7; i++) { g_bag[i] = (int8_t)i; }
+        /* Fisher-Yates shuffle */
+        for (uint8_t i = 7; i > 1; i--) {
+            const uint8_t j = (uint8_t)(random_next() % i);
+            const int8_t tmp = g_bag[i - 1];
+            g_bag[i - 1] = g_bag[j];
+            g_bag[j] = tmp;
+        }
+        g_bag_idx = 0;
+    }
+    return g_bag[g_bag_idx++];
 }
 
 static uint8_t collides(int8_t px, int8_t py, int8_t kind, int8_t rotation) {
@@ -131,8 +151,6 @@ static void clear_lines(void) {
     }
 }
 
-static int8_t g_ghost_y = -99;
-
 static int8_t ghost_y(void) {
     int8_t gy = g_piece.y;
     while (!collides(g_piece.x, (int8_t)(gy + 1), g_piece.kind, g_piece.rotation)) { gy++; }
@@ -143,7 +161,7 @@ static void new_piece(void) {
     g_piece = g_next;
     g_piece.x = (int8_t)(BOARD_COLS / 2 - 1);
     g_piece.y = -2;
-    g_next.kind = (int8_t)(random_next() % 7u);
+    g_next.kind = bag_next();
     g_next.rotation = 0;
     g_next.x = 0;
     g_next.y = 0;
@@ -166,14 +184,15 @@ static void render_board(void) {
     }
 }
 
-static void render_piece(Piece* piece, uint16_t color_override) {
+/* color_override: -1 = use piece default color, >=0 = use that 16-bit color */
+static void render_piece(Piece* piece, int color_override) {
     for (uint8_t i = 0; i < 4; i++) {
         const int8_t bx = (int8_t)(piece->x + g_pieces[piece->kind][piece->rotation][i][0]);
         const int8_t by = (int8_t)(piece->y + g_pieces[piece->kind][piece->rotation][i][1]);
         if (by < 0) { continue; }
         const int32_t sx = BOARD_X + bx * CELL_SIZE;
         const int32_t sy = BOARD_Y + by * CELL_SIZE;
-        const uint16_t color = color_override != 0 ? color_override : g_piece_colors[piece->kind];
+        const uint16_t color = color_override >= 0 ? (uint16_t)color_override : g_piece_colors[piece->kind];
         const int32_t inner = 1;
         Game_Graphics_Fill_Rect(g_hardware.lcd, sx, sy, CELL_SIZE, CELL_SIZE, COLOR_BLACK);
         Game_Graphics_Fill_Rect(
@@ -181,22 +200,29 @@ static void render_piece(Piece* piece, uint16_t color_override) {
     }
 }
 
-static void clear_ghost(void) {
-    if (g_ghost_y < 0 || g_ghost_y == g_piece.y) { return; }
-    Piece old = g_piece;
-    old.y = g_ghost_y;
-    render_piece(&old, COLOR_BLACK);
-    g_ghost_y = -99;
+static int8_t g_old_ghost_y = -99;
+
+/* Erase ghost before piece moves — must be called with the OLD piece position */
+static void erase_ghost(void) {
+    if (g_old_ghost_y < 0 || g_old_ghost_y == g_piece.y) { return; }
+    for (uint8_t i = 0; i < 4; i++) {
+        const int8_t bx = (int8_t)(g_piece.x + g_pieces[g_piece.kind][g_piece.rotation][i][0]);
+        const int8_t by_abs = (int8_t)(g_old_ghost_y + g_pieces[g_piece.kind][g_piece.rotation][i][1]);
+        if (by_abs >= 0 && by_abs < BOARD_ROWS && bx >= 0 && bx < BOARD_COLS) {
+            render_cell(BOARD_X + bx * CELL_SIZE, BOARD_Y + by_abs * CELL_SIZE, g_board[by_abs][bx]);
+        }
+    }
+    g_old_ghost_y = -99;
 }
 
-static void render_ghost(void) {
+/* Draw ghost using current piece position */
+static void draw_ghost(void) {
     const int8_t gy = ghost_y();
-    clear_ghost();
+    g_old_ghost_y = gy;
     if (gy == g_piece.y) { return; }
     Piece ghost = g_piece;
     ghost.y = gy;
     render_piece(&ghost, COLOR_GHOST);
-    g_ghost_y = gy;
 }
 
 static void render_preview(void) {
@@ -236,6 +262,9 @@ static void render_hud(void) {
 
 static void render_full(void) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    render_board();
+    render_preview();
+    /* Borders drawn after preview so preview blackout doesn't erase them */
     Game_Graphics_Fill_Rect(
         g_hardware.lcd, BOARD_X - 2, BOARD_Y - 2, BOARD_COLS * CELL_SIZE + 4, 2, COLOR_BORDER);
     Game_Graphics_Fill_Rect(g_hardware.lcd, BOARD_X - 2, BOARD_Y + BOARD_ROWS * CELL_SIZE,
@@ -244,10 +273,8 @@ static void render_full(void) {
         g_hardware.lcd, BOARD_X - 2, BOARD_Y - 2, 2, BOARD_ROWS * CELL_SIZE + 4, COLOR_BORDER);
     Game_Graphics_Fill_Rect(g_hardware.lcd, BOARD_X + BOARD_COLS * CELL_SIZE, BOARD_Y - 2, 2,
         BOARD_ROWS * CELL_SIZE + 4, COLOR_BORDER);
-    render_board();
-    render_preview();
-    render_piece(&g_piece, 0);
-    render_ghost();
+    render_piece(&g_piece, -1);
+    draw_ghost();
     render_hud();
 }
 
@@ -260,8 +287,10 @@ static void restart_game(void) {
     g_level = 0;
     g_state = tetris_state_playing;
     g_das_fired = 0;
+    g_das_down_fired = 0;
 
-    g_next.kind = (int8_t)(random_next() % 7u);
+    g_bag_idx = 7; /* refill bag on restart */
+    g_next.kind = bag_next();
     g_next.rotation = 0;
     new_piece();
     render_full();
@@ -302,10 +331,10 @@ Game_result Tetris_Update(const Game_input* input) {
             const int8_t dx = (input->direction == game_direction_left) ? -1 : 1;
             if (!collides((int8_t)(g_piece.x + dx), g_piece.y, g_piece.kind, g_piece.rotation)) {
                 render_piece(&g_piece, COLOR_BLACK);
-                render_ghost();
+                erase_ghost();
                 g_piece.x = (int8_t)(g_piece.x + dx);
-                render_ghost();
-                render_piece(&g_piece, 0);
+                draw_ghost();
+                render_piece(&g_piece, -1);
             }
         } else if (g_das_direction == 1u || g_das_direction == 2u) {
             const uint32_t das_threshold = g_das_fired ? DAS_REPEAT_MS : DAS_INITIAL_MS;
@@ -315,10 +344,10 @@ Game_result Tetris_Update(const Game_input* input) {
                 const int8_t dx = (g_das_direction == 1u) ? -1 : 1;
                 if (!collides((int8_t)(g_piece.x + dx), g_piece.y, g_piece.kind, g_piece.rotation)) {
                     render_piece(&g_piece, COLOR_BLACK);
-                    render_ghost();
+                    erase_ghost();
                     g_piece.x = (int8_t)(g_piece.x + dx);
-                    render_ghost();
-                    render_piece(&g_piece, 0);
+                    draw_ghost();
+                    render_piece(&g_piece, -1);
                 }
             }
         }
@@ -327,41 +356,63 @@ Game_result Tetris_Update(const Game_input* input) {
         g_das_fired = 0;
     }
 
-    if (input->direction_pressed && input->direction == game_direction_down) {
-        if (!collides(g_piece.x, (int8_t)(g_piece.y + 1), g_piece.kind, g_piece.rotation)) {
-            render_piece(&g_piece, COLOR_BLACK);
-            g_piece.y = (int8_t)(g_piece.y + 1);
-            render_ghost();
-            render_piece(&g_piece, 0);
-            g_last_drop = now;
-        }
-    }
-
-    /* Button = rotate clockwise */
-    if (input->confirm_pressed) {
-        const int8_t new_rot = (int8_t)((g_piece.rotation + 1) % 4);
-        /* Try normal rotation, then wall kicks left/right */
-        int8_t kick = 0;
-        if (collides(g_piece.x, g_piece.y, g_piece.kind, new_rot)) {
-            if (!collides((int8_t)(g_piece.x - 1), g_piece.y, g_piece.kind, new_rot)) {
-                kick = -1;
-            } else if (!collides((int8_t)(g_piece.x + 1), g_piece.y, g_piece.kind, new_rot)) {
-                kick = 1;
-            } else if (!collides((int8_t)(g_piece.x - 2), g_piece.y, g_piece.kind, new_rot)) {
-                kick = -2;
-            } else if (!collides((int8_t)(g_piece.x + 2), g_piece.y, g_piece.kind, new_rot)) {
-                kick = 2;
-            } else {
-                kick = -99;
+    /* Soft drop with DAS */
+    if (input->direction == game_direction_down) {
+        if (input->direction_pressed) {
+            g_das_down_fired = 0;
+            g_last_das_down = now;
+            if (!collides(g_piece.x, (int8_t)(g_piece.y + 1), g_piece.kind, g_piece.rotation)) {
+                render_piece(&g_piece, COLOR_BLACK);
+                erase_ghost();
+                g_piece.y = (int8_t)(g_piece.y + 1);
+                g_score += 1; /* soft-drop: 1 point per row */
+                draw_ghost();
+                render_piece(&g_piece, -1);
+                g_last_drop = now;
+            }
+        } else {
+            const uint32_t das_threshold = g_das_down_fired ? DAS_REPEAT_MS : DAS_INITIAL_MS;
+            while (now - g_last_das_down >= das_threshold) {
+                g_last_das_down += das_threshold;
+                g_das_down_fired = 1;
+                if (!collides(g_piece.x, (int8_t)(g_piece.y + 1), g_piece.kind, g_piece.rotation)) {
+                    render_piece(&g_piece, COLOR_BLACK);
+                    erase_ghost();
+                    g_piece.y = (int8_t)(g_piece.y + 1);
+                    g_score += 1; /* soft-drop: 1 point per row */
+                    draw_ghost();
+                    render_piece(&g_piece, -1);
+                    g_last_drop = now;
+                }
             }
         }
-        if (kick != -99) {
+    } else {
+        g_das_down_fired = 0;
+    }
+
+    /* Button = rotate clockwise with SRS wall kicks */
+    if (input->confirm_pressed) {
+        const int8_t new_rot = (int8_t)((g_piece.rotation + 1) % 4);
+        /* Try (dx,dy) kicks: basic + up-kicks for I-piece / tight spaces */
+        static const int8_t kicks[][2] = {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {-2, 0}, {2, 0}, {0, -2}};
+        int8_t best_kx = -99, best_ky = 0;
+        for (int k = 0; k < sizeof(kicks) / sizeof(kicks[0]); k++) {
+            const int8_t kx = kicks[k][0];
+            const int8_t ky = kicks[k][1];
+            if (!collides((int8_t)(g_piece.x + kx), (int8_t)(g_piece.y + ky), g_piece.kind, new_rot)) {
+                best_kx = kx;
+                best_ky = ky;
+                break;
+            }
+        }
+        if (best_kx != -99) {
             render_piece(&g_piece, COLOR_BLACK);
-            render_ghost();
+            erase_ghost();
             g_piece.rotation = new_rot;
-            g_piece.x = (int8_t)(g_piece.x + kick);
-            render_ghost();
-            render_piece(&g_piece, 0);
+            g_piece.x = (int8_t)(g_piece.x + best_kx);
+            g_piece.y = (int8_t)(g_piece.y + best_ky);
+            draw_ghost();
+            render_piece(&g_piece, -1);
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
         }
     }
@@ -371,9 +422,10 @@ Game_result Tetris_Update(const Game_input* input) {
         g_last_drop = now;
         if (!collides(g_piece.x, (int8_t)(g_piece.y + 1), g_piece.kind, g_piece.rotation)) {
             render_piece(&g_piece, COLOR_BLACK);
+            erase_ghost();
             g_piece.y = (int8_t)(g_piece.y + 1);
-            render_ghost();
-            render_piece(&g_piece, 0);
+            draw_ghost();
+            render_piece(&g_piece, -1);
             return game_result_running;
         }
 
@@ -388,11 +440,11 @@ Game_result Tetris_Update(const Game_input* input) {
         lock_piece();
         clear_lines();
         render_board();
-        g_ghost_y = -99;
+        g_old_ghost_y = -99;
         new_piece();
         render_preview();
-        render_ghost();
-        render_piece(&g_piece, 0);
+        draw_ghost();
+        render_piece(&g_piece, -1);
         render_hud();
 
         /* Check if new piece immediately collides */
