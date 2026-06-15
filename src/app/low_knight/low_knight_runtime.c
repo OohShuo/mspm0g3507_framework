@@ -39,10 +39,21 @@
 #define ROOM_ENTRY_INSET       24
 #define ROOM_CORNER_MARGIN     24
 #define LOW_KNIGHT_MAX_ENEMIES 12u
+#define LOW_KNIGHT_MAX_PROJECTILES 8u
+#define ENEMY_FLY_TILE         71u
+#define ENEMY_AMBUSH_TILE      108u
+#define ENEMY_MOSS_TILE        172u
+#define ENEMY_BEE_TILE         192u
+#define ENEMY_LIMPER_TILE      204u
 #define ENEMY_BUSH_TILE        207u
+#define ENEMY_FATGUY_TILE      210u
+#define ENEMY_BALLGUY_TILE     248u
 #define BUSH_MOVE_SPEED_Q      192
 #define BUSH_GRAVITY_Q         96
 #define BUSH_MAX_FALL_Q        768
+#define ENEMY_GRAVITY_Q        77
+#define ENEMY_MAX_FALL_Q       768
+#define PROJECTILE_GRAVITY_Q   19
 #define LOW_KNIGHT_MAX_DIRTY_RECTS 16u
 
 #define COLOR_BLACK            0x0000u
@@ -82,14 +93,34 @@ typedef struct {
 typedef struct {
     int32_t qx;
     int32_t qy;
+    int32_t weapon_qx;
+    int32_t weapon_qy;
     int16_t x;
     int16_t y;
     int16_t vx;
     int16_t vy;
+    int16_t weapon_vx;
+    int16_t weapon_vy;
+    uint16_t timer;
     int8_t way;
     uint8_t type;
     uint8_t active;
+    uint8_t state;
+    uint8_t phase;
+    uint8_t anim_timer;
 } Low_Knight_Enemy;
+
+typedef struct {
+    int32_t qx;
+    int32_t qy;
+    int16_t x;
+    int16_t y;
+    int16_t vx;
+    int16_t vy;
+    uint16_t life;
+    uint8_t tile;
+    uint8_t active;
+} Low_Knight_Projectile;
 
 static const Low_Knight_Room g_rooms[] = {
     {0, 0, 84, 64, 20, 16, 1, 0},
@@ -142,9 +173,11 @@ static uint8_t g_jump_buffer_frames;
 static int16_t g_camera_x;
 static int16_t g_camera_y;
 static Low_Knight_Enemy g_enemies[LOW_KNIGHT_MAX_ENEMIES];
+static Low_Knight_Projectile g_projectiles[LOW_KNIGHT_MAX_PROJECTILES];
 static uint8_t g_enemy_count;
 static Low_Knight_Rect g_pending_dirty[LOW_KNIGHT_MAX_DIRTY_RECTS];
 static uint8_t g_pending_dirty_count;
+static uint16_t g_runtime_frame;
 
 static uint8_t sample_packed_pixel(const uint8_t* bytes, uint8_t pixel_index) {
     const uint8_t packed = bytes[pixel_index / 2u];
@@ -320,24 +353,35 @@ static uint8_t unpack_room(const Low_Knight_Room* room) {
     return 1;
 }
 
+static uint8_t is_enemy_spawn_tile(uint8_t tile) {
+    return tile == ENEMY_FLY_TILE || tile == ENEMY_AMBUSH_TILE || tile == ENEMY_MOSS_TILE ||
+           tile == ENEMY_BEE_TILE || tile == ENEMY_LIMPER_TILE || tile == ENEMY_BUSH_TILE ||
+           tile == ENEMY_FATGUY_TILE || tile == ENEMY_BALLGUY_TILE;
+}
+
 static void spawn_room_enemies(void) {
     memset(g_enemies, 0, sizeof(g_enemies));
+    memset(g_projectiles, 0, sizeof(g_projectiles));
     g_enemy_count = 0;
 
     for (uint8_t tile_y = 0; tile_y < g_room.height; tile_y++) {
         for (uint8_t tile_x = 0; tile_x < g_room.width; tile_x++) {
             uint8_t* tile = &g_room_tiles[(uint16_t)tile_y * g_room.width + tile_x];
-            if (*tile != ENEMY_BUSH_TILE || g_enemy_count >= LOW_KNIGHT_MAX_ENEMIES) { continue; }
+            if (!is_enemy_spawn_tile(*tile) || g_enemy_count >= LOW_KNIGHT_MAX_ENEMIES) { continue; }
 
             Low_Knight_Enemy* enemy = &g_enemies[g_enemy_count++];
             enemy->x = (int16_t)(tile_x * PICO_TILE_SIZE);
             enemy->y = (int16_t)(tile_y * PICO_TILE_SIZE);
             enemy->qx = (int32_t)enemy->x * PHYSICS_Q_ONE;
             enemy->qy = (int32_t)enemy->y * PHYSICS_Q_ONE;
+            enemy->weapon_qx = enemy->qx;
+            enemy->weapon_qy = (int32_t)(enemy->y - 4) * PHYSICS_Q_ONE;
             enemy->way = tile_x >= g_room.width / 2u ? -1 : 1;
-            enemy->type = ENEMY_BUSH_TILE;
+            enemy->type = *tile;
             enemy->active = 1;
-            *tile = 0;
+            enemy->phase = (uint8_t)(tile_x * 13u + tile_y * 7u);
+            enemy->timer = (uint16_t)(20u + enemy->phase);
+            *tile = enemy->type == ENEMY_AMBUSH_TILE ? 124u : 0u;
         }
     }
 }
@@ -469,13 +513,62 @@ static void mark_dirty_rect(Low_Knight_Rect rect) {
 static Low_Knight_Rect enemy_rect_for(const Low_Knight_Enemy* enemy) {
     const Low_Knight_Rect view = screen_rect();
     const uint8_t scale = 2;
+    int16_t left = -10;
+    int16_t top = -10;
+    int16_t right = 10;
+    int16_t bottom = 5;
+    if (enemy->type == ENEMY_AMBUSH_TILE) { return (Low_Knight_Rect){0, 0, 0, 0}; }
+    if (enemy->type == ENEMY_BEE_TILE) {
+        left = -12;
+        top = -12;
+        right = 12;
+        bottom = 8;
+    } else if (enemy->type == ENEMY_BUSH_TILE) {
+        left = -14;
+        top = -8;
+        right = 14;
+        bottom = 6;
+    } else if (enemy->type == ENEMY_FATGUY_TILE || enemy->type == ENEMY_BALLGUY_TILE ||
+               enemy->type == ENEMY_MOSS_TILE) {
+        left = -10;
+        top = -18;
+        right = 10;
+        bottom = 5;
+    }
+
+    if (enemy->type == ENEMY_BALLGUY_TILE || enemy->type == ENEMY_MOSS_TILE) {
+        const int16_t weapon_x = q_to_pixel(enemy->weapon_qx);
+        const int16_t weapon_y = q_to_pixel(enemy->weapon_qy);
+        const int16_t weapon_left = (int16_t)(weapon_x - enemy->x - 5);
+        const int16_t weapon_top = (int16_t)(weapon_y - enemy->y - 5);
+        const int16_t weapon_right = (int16_t)(weapon_x - enemy->x + 5);
+        const int16_t weapon_bottom = (int16_t)(weapon_y - enemy->y + 5);
+        if (weapon_left < left) { left = weapon_left; }
+        if (weapon_top < top) { top = weapon_top; }
+        if (weapon_right > right) { right = weapon_right; }
+        if (weapon_bottom > bottom) { bottom = weapon_bottom; }
+    }
+
     const int16_t x = (int16_t)(view.x1 + (enemy->x - g_camera_x) * scale);
     const int16_t y = (int16_t)(view.y1 + (enemy->y - g_camera_y) * scale);
     return (Low_Knight_Rect){
-        (int16_t)(x - 12 * scale),
-        (int16_t)(y - 6 * scale),
-        (int16_t)(x + 12 * scale),
-        (int16_t)(y + 6 * scale),
+        (int16_t)(x + left * scale - 2),
+        (int16_t)(y + top * scale - 2),
+        (int16_t)(x + right * scale + 2),
+        (int16_t)(y + bottom * scale + 2),
+    };
+}
+
+static Low_Knight_Rect projectile_rect_for(const Low_Knight_Projectile* projectile) {
+    const Low_Knight_Rect view = screen_rect();
+    const uint8_t scale = 2;
+    const int16_t x = (int16_t)(view.x1 + (projectile->x - g_camera_x) * scale);
+    const int16_t y = (int16_t)(view.y1 + (projectile->y - g_camera_y) * scale);
+    return (Low_Knight_Rect){
+        (int16_t)(x - 5 * scale),
+        (int16_t)(y - 5 * scale),
+        (int16_t)(x + 5 * scale),
+        (int16_t)(y + 5 * scale),
     };
 }
 
@@ -521,18 +614,82 @@ static void compose_enemies_line(uint16_t* line, int16_t region_x, int16_t regio
 
     for (uint8_t i = 0; i < g_enemy_count; i++) {
         const Low_Knight_Enemy* enemy = &g_enemies[i];
-        if (!enemy->active || enemy->type != ENEMY_BUSH_TILE) { continue; }
+        if (!enemy->active || enemy->type == ENEMY_AMBUSH_TILE) { continue; }
 
         const int16_t x = (int16_t)(view.x1 + (enemy->x - g_camera_x) * scale);
         const int16_t y = (int16_t)(view.y1 + (enemy->y - g_camera_y) * scale);
         const uint8_t flip = enemy->way < 0;
-        const int16_t trail = (int16_t)(enemy->way * -3 * scale);
-        compose_sprite_rect_line(line, region_x, region_width, screen_y, 205, 1, 1,
-            (int16_t)(x - 4 * scale + trail * 2), (int16_t)(y - 4 * scale), scale, flip);
-        compose_sprite_rect_line(line, region_x, region_width, screen_y, 206, 1, 1,
-            (int16_t)(x - 4 * scale + trail), (int16_t)(y - 4 * scale), scale, flip);
-        compose_sprite_rect_line(line, region_x, region_width, screen_y, 207, 1, 1,
-            (int16_t)(x - 4 * scale), (int16_t)(y - 4 * scale), scale, flip);
+        if (enemy->type == ENEMY_FLY_TILE) {
+            const uint8_t tile = ((g_runtime_frame + enemy->phase) / 3u) & 1u ? 68u : 70u;
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, tile, 2, 1,
+                (int16_t)(x - 8 * scale), (int16_t)(y - 6 * scale), scale, flip);
+        } else if (enemy->type == ENEMY_BEE_TILE) {
+            const int16_t wing_lift = ((g_runtime_frame + enemy->phase) & 2u) ? -1 * scale : 0;
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, 193, 1, 1,
+                (int16_t)(x + 3 * scale), (int16_t)(y - 7 * scale + wing_lift), scale, 0);
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, 193, 1, 1,
+                (int16_t)(x - 10 * scale), (int16_t)(y - 7 * scale + wing_lift), scale, 1);
+            compose_sprite_rect_line(line, region_x, region_width, screen_y,
+                enemy->state == 1u ? 208u : 192u, 1, 1, (int16_t)(x - 4 * scale),
+                (int16_t)(y - 4 * scale), scale, flip);
+        } else if (enemy->type == ENEMY_BUSH_TILE) {
+            const int16_t trail = (int16_t)(enemy->way * -3 * scale);
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, 205, 1, 1,
+                (int16_t)(x - 4 * scale + trail * 2), (int16_t)(y - 4 * scale), scale, flip);
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, 206, 1, 1,
+                (int16_t)(x - 4 * scale + trail), (int16_t)(y - 4 * scale), scale, flip);
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, 207, 1, 1,
+                (int16_t)(x - 4 * scale), (int16_t)(y - 4 * scale), scale, flip);
+        } else if (enemy->type == ENEMY_LIMPER_TILE) {
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, 203, 2, 1,
+                (int16_t)(x - 8 * scale), (int16_t)(y - 8 * scale), scale, flip);
+        } else if (enemy->type == ENEMY_FATGUY_TILE) {
+            compose_sprite_rect_line(line, region_x, region_width, screen_y,
+                enemy->state == 1u ? 226u : 224u, 2, 2, (int16_t)(x - 8 * scale),
+                (int16_t)(y - 16 * scale), scale, flip);
+            compose_sprite_rect_line(line, region_x, region_width, screen_y,
+                enemy->state == 2u ? 209u : 210u, 1, 1, (int16_t)(x - 4 * scale),
+                (int16_t)(y - 16 * scale), scale, flip);
+        } else if (enemy->type == ENEMY_BALLGUY_TILE || enemy->type == ENEMY_MOSS_TILE) {
+            const uint8_t body_tile = enemy->type == ENEMY_MOSS_TILE
+                                          ? (enemy->state == 1u ? 174u : 172u)
+                                          : 230u;
+            compose_sprite_rect_line(line, region_x, region_width, screen_y, body_tile, 2, 2,
+                (int16_t)(x - 8 * scale), (int16_t)(y - 16 * scale), scale, flip);
+            if (enemy->type == ENEMY_BALLGUY_TILE) {
+                compose_sprite_rect_line(line, region_x, region_width, screen_y, 248, 1, 1,
+                    (int16_t)(x - 4 * scale), (int16_t)(y - 14 * scale), scale, flip);
+            }
+
+            const int16_t weapon_world_x = q_to_pixel(enemy->weapon_qx);
+            const int16_t weapon_world_y = q_to_pixel(enemy->weapon_qy);
+            const int16_t weapon_x = (int16_t)(view.x1 + (weapon_world_x - g_camera_x) * scale);
+            const int16_t weapon_y = (int16_t)(view.y1 + (weapon_world_y - g_camera_y) * scale);
+            if (enemy->type == ENEMY_BALLGUY_TILE) {
+                const int16_t anchor_x = (int16_t)(x - enemy->way * 4 * scale);
+                const int16_t anchor_y = (int16_t)(y - 4 * scale);
+                for (uint8_t link = 1; link <= 3u; link++) {
+                    const int16_t link_x =
+                        (int16_t)(weapon_x + (anchor_x - weapon_x) * link / 4 - 4 * scale);
+                    const int16_t link_y =
+                        (int16_t)(weapon_y + (anchor_y - weapon_y) * link / 4 - 4 * scale);
+                    compose_sprite_rect_line(
+                        line, region_x, region_width, screen_y, 212, 1, 1, link_x, link_y, scale, 0);
+                }
+            }
+            compose_sprite_rect_line(line, region_x, region_width, screen_y,
+                enemy->type == ENEMY_MOSS_TILE ? 187u : 211u, 1, 1,
+                (int16_t)(weapon_x - 4 * scale), (int16_t)(weapon_y - 4 * scale), scale, flip);
+        }
+    }
+
+    for (uint8_t i = 0; i < LOW_KNIGHT_MAX_PROJECTILES; i++) {
+        const Low_Knight_Projectile* projectile = &g_projectiles[i];
+        if (!projectile->active) { continue; }
+        const int16_t x = (int16_t)(view.x1 + (projectile->x - g_camera_x) * scale);
+        const int16_t y = (int16_t)(view.y1 + (projectile->y - g_camera_y) * scale);
+        compose_sprite_rect_line(line, region_x, region_width, screen_y, projectile->tile, 1, 1,
+            (int16_t)(x - 4 * scale), (int16_t)(y - 4 * scale), scale, projectile->vx < 0);
     }
 }
 
@@ -729,49 +886,345 @@ static Low_Knight_Box bush_hitbox_at(int16_t x, int16_t y) {
     };
 }
 
-static void update_bush(Low_Knight_Enemy* enemy) {
-    const Low_Knight_Rect before_rect = enemy_rect_for(enemy);
+static int16_t abs_i16(int16_t value) { return value < 0 ? (int16_t)-value : value; }
 
-    const int16_t ahead_x = (int16_t)(enemy->x + enemy->way * 7);
-    const int16_t ahead_y = (int16_t)(enemy->y + 4);
-    if (enemy->vy == 0 && !tile_is_solid_at(floor_div_tile(ahead_x), floor_div_tile(ahead_y))) {
+static int16_t approach_i16(int16_t value, int16_t target, int16_t amount) {
+    if (value < target) {
+        value = (int16_t)(value + amount);
+        return value > target ? target : value;
+    }
+    if (value > target) {
+        value = (int16_t)(value - amount);
+        return value < target ? target : value;
+    }
+    return value;
+}
+
+static int16_t direction_component(int16_t delta, int16_t dx, int16_t dy, int16_t speed_q) {
+    const int16_t divisor = abs_i16(dx) > abs_i16(dy) ? abs_i16(dx) : abs_i16(dy);
+    if (divisor == 0) { return 0; }
+    return (int16_t)((int32_t)delta * speed_q / divisor);
+}
+
+static Low_Knight_Box enemy_hitbox_at(const Low_Knight_Enemy* enemy, int16_t x, int16_t y) {
+    if (enemy->type == ENEMY_LIMPER_TILE) {
+        return (Low_Knight_Box){(int16_t)(x - 4), (int16_t)(y - 8), (int16_t)(x + 4), (int16_t)(y - 1)};
+    }
+    if (enemy->type == ENEMY_FATGUY_TILE || enemy->type == ENEMY_BALLGUY_TILE ||
+        enemy->type == ENEMY_MOSS_TILE) {
+        return (Low_Knight_Box){(int16_t)(x - 6), (int16_t)(y - 16), (int16_t)(x + 6), y};
+    }
+    return bush_hitbox_at(x, y);
+}
+
+static uint8_t enemy_player_near(const Low_Knight_Enemy* enemy, int16_t range_x, int16_t range_y) {
+    return abs_i16((int16_t)(g_player.x - enemy->x)) < range_x &&
+           abs_i16((int16_t)(g_player.y - enemy->y)) < range_y;
+}
+
+static void move_ground_enemy(Low_Knight_Enemy* enemy, int16_t speed_q, uint8_t avoid_cliffs) {
+    const int16_t ahead_x = (int16_t)(enemy->x + enemy->way * 10);
+    const int16_t ahead_y = (int16_t)(enemy->y + (enemy->type == ENEMY_BUSH_TILE ? 4 : 2));
+    if (avoid_cliffs && enemy->vy == 0 &&
+        !tile_is_solid_at(floor_div_tile(ahead_x), floor_div_tile(ahead_y))) {
         enemy->way = -enemy->way;
     }
 
-    enemy->vx = (int16_t)(enemy->way * BUSH_MOVE_SPEED_Q);
+    enemy->vx = (int16_t)(enemy->way * speed_q);
     enemy->qx += enemy->vx;
     enemy->x = q_to_pixel(enemy->qx);
-    Low_Knight_Box box = bush_hitbox_at(enemy->x, enemy->y);
+    Low_Knight_Box box = enemy_hitbox_at(enemy, enemy->x, enemy->y);
     if (box_overlaps_solid(box)) {
         const int16_t push = enemy->vx > 0 ? -1 : 1;
         for (uint8_t i = 0; i < PICO_TILE_SIZE * 2u && box_overlaps_solid(box); i++) {
             enemy->x = (int16_t)(enemy->x + push);
-            box = bush_hitbox_at(enemy->x, enemy->y);
+            box = enemy_hitbox_at(enemy, enemy->x, enemy->y);
         }
         enemy->qx = (int32_t)enemy->x * PHYSICS_Q_ONE;
         enemy->way = -enemy->way;
+        enemy->vx = 0;
     }
 
-    enemy->vy = (int16_t)(enemy->vy + BUSH_GRAVITY_Q);
-    if (enemy->vy > BUSH_MAX_FALL_Q) { enemy->vy = BUSH_MAX_FALL_Q; }
+    enemy->vy = (int16_t)(enemy->vy +
+                          (enemy->type == ENEMY_BUSH_TILE ? BUSH_GRAVITY_Q : ENEMY_GRAVITY_Q));
+    const int16_t max_fall =
+        enemy->type == ENEMY_BUSH_TILE ? BUSH_MAX_FALL_Q : ENEMY_MAX_FALL_Q;
+    if (enemy->vy > max_fall) { enemy->vy = max_fall; }
     enemy->qy += enemy->vy;
     enemy->y = q_to_pixel(enemy->qy);
-    box = bush_hitbox_at(enemy->x, enemy->y);
+    box = enemy_hitbox_at(enemy, enemy->x, enemy->y);
     if (box_overlaps_solid(box)) {
         const int16_t push = enemy->vy > 0 ? -1 : 1;
         for (uint8_t i = 0; i < PICO_TILE_SIZE * 2u && box_overlaps_solid(box); i++) {
             enemy->y = (int16_t)(enemy->y + push);
-            box = bush_hitbox_at(enemy->x, enemy->y);
+            box = enemy_hitbox_at(enemy, enemy->x, enemy->y);
         }
         enemy->qy = (int32_t)enemy->y * PHYSICS_Q_ONE;
         enemy->vy = 0;
     }
+}
 
-    const Low_Knight_Rect after_rect = enemy_rect_for(enemy);
-    if (before_rect.x1 != after_rect.x1 || before_rect.y1 != after_rect.y1 ||
-        before_rect.x2 != after_rect.x2 || before_rect.y2 != after_rect.y2) {
+static void move_flying_enemy(Low_Knight_Enemy* enemy) {
+    const int32_t old_qx = enemy->qx;
+    const int32_t old_qy = enemy->qy;
+    enemy->qx += enemy->vx;
+    enemy->x = q_to_pixel(enemy->qx);
+    Low_Knight_Box box =
+        (Low_Knight_Box){(int16_t)(enemy->x - 4), (int16_t)(enemy->y - 5),
+            (int16_t)(enemy->x + 4), (int16_t)(enemy->y + 4)};
+    if (box_overlaps_solid(box)) {
+        enemy->qx = old_qx;
+        enemy->x = q_to_pixel(enemy->qx);
+        enemy->vx = (int16_t)-enemy->vx;
+        enemy->way = -enemy->way;
+    }
+
+    enemy->qy += enemy->vy;
+    enemy->y = q_to_pixel(enemy->qy);
+    box = (Low_Knight_Box){(int16_t)(enemy->x - 4), (int16_t)(enemy->y - 5),
+        (int16_t)(enemy->x + 4), (int16_t)(enemy->y + 4)};
+    if (box_overlaps_solid(box)) {
+        enemy->qy = old_qy;
+        enemy->y = q_to_pixel(enemy->qy);
+        enemy->vy = (int16_t)-enemy->vy;
+    }
+}
+
+static void spawn_projectile(
+    int16_t x, int16_t y, int16_t vx, int16_t vy, uint8_t tile) {
+    for (uint8_t i = 0; i < LOW_KNIGHT_MAX_PROJECTILES; i++) {
+        Low_Knight_Projectile* projectile = &g_projectiles[i];
+        if (projectile->active) { continue; }
+        projectile->x = x;
+        projectile->y = y;
+        projectile->qx = (int32_t)x * PHYSICS_Q_ONE;
+        projectile->qy = (int32_t)y * PHYSICS_Q_ONE;
+        projectile->vx = vx;
+        projectile->vy = vy;
+        projectile->tile = tile;
+        projectile->life = 180u;
+        projectile->active = 1;
+        mark_dirty_rect(projectile_rect_for(projectile));
+        return;
+    }
+}
+
+static void update_fly(Low_Knight_Enemy* enemy) {
+    if (enemy->timer > 0) { enemy->timer--; }
+    if (enemy->timer == 0) {
+        const int16_t dx = (int16_t)(g_player.x - enemy->x);
+        const int16_t dy = (int16_t)(g_player.y - enemy->y);
+        if (enemy_player_near(enemy, 112, 80) && ((enemy->phase + g_runtime_frame) & 1u)) {
+            enemy->vx = direction_component(dx, dx, dy, 410);
+            enemy->vy = direction_component(dy, dx, dy, 410);
+        } else {
+            enemy->way = ((enemy->phase + g_runtime_frame / 60u) & 1u) ? 1 : -1;
+            enemy->vx = (int16_t)(enemy->way * 154);
+            const uint8_t wave = (uint8_t)(g_runtime_frame + enemy->phase);
+            enemy->vy = (wave & 32u) ? -96 : 96;
+        }
+        enemy->timer = 60u;
+    }
+    if (enemy->vx != 0) { enemy->way = enemy->vx < 0 ? -1 : 1; }
+    move_flying_enemy(enemy);
+}
+
+static void update_bee(Low_Knight_Enemy* enemy) {
+    if (enemy->anim_timer > 0) {
+        enemy->anim_timer--;
+        enemy->state = 1u;
+    } else {
+        enemy->state = 0u;
+    }
+    if (enemy->timer > 0) { enemy->timer--; }
+    if (enemy->timer == 0) {
+        enemy->way = -enemy->way;
+        if (enemy_player_near(enemy, 128, 96)) {
+            const int16_t dx = (int16_t)(g_player.x - enemy->x);
+            const int16_t dy = (int16_t)(g_player.y - enemy->y);
+            spawn_projectile(enemy->x, enemy->y,
+                direction_component(dx, dx, dy, 256),
+                direction_component(dy, dx, dy, 256), 194u);
+            enemy->state = 1u;
+            enemy->anim_timer = 15u;
+            enemy->vy = (int16_t)(enemy->vy - 384);
+        }
+        enemy->timer = (uint16_t)(75u + (enemy->phase & 31u));
+    }
+
+    const int16_t target_y = (int16_t)(g_player.y - 42);
+    enemy->vx = approach_i16(enemy->vx, (int16_t)(enemy->way * 256), 24);
+    enemy->vy = approach_i16(enemy->vy,
+        clamp_i16((int16_t)((target_y - enemy->y) * 12), -256, 256), 20);
+    move_flying_enemy(enemy);
+}
+
+static void update_bush(Low_Knight_Enemy* enemy) {
+    int16_t speed = BUSH_MOVE_SPEED_Q;
+    if (enemy_player_near(enemy, 96, 48)) {
+        const int16_t pulse = (int16_t)((g_runtime_frame + enemy->phase) & 31u);
+        speed = (int16_t)(205 + (pulse < 16 ? pulse * 5 : (31 - pulse) * 5));
+        enemy->way = g_player.x < enemy->x ? -1 : 1;
+    }
+    move_ground_enemy(enemy, speed, 1);
+}
+
+static void update_limper(Low_Knight_Enemy* enemy) {
+    if (enemy->timer > 0) { enemy->timer--; }
+    if (enemy->timer == 0) {
+        enemy->state ^= 1u;
+        enemy->timer = enemy->state ? 18u : 12u;
+    }
+    move_ground_enemy(enemy, enemy->state ? 128 : 32, 1);
+}
+
+static void update_fatguy(Low_Knight_Enemy* enemy) {
+    int16_t speed = 96;
+    if (enemy->state == 0u) {
+        if (enemy->timer > 0) { enemy->timer--; }
+        if (enemy->timer == 0 && enemy_player_near(enemy, 104, 72)) {
+            enemy->way = g_player.x < enemy->x ? -1 : 1;
+            enemy->phase++;
+            enemy->state = (enemy->phase & 1u) ? 1u : 2u;
+            enemy->timer = enemy->state == 1u ? 30u : 80u;
+        }
+    } else if (enemy->state == 1u) {
+        speed = (int16_t)(128 + enemy->timer * 13);
+        if (enemy->timer > 0) { enemy->timer--; }
+        if (enemy->timer == 0) {
+            enemy->state = 0u;
+            enemy->timer = 80u;
+        }
+    } else {
+        speed = 0;
+        if (enemy->timer == 40u) {
+            for (int8_t spread = -1; spread <= 1; spread++) {
+                spawn_projectile(enemy->x, (int16_t)(enemy->y - 12),
+                    (int16_t)(enemy->way * (220 + (spread == 0 ? 24 : 0))),
+                    (int16_t)(-250 + spread * 105), spread == 0 ? 194u : 195u);
+            }
+        }
+        if (enemy->timer > 0) { enemy->timer--; }
+        if (enemy->timer == 0) {
+            enemy->state = 0u;
+            enemy->timer = 100u;
+        }
+    }
+    move_ground_enemy(enemy, speed, 1);
+}
+
+static void update_tether_weapon(Low_Knight_Enemy* enemy) {
+    const int16_t weapon_x = q_to_pixel(enemy->weapon_qx);
+    const int16_t weapon_y = q_to_pixel(enemy->weapon_qy);
+    const int16_t target_x = (int16_t)(enemy->x - enemy->way *
+        (enemy->type == ENEMY_MOSS_TILE ? 1 : 4));
+    const int16_t target_y = (int16_t)(enemy->y - 4);
+    const int16_t spring = enemy->type == ENEMY_MOSS_TILE ? 31 : 10;
+    const int16_t damping = enemy->type == ENEMY_MOSS_TILE ? 179 : 233;
+    enemy->weapon_vx =
+        (int16_t)(enemy->weapon_vx + (target_x - weapon_x) * spring);
+    enemy->weapon_vy =
+        (int16_t)(enemy->weapon_vy + (target_y - weapon_y) * spring);
+    enemy->weapon_vx = (int16_t)((int32_t)enemy->weapon_vx * damping / 256);
+    enemy->weapon_vy = (int16_t)((int32_t)enemy->weapon_vy * damping / 256);
+    enemy->weapon_qx += enemy->weapon_vx;
+    enemy->weapon_qy += enemy->weapon_vy;
+}
+
+static void update_ballguy(Low_Knight_Enemy* enemy) {
+    int16_t speed = 128;
+    if (enemy->state == 0u) {
+        if (enemy->timer > 0) { enemy->timer--; }
+        if (enemy->timer == 0 && enemy_player_near(enemy, 112, 72)) {
+            enemy->way = g_player.x < enemy->x ? -1 : 1;
+            enemy->state = 1u;
+            enemy->timer = 60u;
+        }
+    } else {
+        speed = 0;
+        if (enemy->timer == 50u) {
+            enemy->weapon_vx = (int16_t)(-enemy->way * 220);
+            enemy->weapon_vy = -80;
+        } else if (enemy->timer == 38u) {
+            const int16_t dx = (int16_t)(g_player.x - q_to_pixel(enemy->weapon_qx));
+            const int16_t dy = (int16_t)(g_player.y - 8 - q_to_pixel(enemy->weapon_qy));
+            enemy->weapon_vx = direction_component(dx, dx, dy, 768);
+            enemy->weapon_vy = direction_component(dy, dx, dy, 768);
+        }
+        if (enemy->timer > 0) { enemy->timer--; }
+        if (enemy->timer == 0) {
+            enemy->state = 0u;
+            enemy->timer = 90u;
+        }
+    }
+    move_ground_enemy(enemy, speed, 1);
+    update_tether_weapon(enemy);
+}
+
+static void update_moss(Low_Knight_Enemy* enemy) {
+    int16_t speed = 96;
+    if (enemy->state == 0u) {
+        if (enemy->timer > 0) { enemy->timer--; }
+        if (enemy->timer == 0 && enemy_player_near(enemy, 96, 56)) {
+            enemy->way = g_player.x < enemy->x ? -1 : 1;
+            enemy->state = 1u;
+            enemy->timer = 60u;
+        }
+    } else {
+        speed = enemy->timer <= 30u && enemy->timer > 18u ? 420 : 0;
+        if (enemy->timer == 25u) {
+            enemy->weapon_vx = (int16_t)(enemy->way * 768);
+            enemy->weapon_vy = 0;
+        }
+        if (enemy->timer > 0) { enemy->timer--; }
+        if (enemy->timer == 0) {
+            enemy->state = 0u;
+            enemy->timer = 80u;
+        }
+    }
+    move_ground_enemy(enemy, speed, 1);
+    update_tether_weapon(enemy);
+}
+
+static void update_ambush(Low_Knight_Enemy* enemy) {
+    if (g_player.y <= enemy->y ||
+        abs_i16((int16_t)(g_player.x - enemy->x - 4)) >= 12) {
+        return;
+    }
+    enemy->type = ENEMY_BUSH_TILE;
+    enemy->y = (int16_t)(enemy->y + 4);
+    enemy->qy = (int32_t)enemy->y * PHYSICS_Q_ONE;
+    enemy->way = g_player.x < enemy->x ? 1 : -1;
+    enemy->timer = 0;
+}
+
+static void update_projectiles(void) {
+    const int16_t room_width = (int16_t)(g_room.width * PICO_TILE_SIZE);
+    const int16_t room_height = (int16_t)(g_room.height * PICO_TILE_SIZE);
+    for (uint8_t i = 0; i < LOW_KNIGHT_MAX_PROJECTILES; i++) {
+        Low_Knight_Projectile* projectile = &g_projectiles[i];
+        if (!projectile->active) { continue; }
+        const Low_Knight_Rect before_rect = projectile_rect_for(projectile);
+
+        projectile->vx = (int16_t)((int32_t)projectile->vx * 253 / 256);
+        projectile->vy = (int16_t)(projectile->vy + PROJECTILE_GRAVITY_Q);
+        projectile->qx += projectile->vx;
+        projectile->qy += projectile->vy;
+        projectile->x = q_to_pixel(projectile->qx);
+        projectile->y = q_to_pixel(projectile->qy);
+        if (projectile->life > 0) { projectile->life--; }
+
+        const Low_Knight_Box box = {(int16_t)(projectile->x - 2), (int16_t)(projectile->y - 2),
+            (int16_t)(projectile->x + 2), (int16_t)(projectile->y + 2)};
+        if (projectile->life == 0 || projectile->x < -8 || projectile->y < -8 ||
+            projectile->x > room_width + 8 || projectile->y > room_height + 8 ||
+            box_overlaps_solid(box)) {
+            projectile->active = 0;
+            mark_dirty_rect(before_rect);
+            continue;
+        }
         mark_dirty_rect(before_rect);
-        mark_dirty_rect(after_rect);
+        mark_dirty_rect(projectile_rect_for(projectile));
     }
 }
 
@@ -779,8 +1232,30 @@ static void update_enemies(void) {
     for (uint8_t i = 0; i < g_enemy_count; i++) {
         Low_Knight_Enemy* enemy = &g_enemies[i];
         if (!enemy->active) { continue; }
-        if (enemy->type == ENEMY_BUSH_TILE) { update_bush(enemy); }
+        const Low_Knight_Rect before_rect = enemy_rect_for(enemy);
+        if (enemy->type == ENEMY_FLY_TILE) {
+            update_fly(enemy);
+        } else if (enemy->type == ENEMY_BEE_TILE) {
+            update_bee(enemy);
+        } else if (enemy->type == ENEMY_BUSH_TILE) {
+            update_bush(enemy);
+        } else if (enemy->type == ENEMY_LIMPER_TILE) {
+            update_limper(enemy);
+        } else if (enemy->type == ENEMY_FATGUY_TILE) {
+            update_fatguy(enemy);
+        } else if (enemy->type == ENEMY_BALLGUY_TILE) {
+            update_ballguy(enemy);
+        } else if (enemy->type == ENEMY_MOSS_TILE) {
+            update_moss(enemy);
+        } else if (enemy->type == ENEMY_AMBUSH_TILE) {
+            update_ambush(enemy);
+        }
+
+        const Low_Knight_Rect after_rect = enemy_rect_for(enemy);
+        mark_dirty_rect(before_rect);
+        mark_dirty_rect(after_rect);
     }
+    update_projectiles();
 }
 
 static void constrain_corner_transition(void) {
@@ -864,6 +1339,7 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
+    g_runtime_frame = 0;
     g_last_drawn_player = g_player;
     if (!load_room(LOW_KNIGHT_START_ROOM)) { return 0; }
     update_camera(1);
@@ -898,6 +1374,7 @@ void Low_Knight_Runtime_Draw_Dirty(St7789* lcd) {
 Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     if (input == NULL || g_resources == NULL) { return low_knight_step_none; }
 
+    g_runtime_frame++;
     g_pending_dirty_count = 0;
     const Low_Knight_Vec2i before = g_player;
     const uint8_t before_facing_left = g_player_facing_left;
