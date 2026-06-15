@@ -21,7 +21,9 @@ void Hal_Init(void) {
     Button_Init();
     Joystick_Init();
     Buzzer_Init();
+#if FRAMEWORK_USE_UART
     Com_Uart_Init();
+#endif
 }
 
 void Hal_Task_Def(void) {

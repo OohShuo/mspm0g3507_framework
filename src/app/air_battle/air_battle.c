@@ -252,16 +252,11 @@ static void draw_explosion_line(
 }
 
 static void compose_line(int16_t x, int16_t y, int16_t width) {
-    const uint8_t external_ready =
-        g_external_background.is_open && Image_Asset_Read_Span(&g_external_background, (uint16_t)y,
-                                             (uint16_t)x, (uint16_t)width, g_line_buffer);
-    if (!external_ready) {
-        for (int16_t col = 0; col < width; col++) {
-            const int16_t screen_x = x + col;
-            const uint16_t bg_x = (uint16_t)(screen_x / AIR_BACKGROUND_SCALE);
-            const uint16_t bg_y = (uint16_t)(y / AIR_BACKGROUND_SCALE);
-            g_line_buffer[col] = air_background[bg_y * AIR_BACKGROUND_WIDTH + bg_x];
-        }
+    if (g_external_background.is_open) {
+        Image_Asset_Read_Span(
+            &g_external_background, (uint16_t)y, (uint16_t)x, (uint16_t)width, g_line_buffer);
+    } else {
+        for (int16_t col = 0; col < width; col++) { g_line_buffer[col] = COLOR_BLACK; }
     }
 
     for (uint8_t i = 0; i < MAX_PICKUPS; i++) {

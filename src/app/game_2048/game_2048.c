@@ -6,24 +6,24 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
-#define HUD_HEIGHT    48
+#define SCREEN_WIDTH   240
+#define SCREEN_HEIGHT  320
+#define HUD_HEIGHT     48
 
-#define GRID_SIZE     4
-#define CELL_SIZE     44
-#define GAP           4
-#define BOARD_W       (GRID_SIZE * CELL_SIZE + (GRID_SIZE - 1) * GAP)
-#define BOARD_X       ((SCREEN_WIDTH - BOARD_W) / 2)
-#define BOARD_Y       60
+#define GRID_SIZE      4
+#define CELL_SIZE      44
+#define GAP            4
+#define BOARD_W        (GRID_SIZE * CELL_SIZE + (GRID_SIZE - 1) * GAP)
+#define BOARD_X        ((SCREEN_WIDTH - BOARD_W) / 2)
+#define BOARD_Y        60
 
-#define COLOR_BLACK   0x0000u
-#define COLOR_WHITE   0xffffu
-#define COLOR_CYAN    0x07ffu
-#define COLOR_BG      0x630cu
-#define COLOR_EMPTY   0x8410u
+#define COLOR_BLACK    0x0000u
+#define COLOR_WHITE    0xffffu
+#define COLOR_CYAN     0x07ffu
+#define COLOR_BG       0x630cu
+#define COLOR_EMPTY    0x8410u
 #define COLOR_GAMEOVER 0xf81fu
-#define COLOR_WIN     0xffe0u
+#define COLOR_WIN      0xffe0u
 
 /* Tile colours by exponent (2^1=2 through 2^11=2048) */
 static const uint16_t g_tile_bg[] = {
@@ -59,7 +59,10 @@ static int32_t cell_y(uint8_t r) { return BOARD_Y + r * (CELL_SIZE + GAP); }
 
 static uint16_t tile_bg(uint16_t val) {
     uint8_t exp = 0;
-    while (val > 1u) { val >>= 1; exp++; }
+    while (val > 1u) {
+        val >>= 1;
+        exp++;
+    }
     return exp > 0 && exp <= 11 ? g_tile_bg[exp - 1] : COLOR_EMPTY;
 }
 
@@ -74,15 +77,18 @@ static void render_tile(uint8_t r, uint8_t c) {
     /* Center the number */
     uint8_t digits = 1;
     uint16_t tmp = val;
-    while (tmp >= 10u) { tmp /= 10u; digits++; }
+    while (tmp >= 10u) {
+        tmp /= 10u;
+        digits++;
+    }
     const int32_t tx = x + (int32_t)(CELL_SIZE - digits * 6) / 2;
     const int32_t ty = y + (CELL_SIZE - 7) / 2;
     Game_Graphics_Draw_U32(g_hardware.lcd, tx, ty, val, digits, 1, COLOR_BLACK);
 }
 
 static void render_board(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, HUD_HEIGHT, SCREEN_WIDTH,
-        SCREEN_HEIGHT - HUD_HEIGHT, COLOR_BG);
+    Game_Graphics_Fill_Rect(
+        g_hardware.lcd, 0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT, COLOR_BG);
     for (uint8_t r = 0; r < GRID_SIZE; r++) {
         for (uint8_t c = 0; c < GRID_SIZE; c++) { render_tile(r, c); }
     }
@@ -109,7 +115,11 @@ static uint8_t spawn_tile(void) {
     uint8_t count = 0;
     for (uint8_t r = 0; r < GRID_SIZE; r++) {
         for (uint8_t c = 0; c < GRID_SIZE; c++) {
-            if (g_grid[r][c] == 0) { empty[count][0] = r; empty[count][1] = c; count++; }
+            if (g_grid[r][c] == 0) {
+                empty[count][0] = r;
+                empty[count][1] = c;
+                count++;
+            }
         }
     }
     if (count == 0) { return 0; }
@@ -125,7 +135,11 @@ static uint8_t slide_row(uint8_t r) {
     uint8_t col = 0;
     for (uint8_t c = 0; c < GRID_SIZE; c++) {
         if (g_grid[r][c] == 0) { continue; }
-        if (c != col) { g_grid[r][col] = g_grid[r][c]; g_grid[r][c] = 0; changed = 1; }
+        if (c != col) {
+            g_grid[r][col] = g_grid[r][c];
+            g_grid[r][c] = 0;
+            changed = 1;
+        }
         col++;
     }
     /* Merge */
@@ -142,7 +156,11 @@ static uint8_t slide_row(uint8_t r) {
     col = 0;
     for (uint8_t c = 0; c < GRID_SIZE; c++) {
         if (g_grid[r][c] == 0) { continue; }
-        if (c != col) { g_grid[r][col] = g_grid[r][c]; g_grid[r][c] = 0; changed = 1; }
+        if (c != col) {
+            g_grid[r][col] = g_grid[r][c];
+            g_grid[r][c] = 0;
+            changed = 1;
+        }
         col++;
     }
     return changed;
@@ -276,10 +294,15 @@ Game_result Game_2048_Update(const Game_input* input) {
     /* Handle swipe */
     if (input->direction_pressed && input->direction != game_direction_none) {
         uint8_t d = 0;
-        if (input->direction == game_direction_left) { d = 0; }
-        else if (input->direction == game_direction_right) { d = 1; }
-        else if (input->direction == game_direction_up) { d = 2; }
-        else { d = 3; }
+        if (input->direction == game_direction_left) {
+            d = 0;
+        } else if (input->direction == game_direction_right) {
+            d = 1;
+        } else if (input->direction == game_direction_up) {
+            d = 2;
+        } else {
+            d = 3;
+        }
 
         g_moved = slide(d);
         if (g_moved) {

@@ -18,6 +18,7 @@ set(_framework_use_keys
     FRAMEWORK_USE_LVGL
     FRAMEWORK_USE_LFS
     FRAMEWORK_USE_RTT
+    FRAMEWORK_USE_UART
 )
 foreach(_k IN LISTS _framework_use_keys)
     if(${_k})
@@ -55,6 +56,7 @@ add_compile_options(
     -Wall
     -ffunction-sections
     -fdata-sections
+    -mno-unaligned-access
 )
 
 add_executable(${PROJECT_NAME}.elf "${ENTRANCE_MAIN_C}" "${IT_C}" "${ASSETS_C}")
