@@ -153,8 +153,9 @@ def pack_audio_asset(
         "-ac", "1",
         "-ar", str(sample_rate),
         "-af",
-        "highpass=f=250,lowpass=f=3400,"
-        "dynaudnorm=f=100:g=15:p=0.95:m=12,"
+        "highpass=f=200,lowpass=f=3400,"
+        "acompressor=threshold=-18dB:ratio=4:attack=5:release=50,"
+        "volume=2.0,"
         "alimiter=limit=0.95",
         "-f", sample_format,
         "-acodec", pcm_codec,

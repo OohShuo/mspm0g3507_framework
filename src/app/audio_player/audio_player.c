@@ -26,8 +26,8 @@
 #define AUDIO_CODEC_ADPCM4       3u
 #define AUDIO_BUFFER_SIZE        256u
 #define AUDIO_BUFFER_COUNT       2u
-#define AUDIO_PCM_PWM_CARRIER_HZ 31250u
-#define AUDIO_TIMER_CLOCK_HZ     40000000u
+#define AUDIO_PCM_PWM_CARRIER_HZ 20000u
+#define AUDIO_TIMER_CLOCK_HZ     80000000u
 
 typedef struct {
     uint8_t data[AUDIO_BUFFER_SIZE];
