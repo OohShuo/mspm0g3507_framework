@@ -15,6 +15,8 @@ typedef struct {
     uint8_t jump_down;
     uint8_t jump_pressed;
     uint8_t jump_released;
+    uint8_t strike_down;
+    uint8_t strike_pressed;
 } Low_Knight_Input;
 
 typedef enum {

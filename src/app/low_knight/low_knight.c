@@ -39,13 +39,19 @@
 
 static St7789* g_lcd = NULL;
 static Joystick* g_joystick = NULL;
-static Button* g_button = NULL;
+static Button* g_jump_button = NULL;
+static Button* g_strike_button = NULL;
 static Buzzer* g_buzzer = NULL;
 static Low_Knight_Resources g_resources;
 
 static uint8_t read_jump_down(void) {
-    return Button_Get_State(g_button) == button_state_down ||
+    return Button_Get_State(g_jump_button) == button_state_down ||
            Bsp_Gpio_Read(GPIO_SW_BTN_IDX) == bsp_gpio_state_reset;
+}
+
+static uint8_t read_strike_down(void) {
+    return Button_Get_State(g_strike_button) == button_state_down ||
+           Bsp_Gpio_Read(GPIO_BTN_BOARD_IDX) == bsp_gpio_state_reset;
 }
 
 static void draw_centered(const char* text, int32_t y, uint8_t scale, uint16_t color) {
@@ -100,12 +106,19 @@ static void low_knight_init_hardware(void) {
     configASSERT(g_joystick != NULL);
     Joystick_Calibrate_Center(g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
 
-    const Button_config button_config = {
+    const Button_config jump_button_config = {
         .gpio_idx = GPIO_SW_BTN_IDX,
         .gpio_state_when_pressed = bsp_gpio_state_reset,
     };
-    g_button = Button_Create(&button_config);
-    configASSERT(g_button != NULL);
+    g_jump_button = Button_Create(&jump_button_config);
+    configASSERT(g_jump_button != NULL);
+
+    const Button_config strike_button_config = {
+        .gpio_idx = GPIO_BTN_BOARD_IDX,
+        .gpio_state_when_pressed = bsp_gpio_state_reset,
+    };
+    g_strike_button = Button_Create(&strike_button_config);
+    configASSERT(g_strike_button != NULL);
 
     const Buzzer_config buzzer_config = {.pwm_idx = PWM_BUZZER_IDX};
     g_buzzer = Buzzer_Create(&buzzer_config);
@@ -145,15 +158,19 @@ static void low_knight_task(void* arg) {
     }
     uint32_t tick = xTaskGetTickCount();
     uint8_t last_jump_down = 0;
+    uint8_t last_strike_down = 0;
 
     while (1) {
         if (ready) {
             const uint8_t jump_down = read_jump_down();
+            const uint8_t strike_down = read_strike_down();
             Low_Knight_Input input = {
                 .move_x = 0,
                 .jump_down = jump_down,
                 .jump_pressed = jump_down && !last_jump_down,
                 .jump_released = !jump_down && last_jump_down,
+                .strike_down = strike_down,
+                .strike_pressed = strike_down && !last_strike_down,
             };
             if (g_joystick->x_value < -JOYSTICK_MOVE_THRESHOLD) { input.move_x = -1; }
             if (g_joystick->x_value > JOYSTICK_MOVE_THRESHOLD) { input.move_x = 1; }
@@ -169,12 +186,14 @@ static void low_knight_task(void* arg) {
                 Low_Knight_Runtime_Draw_Dirty(g_lcd);
             }
             last_jump_down = jump_down;
+            last_strike_down = strike_down;
         } else if (Storage_Is_Available()) {
             ready = Low_Knight_Resources_Open(&g_resources, LOW_KNIGHT_RESOURCE_PATH) &&
                     Low_Knight_Runtime_Init(&g_resources);
             if (ready) {
                 Low_Knight_Runtime_Draw(g_lcd);
                 last_jump_down = 0;
+                last_strike_down = 0;
             } else {
                 draw_boot_screen(0);
             }

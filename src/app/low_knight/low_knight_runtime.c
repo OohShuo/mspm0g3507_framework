@@ -21,7 +21,8 @@
 #define LOW_KNIGHT_BG_TILE_Y   0u
 #define LOW_KNIGHT_BG_TILE_W   19u
 #define LOW_KNIGHT_BG_TILE_H   20u
-#define TILE_ROW_CACHE_SIZE    128u
+#define TILE_ROW_CACHE_SIZE    64u
+#define ENEMY_TILE_CACHE_COUNT 42u
 
 #define PHYSICS_Q_SHIFT        8
 #define PHYSICS_Q_ONE          (1 << PHYSICS_Q_SHIFT)
@@ -55,6 +56,14 @@
 #define ENEMY_MAX_FALL_Q       768
 #define PROJECTILE_GRAVITY_Q   19
 #define LOW_KNIGHT_MAX_DIRTY_RECTS 16u
+#define ENEMY_REDRAW_DIVIDER   2u
+#define BUSH_TRACK_STOP_DISTANCE 12
+#define BUSH_TURN_LOCK_FRAMES  12u
+#define STRIKE_DURATION_FRAMES 10u
+#define STRIKE_COOLDOWN_FRAMES 14u
+#define STRIKE_HIT_START       3u
+#define STRIKE_HIT_END         8u
+#define STRIKE_DAMAGE          5u
 
 #define COLOR_BLACK            0x0000u
 #define COLOR_RESOURCE_ERROR   0xf800u
@@ -108,6 +117,7 @@ typedef struct {
     uint8_t state;
     uint8_t phase;
     uint8_t anim_timer;
+    uint8_t hp;
 } Low_Knight_Enemy;
 
 typedef struct {
@@ -153,6 +163,14 @@ static const uint16_t g_pico_palette[16] = {
     0x481fu, 0x051fu, 0x277fu, 0x2720u, 0xfd65u, 0x9bb0u, 0xabbfu, 0xae7fu,
 };
 
+static const uint8_t g_enemy_tile_cache_ids[ENEMY_TILE_CACHE_COUNT] = {
+    59, 60, 68, 69, 70, 71, 172, 173, 174, 175,
+    187, 188, 189, 190, 191, 192, 193, 194, 195, 203,
+    204, 205, 206, 207, 208, 209, 210, 211, 212, 224,
+    225, 226, 227, 230, 231, 240, 241, 242, 243, 246,
+    247, 248,
+};
+
 static Low_Knight_Resources* g_resources = NULL;
 static uint8_t g_room_index;
 static Low_Knight_Room g_room;
@@ -160,6 +178,7 @@ static uint8_t g_room_tiles[LOW_KNIGHT_MAX_ROOM_W * LOW_KNIGHT_MAX_ROOM_H];
 static uint8_t g_background_tiles[LOW_KNIGHT_BG_TILE_W * LOW_KNIGHT_BG_TILE_H];
 static uint8_t g_tile_flags[LOW_KNIGHT_GFF_SIZE];
 static Tile_Row_Cache_Entry g_tile_row_cache[TILE_ROW_CACHE_SIZE];
+static uint8_t g_enemy_tile_cache[ENEMY_TILE_CACHE_COUNT][PICO_TILE_SIZE * 4u];
 static Low_Knight_Vec2i g_player;
 static Low_Knight_Vec2i g_last_drawn_player;
 static int32_t g_player_qx;
@@ -174,9 +193,17 @@ static int16_t g_camera_x;
 static int16_t g_camera_y;
 static Low_Knight_Enemy g_enemies[LOW_KNIGHT_MAX_ENEMIES];
 static Low_Knight_Projectile g_projectiles[LOW_KNIGHT_MAX_PROJECTILES];
+static Low_Knight_Rect g_last_drawn_enemy_rects[LOW_KNIGHT_MAX_ENEMIES];
+static Low_Knight_Rect g_last_drawn_projectile_rects[LOW_KNIGHT_MAX_PROJECTILES];
+static uint16_t g_last_drawn_enemy_visuals[LOW_KNIGHT_MAX_ENEMIES];
+static uint8_t g_last_drawn_projectile_active[LOW_KNIGHT_MAX_PROJECTILES];
 static uint8_t g_enemy_count;
 static Low_Knight_Rect g_pending_dirty[LOW_KNIGHT_MAX_DIRTY_RECTS];
 static uint8_t g_pending_dirty_count;
+static uint8_t g_dynamic_redraw_due;
+static uint8_t g_strike_timer;
+static uint8_t g_strike_cooldown;
+static uint16_t g_strike_hit_mask;
 static uint16_t g_runtime_frame;
 
 static uint8_t sample_packed_pixel(const uint8_t* bytes, uint8_t pixel_index) {
@@ -359,6 +386,13 @@ static uint8_t is_enemy_spawn_tile(uint8_t tile) {
            tile == ENEMY_FATGUY_TILE || tile == ENEMY_BALLGUY_TILE;
 }
 
+static uint8_t enemy_start_hp(uint8_t type) {
+    if (type == ENEMY_BUSH_TILE || type == ENEMY_AMBUSH_TILE) { return 13u; }
+    if (type == ENEMY_FATGUY_TILE || type == ENEMY_MOSS_TILE) { return 30u; }
+    if (type == ENEMY_BALLGUY_TILE) { return 25u; }
+    return 7u;
+}
+
 static void spawn_room_enemies(void) {
     memset(g_enemies, 0, sizeof(g_enemies));
     memset(g_projectiles, 0, sizeof(g_projectiles));
@@ -379,6 +413,7 @@ static void spawn_room_enemies(void) {
             enemy->way = tile_x >= g_room.width / 2u ? -1 : 1;
             enemy->type = *tile;
             enemy->active = 1;
+            enemy->hp = enemy_start_hp(enemy->type);
             enemy->phase = (uint8_t)(tile_x * 13u + tile_y * 7u);
             enemy->timer = (uint16_t)(20u + enemy->phase);
             *tile = enemy->type == ENEMY_AMBUSH_TILE ? 124u : 0u;
@@ -386,8 +421,48 @@ static void spawn_room_enemies(void) {
     }
 }
 
+static int8_t enemy_tile_cache_slot(uint8_t tile) {
+    int8_t low = 0;
+    int8_t high = (int8_t)(ENEMY_TILE_CACHE_COUNT - 1u);
+    while (low <= high) {
+        const int8_t middle = (int8_t)(low + (high - low) / 2);
+        const uint8_t candidate = g_enemy_tile_cache_ids[(uint8_t)middle];
+        if (candidate == tile) { return middle; }
+        if (candidate < tile) {
+            low = (int8_t)(middle + 1);
+        } else {
+            high = (int8_t)(middle - 1);
+        }
+    }
+    return -1;
+}
+
+static uint8_t cache_enemy_tiles(void) {
+    for (uint8_t slot = 0; slot < ENEMY_TILE_CACHE_COUNT; slot++) {
+        const uint8_t tile = g_enemy_tile_cache_ids[slot];
+        const uint8_t tile_x = tile & 0x0fu;
+        const uint8_t tile_y = tile >> 4;
+        for (uint8_t row = 0; row < PICO_TILE_SIZE; row++) {
+            const uint32_t offset =
+                ((uint32_t)tile_y * PICO_TILE_SIZE + row) * PICO_GFX_STRIDE_BYTES +
+                (uint32_t)tile_x * 4u;
+            if (!Low_Knight_Resources_Read_Gfx(
+                    g_resources, offset, &g_enemy_tile_cache[slot][row * 4u], 4u)) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 static uint8_t read_gfx_tile_row(uint8_t tile, uint8_t row, uint8_t* out_row) {
     if (out_row == NULL) { return 0; }
+
+    const int8_t enemy_slot = enemy_tile_cache_slot(tile);
+    if (enemy_slot >= 0) {
+        memcpy(out_row, &g_enemy_tile_cache[(uint8_t)enemy_slot][row * 4u], 4u);
+        return 1;
+    }
 
     const uint16_t key = (uint16_t)tile * PICO_TILE_SIZE + row;
     Tile_Row_Cache_Entry* entry = &g_tile_row_cache[key & (TILE_ROW_CACHE_SIZE - 1u)];
@@ -475,6 +550,8 @@ static uint32_t rect_area(Low_Knight_Rect rect) {
 }
 
 static void mark_dirty_rect(Low_Knight_Rect rect) {
+    rect = rect_intersect(rect, screen_rect());
+    rect = rect_intersect(rect, (Low_Knight_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
     if (rect_is_empty(rect)) { return; }
 
     for (uint8_t i = 0; i < g_pending_dirty_count; i++) {
@@ -570,6 +647,77 @@ static Low_Knight_Rect projectile_rect_for(const Low_Knight_Projectile* projecti
         (int16_t)(x + 5 * scale),
         (int16_t)(y + 5 * scale),
     };
+}
+
+static uint8_t rect_equals(Low_Knight_Rect a, Low_Knight_Rect b) {
+    return a.x1 == b.x1 && a.y1 == b.y1 && a.x2 == b.x2 && a.y2 == b.y2;
+}
+
+static Low_Knight_Rect rect_union_visible(Low_Knight_Rect a, Low_Knight_Rect b) {
+    if (rect_is_empty(a)) { return b; }
+    if (rect_is_empty(b)) { return a; }
+    return rect_union(a, b);
+}
+
+static uint16_t enemy_visual_key(const Low_Knight_Enemy* enemy) {
+    uint16_t key = enemy->type;
+    if (enemy->way < 0) { key |= 1u << 8; }
+    key |= (uint16_t)(enemy->state & 0x03u) << 9;
+    if (enemy->type == ENEMY_FLY_TILE) {
+        key |= (uint16_t)(((g_runtime_frame + enemy->phase) / 3u) & 1u) << 11;
+    } else if (enemy->type == ENEMY_BEE_TILE) {
+        key |= (uint16_t)(((g_runtime_frame + enemy->phase) >> 1) & 1u) << 11;
+    }
+    return key;
+}
+
+static void capture_dynamic_draw_state(void) {
+    for (uint8_t i = 0; i < LOW_KNIGHT_MAX_ENEMIES; i++) {
+        if (i < g_enemy_count && g_enemies[i].active) {
+            g_last_drawn_enemy_rects[i] = enemy_rect_for(&g_enemies[i]);
+            g_last_drawn_enemy_visuals[i] = enemy_visual_key(&g_enemies[i]);
+        } else {
+            g_last_drawn_enemy_rects[i] = (Low_Knight_Rect){0, 0, 0, 0};
+            g_last_drawn_enemy_visuals[i] = 0;
+        }
+    }
+
+    for (uint8_t i = 0; i < LOW_KNIGHT_MAX_PROJECTILES; i++) {
+        if (g_projectiles[i].active) {
+            g_last_drawn_projectile_rects[i] = projectile_rect_for(&g_projectiles[i]);
+            g_last_drawn_projectile_active[i] = 1;
+        } else {
+            g_last_drawn_projectile_rects[i] = (Low_Knight_Rect){0, 0, 0, 0};
+            g_last_drawn_projectile_active[i] = 0;
+        }
+    }
+}
+
+static void queue_dynamic_dirty(void) {
+    for (uint8_t i = 0; i < g_enemy_count; i++) {
+        const Low_Knight_Enemy* enemy = &g_enemies[i];
+        const Low_Knight_Rect current = enemy->active
+                                            ? enemy_rect_for(enemy)
+                                            : (Low_Knight_Rect){0, 0, 0, 0};
+        const uint16_t visual = enemy->active ? enemy_visual_key(enemy) : 0;
+        const uint8_t tether_moves =
+            enemy->type == ENEMY_BALLGUY_TILE || enemy->type == ENEMY_MOSS_TILE;
+        if (!rect_equals(current, g_last_drawn_enemy_rects[i]) ||
+            visual != g_last_drawn_enemy_visuals[i] || tether_moves) {
+            mark_dirty_rect(rect_union_visible(g_last_drawn_enemy_rects[i], current));
+        }
+    }
+
+    for (uint8_t i = 0; i < LOW_KNIGHT_MAX_PROJECTILES; i++) {
+        const Low_Knight_Projectile* projectile = &g_projectiles[i];
+        const Low_Knight_Rect current = projectile->active
+                                            ? projectile_rect_for(projectile)
+                                            : (Low_Knight_Rect){0, 0, 0, 0};
+        if (projectile->active != g_last_drawn_projectile_active[i] ||
+            !rect_equals(current, g_last_drawn_projectile_rects[i])) {
+            mark_dirty_rect(rect_union_visible(g_last_drawn_projectile_rects[i], current));
+        }
+    }
 }
 
 static void compose_sprite_rect_line(uint16_t* line, int16_t region_x, int16_t region_width,
@@ -809,6 +957,18 @@ static void compose_player_line(uint16_t* line, int16_t region_x, int16_t region
         (int16_t)(x - 4 * scale), (int16_t)(y - 12 * scale), scale, g_player_facing_left);
 }
 
+static void compose_strike_line(uint16_t* line, int16_t region_x, int16_t region_width, int16_t screen_y) {
+    if (g_strike_timer == 0) { return; }
+
+    const Low_Knight_Rect view = screen_rect();
+    const uint8_t scale = 2;
+    const int16_t x = (int16_t)(view.x1 +
+        (g_player.x - g_camera_x + (g_player_facing_left ? -12 : 12)) * scale);
+    const int16_t y = (int16_t)(view.y1 + (g_player.y - g_camera_y - 4) * scale);
+    compose_sprite_rect_line(line, region_x, region_width, screen_y, 59, 2, 1,
+        (int16_t)(x - 8 * scale), (int16_t)(y - 4 * scale), scale, g_player_facing_left);
+}
+
 static void compose_line(int16_t x, int16_t y, int16_t width) {
     uint16_t* line = Game_Graphics_Get_Line_Buffer();
     for (int16_t col = 0; col < width; col++) { line[col] = g_pico_palette[1]; }
@@ -816,6 +976,7 @@ static void compose_line(int16_t x, int16_t y, int16_t width) {
     compose_level_line(line, x, width, y);
     compose_enemies_line(line, x, width, y);
     compose_player_line(line, x, width, y);
+    compose_strike_line(line, x, width, y);
 }
 
 static void render_region(St7789* lcd, Low_Knight_Rect rect) {
@@ -842,6 +1003,20 @@ static Low_Knight_Rect player_rect_for(Low_Knight_Vec2i player, uint8_t scale) {
         (int16_t)(y - 12 * scale - 2),
         (int16_t)(x + 8 * scale + 2),
         (int16_t)(y + 4 * scale + 2),
+    };
+}
+
+static Low_Knight_Rect strike_rect_for(Low_Knight_Vec2i player, uint8_t facing_left) {
+    const Low_Knight_Rect view = screen_rect();
+    const uint8_t scale = 2;
+    const int16_t center_x =
+        (int16_t)(view.x1 + (player.x - g_camera_x + (facing_left ? -12 : 12)) * scale);
+    const int16_t center_y = (int16_t)(view.y1 + (player.y - g_camera_y - 4) * scale);
+    return (Low_Knight_Rect){
+        (int16_t)(center_x - 8 * scale - 2),
+        (int16_t)(center_y - 4 * scale - 2),
+        (int16_t)(center_x + 8 * scale + 2),
+        (int16_t)(center_y + 4 * scale + 2),
     };
 }
 
@@ -928,6 +1103,7 @@ static void move_ground_enemy(Low_Knight_Enemy* enemy, int16_t speed_q, uint8_t 
     if (avoid_cliffs && enemy->vy == 0 &&
         !tile_is_solid_at(floor_div_tile(ahead_x), floor_div_tile(ahead_y))) {
         enemy->way = -enemy->way;
+        if (enemy->type == ENEMY_BUSH_TILE) { enemy->anim_timer = BUSH_TURN_LOCK_FRAMES; }
     }
 
     enemy->vx = (int16_t)(enemy->way * speed_q);
@@ -943,6 +1119,7 @@ static void move_ground_enemy(Low_Knight_Enemy* enemy, int16_t speed_q, uint8_t 
         enemy->qx = (int32_t)enemy->x * PHYSICS_Q_ONE;
         enemy->way = -enemy->way;
         enemy->vx = 0;
+        if (enemy->type == ENEMY_BUSH_TILE) { enemy->anim_timer = BUSH_TURN_LOCK_FRAMES; }
     }
 
     enemy->vy = (int16_t)(enemy->vy +
@@ -1004,7 +1181,6 @@ static void spawn_projectile(
         projectile->tile = tile;
         projectile->life = 180u;
         projectile->active = 1;
-        mark_dirty_rect(projectile_rect_for(projectile));
         return;
     }
 }
@@ -1061,12 +1237,19 @@ static void update_bee(Low_Knight_Enemy* enemy) {
 
 static void update_bush(Low_Knight_Enemy* enemy) {
     int16_t speed = BUSH_MOVE_SPEED_Q;
+    if (enemy->anim_timer > 0) { enemy->anim_timer--; }
     if (enemy_player_near(enemy, 96, 48)) {
+        const int16_t dx = (int16_t)(g_player.x - enemy->x);
+        const int16_t distance_x = abs_i16(dx);
         const int16_t pulse = (int16_t)((g_runtime_frame + enemy->phase) & 31u);
         speed = (int16_t)(205 + (pulse < 16 ? pulse * 5 : (31 - pulse) * 5));
-        enemy->way = g_player.x < enemy->x ? -1 : 1;
+        if (distance_x <= BUSH_TRACK_STOP_DISTANCE) {
+            speed = 0;
+        } else if (enemy->anim_timer == 0) {
+            enemy->way = dx < 0 ? -1 : 1;
+        }
     }
-    move_ground_enemy(enemy, speed, 1);
+    move_ground_enemy(enemy, speed, speed != 0);
 }
 
 static void update_limper(Low_Knight_Enemy* enemy) {
@@ -1204,7 +1387,6 @@ static void update_projectiles(void) {
     for (uint8_t i = 0; i < LOW_KNIGHT_MAX_PROJECTILES; i++) {
         Low_Knight_Projectile* projectile = &g_projectiles[i];
         if (!projectile->active) { continue; }
-        const Low_Knight_Rect before_rect = projectile_rect_for(projectile);
 
         projectile->vx = (int16_t)((int32_t)projectile->vx * 253 / 256);
         projectile->vy = (int16_t)(projectile->vy + PROJECTILE_GRAVITY_Q);
@@ -1220,11 +1402,8 @@ static void update_projectiles(void) {
             projectile->x > room_width + 8 || projectile->y > room_height + 8 ||
             box_overlaps_solid(box)) {
             projectile->active = 0;
-            mark_dirty_rect(before_rect);
             continue;
         }
-        mark_dirty_rect(before_rect);
-        mark_dirty_rect(projectile_rect_for(projectile));
     }
 }
 
@@ -1232,7 +1411,6 @@ static void update_enemies(void) {
     for (uint8_t i = 0; i < g_enemy_count; i++) {
         Low_Knight_Enemy* enemy = &g_enemies[i];
         if (!enemy->active) { continue; }
-        const Low_Knight_Rect before_rect = enemy_rect_for(enemy);
         if (enemy->type == ENEMY_FLY_TILE) {
             update_fly(enemy);
         } else if (enemy->type == ENEMY_BEE_TILE) {
@@ -1250,12 +1428,77 @@ static void update_enemies(void) {
         } else if (enemy->type == ENEMY_AMBUSH_TILE) {
             update_ambush(enemy);
         }
-
-        const Low_Knight_Rect after_rect = enemy_rect_for(enemy);
-        mark_dirty_rect(before_rect);
-        mark_dirty_rect(after_rect);
     }
     update_projectiles();
+}
+
+static uint8_t boxes_overlap(Low_Knight_Box a, Low_Knight_Box b) {
+    return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+static Low_Knight_Box strike_hitbox(void) {
+    if (g_player_facing_left) {
+        return (Low_Knight_Box){
+            (int16_t)(g_player.x - 24),
+            (int16_t)(g_player.y - 11),
+            (int16_t)(g_player.x - 3),
+            (int16_t)(g_player.y + 2),
+        };
+    }
+    return (Low_Knight_Box){
+        (int16_t)(g_player.x + 3),
+        (int16_t)(g_player.y - 11),
+        (int16_t)(g_player.x + 24),
+        (int16_t)(g_player.y + 2),
+    };
+}
+
+static void strike_enemy(Low_Knight_Enemy* enemy) {
+    const Low_Knight_Rect before = enemy_rect_for(enemy);
+    if (enemy->hp <= STRIKE_DAMAGE) {
+        enemy->hp = 0;
+        enemy->active = 0;
+    } else {
+        const int16_t knockback = g_player_facing_left ? -3 : 3;
+        const int16_t old_x = enemy->x;
+        const int32_t old_qx = enemy->qx;
+        enemy->hp = (uint8_t)(enemy->hp - STRIKE_DAMAGE);
+        enemy->x = (int16_t)(enemy->x + knockback);
+        enemy->qx = (int32_t)enemy->x * PHYSICS_Q_ONE;
+        if (box_overlaps_solid(enemy_hitbox_at(enemy, enemy->x, enemy->y))) {
+            enemy->x = old_x;
+            enemy->qx = old_qx;
+        }
+        enemy->way = knockback < 0 ? 1 : -1;
+    }
+    mark_dirty_rect(rect_union_visible(before,
+        enemy->active ? enemy_rect_for(enemy) : (Low_Knight_Rect){0, 0, 0, 0}));
+    g_dynamic_redraw_due = 1;
+}
+
+static void update_strike(const Low_Knight_Input* input) {
+    if (g_strike_cooldown > 0) { g_strike_cooldown--; }
+    if (g_strike_timer > 0) { g_strike_timer--; }
+
+    if (input->strike_pressed && g_strike_cooldown == 0) {
+        g_strike_timer = STRIKE_DURATION_FRAMES;
+        g_strike_cooldown = STRIKE_COOLDOWN_FRAMES;
+        g_strike_hit_mask = 0;
+    }
+    if (g_strike_timer < STRIKE_HIT_START || g_strike_timer > STRIKE_HIT_END) { return; }
+
+    const Low_Knight_Box hitbox = strike_hitbox();
+    for (uint8_t i = 0; i < g_enemy_count; i++) {
+        Low_Knight_Enemy* enemy = &g_enemies[i];
+        const uint16_t enemy_bit = (uint16_t)(1u << i);
+        if (!enemy->active || enemy->type == ENEMY_AMBUSH_TILE ||
+            (g_strike_hit_mask & enemy_bit) != 0u) {
+            continue;
+        }
+        if (!boxes_overlap(hitbox, enemy_hitbox_at(enemy, enemy->x, enemy->y))) { continue; }
+        g_strike_hit_mask |= enemy_bit;
+        strike_enemy(enemy);
+    }
 }
 
 static void constrain_corner_transition(void) {
@@ -1319,6 +1562,8 @@ static uint8_t try_room_transition(void) {
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
+    g_strike_timer = 0;
+    g_strike_hit_mask = 0;
     update_camera(1);
     return 1;
 }
@@ -1329,6 +1574,7 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_room = g_rooms[LOW_KNIGHT_START_ROOM];
     memset(g_tile_row_cache, 0, sizeof(g_tile_row_cache));
     if (!Low_Knight_Resources_Read_Gff(g_resources, 0, g_tile_flags, sizeof(g_tile_flags))) { return 0; }
+    if (!cache_enemy_tiles()) { return 0; }
     g_player.x = (int16_t)(892 - (int16_t)g_room.base_x * PICO_TILE_SIZE);
     g_player.y = (int16_t)(583 - (int16_t)g_room.base_y * PICO_TILE_SIZE);
     g_player_qx = (int32_t)g_player.x * PHYSICS_Q_ONE;
@@ -1339,6 +1585,9 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_player_on_ground = 0;
     g_coyote_frames = 0;
     g_jump_buffer_frames = 0;
+    g_strike_timer = 0;
+    g_strike_cooldown = 0;
+    g_strike_hit_mask = 0;
     g_runtime_frame = 0;
     g_last_drawn_player = g_player;
     if (!load_room(LOW_KNIGHT_START_ROOM)) { return 0; }
@@ -1351,6 +1600,8 @@ void Low_Knight_Runtime_Draw(St7789* lcd) {
 
     Game_Graphics_Fill_Rect(lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
     render_region(lcd, screen_rect());
+    capture_dynamic_draw_state();
+    g_dynamic_redraw_due = 0;
     g_last_drawn_player = g_player;
     g_pending_dirty_count = 0;
 }
@@ -1367,6 +1618,10 @@ void Low_Knight_Runtime_Draw_Dirty(St7789* lcd) {
         dirty = rect_intersect(dirty, (Low_Knight_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
         if (!rect_is_empty(dirty)) { render_region(lcd, dirty); }
     }
+    if (g_dynamic_redraw_due) {
+        capture_dynamic_draw_state();
+        g_dynamic_redraw_due = 0;
+    }
     g_last_drawn_player = g_player;
     g_pending_dirty_count = 0;
 }
@@ -1375,10 +1630,12 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     if (input == NULL || g_resources == NULL) { return low_knight_step_none; }
 
     g_runtime_frame++;
+    g_dynamic_redraw_due = 0;
     g_pending_dirty_count = 0;
     const Low_Knight_Vec2i before = g_player;
     const uint8_t before_facing_left = g_player_facing_left;
     const uint8_t before_moving = g_player_vx != 0;
+    const uint8_t before_strike_timer = g_strike_timer;
     const int16_t before_camera_x = g_camera_x;
     const int16_t before_camera_y = g_camera_y;
     int8_t move_x = input->move_x;
@@ -1417,6 +1674,11 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     resolve_player_vertical();
     if (try_room_transition()) { return low_knight_step_transition; }
     update_enemies();
+    update_strike(input);
+    if ((g_runtime_frame % ENEMY_REDRAW_DIVIDER) == 0u) {
+        queue_dynamic_dirty();
+        g_dynamic_redraw_due = 1;
+    }
     if (update_camera(0) || before_camera_x != g_camera_x || before_camera_y != g_camera_y) {
         return low_knight_step_transition;
     }
@@ -1425,6 +1687,12 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
         before_moving != (g_player_vx != 0)) {
         mark_dirty_rect(player_rect_for(before, 2));
         mark_dirty_rect(player_rect_for(g_player, 2));
+    }
+    if (before_strike_timer > 0) {
+        mark_dirty_rect(strike_rect_for(before, before_facing_left));
+    }
+    if (g_strike_timer > 0) {
+        mark_dirty_rect(strike_rect_for(g_player, g_player_facing_left));
     }
     return g_pending_dirty_count > 0 ? low_knight_step_dirty : low_knight_step_none;
 }
