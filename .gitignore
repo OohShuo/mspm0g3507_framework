@@ -1,5 +1,7 @@
 .vscode/
 build/
+build_vm/
+
 jdebug/
 tools/sysconfig/*
 *.run
