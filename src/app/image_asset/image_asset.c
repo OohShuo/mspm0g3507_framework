@@ -25,9 +25,7 @@ typedef struct {
 _Static_assert(sizeof(Image_cache_header) == 16u, "unexpected image cache header size");
 
 #if FRAMEWORK_USE_LFS
-static uint16_t read_u16_le(const uint8_t* data) {
-    return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
-}
+static uint16_t read_u16_le(const uint8_t* data) { return (uint16_t)data[0] | ((uint16_t)data[1] << 8); }
 
 static uint32_t read_u32_le(const uint8_t* data) {
     return (uint32_t)data[0] | ((uint32_t)data[1] << 8) | ((uint32_t)data[2] << 16) |
@@ -46,11 +44,8 @@ uint8_t Image_Asset_Open(Image_asset* image, const char* path) {
     uint8_t header[IMAGE_ASSET_HEADER_SIZE];
     Storage_Lock();
     int result = lfs_file_open(lfs, &image->file, path, LFS_O_RDONLY);
-    if (result == 0) {
-        result = (int)lfs_file_read(lfs, &image->file, header, sizeof(header));
-    }
-    const lfs_soff_t file_size =
-        result == (int)sizeof(header) ? lfs_file_size(lfs, &image->file) : -1;
+    if (result == 0) { result = (int)lfs_file_read(lfs, &image->file, header, sizeof(header)); }
+    const lfs_soff_t file_size = result == (int)sizeof(header) ? lfs_file_size(lfs, &image->file) : -1;
     Storage_Unlock();
 
     if (result != (int)sizeof(header) || file_size < (lfs_soff_t)sizeof(header) ||
@@ -73,8 +68,7 @@ uint8_t Image_Asset_Open(Image_asset* image, const char* path) {
     const uint32_t mask_size = (image->flags & IMAGE_ASSET_FLAG_MASK) != 0
                                    ? (uint32_t)((image->width + 7u) / 8u) * image->height
                                    : 0u;
-    if (image->width == 0 || image->height == 0 ||
-        image->pixel_data_size != expected_pixels ||
+    if (image->width == 0 || image->height == 0 || image->pixel_data_size != expected_pixels ||
         (uint32_t)file_size < IMAGE_ASSET_HEADER_SIZE + expected_pixels + mask_size) {
         Storage_Lock();
         lfs_file_close(lfs, &image->file);
@@ -106,21 +100,15 @@ void Image_Asset_Close(Image_asset* image) {
     memset(image, 0, sizeof(*image));
 }
 
-uint8_t Image_Asset_Prepare_Raw_Cache(
-    Image_asset* image, uint32_t address, uint32_t capacity) {
-    if (image == NULL || !image->is_open ||
-        capacity < IMAGE_CACHE_DATA_OFFSET + image->pixel_data_size) {
+uint8_t Image_Asset_Prepare_Raw_Cache(Image_asset* image, uint32_t address, uint32_t capacity) {
+    if (image == NULL || !image->is_open || capacity < IMAGE_CACHE_DATA_OFFSET + image->pixel_data_size) {
         return 0;
     }
 
     Image_cache_header cache;
-    if (Storage_Raw_Read(address, &cache, sizeof(cache)) &&
-        cache.magic == IMAGE_CACHE_MAGIC &&
-        cache.version == IMAGE_CACHE_VERSION &&
-        cache.flags == image->flags &&
-        cache.asset_id == image->asset_id &&
-        cache.width == image->width &&
-        cache.height == image->height &&
+    if (Storage_Raw_Read(address, &cache, sizeof(cache)) && cache.magic == IMAGE_CACHE_MAGIC &&
+        cache.version == IMAGE_CACHE_VERSION && cache.flags == image->flags &&
+        cache.asset_id == image->asset_id && cache.width == image->width && cache.height == image->height &&
         cache.pixel_data_size == image->pixel_data_size) {
         image->raw_pixel_address = address + IMAGE_CACHE_DATA_OFFSET;
         return 1;
@@ -128,16 +116,14 @@ uint8_t Image_Asset_Prepare_Raw_Cache(
 
 #if FRAMEWORK_USE_LFS
     lfs_t* lfs = Storage_Get_Lfs();
-    if (lfs == NULL ||
-        !Storage_Raw_Erase(address, IMAGE_CACHE_DATA_OFFSET + image->pixel_data_size)) {
+    if (lfs == NULL || !Storage_Raw_Erase(address, IMAGE_CACHE_DATA_OFFSET + image->pixel_data_size)) {
         return 0;
     }
 
     uint8_t buffer[IMAGE_CACHE_COPY_SIZE];
     uint32_t copied = 0;
     Storage_Lock();
-    const lfs_soff_t seek_result =
-        lfs_file_seek(lfs, &image->file, IMAGE_ASSET_HEADER_SIZE, LFS_SEEK_SET);
+    const lfs_soff_t seek_result = lfs_file_seek(lfs, &image->file, IMAGE_ASSET_HEADER_SIZE, LFS_SEEK_SET);
     Storage_Unlock();
     if (seek_result < 0) { return 0; }
 
@@ -146,8 +132,7 @@ uint8_t Image_Asset_Prepare_Raw_Cache(
         if (chunk > sizeof(buffer)) { chunk = sizeof(buffer); }
 
         Storage_Lock();
-        const lfs_ssize_t read_result =
-            lfs_file_read(lfs, &image->file, buffer, chunk);
+        const lfs_ssize_t read_result = lfs_file_read(lfs, &image->file, buffer, chunk);
         Storage_Unlock();
         if (read_result != (lfs_ssize_t)chunk ||
             !Storage_Raw_Write(address + IMAGE_CACHE_DATA_OFFSET + copied, buffer, chunk)) {
@@ -175,10 +160,9 @@ uint8_t Image_Asset_Prepare_Raw_Cache(
 #endif
 }
 
-uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x,
-    uint16_t width, uint16_t* pixels) {
-    if (image == NULL || pixels == NULL || !image->is_open || width == 0 ||
-        y >= image->height || x >= image->width || x + width > image->width) {
+uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x, uint16_t width, uint16_t* pixels) {
+    if (image == NULL || pixels == NULL || !image->is_open || width == 0 || y >= image->height ||
+        x >= image->width || x + width > image->width) {
         return 0;
     }
 
@@ -186,8 +170,7 @@ uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x,
     const uint32_t pixel_offset = ((uint32_t)y * image->width + x) * 2u;
     const uint32_t byte_count = (uint32_t)width * 2u;
     if (image->raw_pixel_address != 0) {
-        return Storage_Raw_Read(
-            image->raw_pixel_address + pixel_offset, pixels, byte_count);
+        return Storage_Raw_Read(image->raw_pixel_address + pixel_offset, pixels, byte_count);
     }
 
     lfs_t* lfs = Storage_Get_Lfs();
@@ -195,10 +178,9 @@ uint8_t Image_Asset_Read_Span(Image_asset* image, uint16_t y, uint16_t x,
 
     const lfs_soff_t offset = IMAGE_ASSET_HEADER_SIZE + pixel_offset;
     Storage_Lock();
-    const lfs_soff_t seek_result =
-        image->next_read_offset == (uint32_t)offset
-            ? offset
-            : lfs_file_seek(lfs, &image->file, offset, LFS_SEEK_SET);
+    const lfs_soff_t seek_result = image->next_read_offset == (uint32_t)offset
+                                       ? offset
+                                       : lfs_file_seek(lfs, &image->file, offset, LFS_SEEK_SET);
     const lfs_ssize_t read_result =
         seek_result < 0 ? seek_result : lfs_file_read(lfs, &image->file, pixels, byte_count);
     Storage_Unlock();

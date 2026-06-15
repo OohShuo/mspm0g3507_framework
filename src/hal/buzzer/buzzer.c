@@ -121,8 +121,8 @@ static uint8_t update_track(Buzzer* obj, Buzzer_track* track, uint32_t now) {
     const uint32_t duration = note->duration_ms == 0 ? 1u : note->duration_ms;
     const uint32_t gate_time = duration * note->gate_percent / 100u;
 
-    if ((note->flags & BUZZER_NOTE_GLISSANDO) != 0 && note->frequency_hz != 0 &&
-        elapsed < gate_time && gate_time > 0) {
+    if ((note->flags & BUZZER_NOTE_GLISSANDO) != 0 && note->frequency_hz != 0 && elapsed < gate_time &&
+        gate_time > 0) {
         const uint16_t target = next_frequency(track);
         if (target != 0) {
             const int32_t delta = (int32_t)target - note->frequency_hz;

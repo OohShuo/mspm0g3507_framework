@@ -63,8 +63,7 @@ void Game_Graphics_Fill_Rect(
     for (int32_t col = 0; col < width; col++) { g_line_buffer[col] = color; }
     St7789_Begin_Write(lcd, x, y, x + width - 1, y + height - 1);
     for (int32_t row = 0; row < height; row++) {
-        St7789_Write_Pixels(
-            lcd, (uint8_t*)g_line_buffer, (uint32_t)width * sizeof(uint16_t));
+        St7789_Write_Pixels(lcd, (uint8_t*)g_line_buffer, (uint32_t)width * sizeof(uint16_t));
     }
     St7789_End_Write(lcd);
 }
