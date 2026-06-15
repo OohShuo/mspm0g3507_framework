@@ -104,6 +104,12 @@
 #define ROOM_EXIT_UP            (1u << 2)
 #define ROOM_EXIT_DOWN          (1u << 3)
 
+#define CHEAT_INPUT_UP          1u
+#define CHEAT_INPUT_DOWN        2u
+#define CHEAT_INPUT_LEFT        3u
+#define CHEAT_INPUT_RIGHT       4u
+#define CHEAT_SEQUENCE_LENGTH   8u
+
 #define ABILITY_WINDGUST        (1u << 0)
 #define ABILITY_LONGNAIL        (1u << 1)
 #define ABILITY_FAST_HEAL       (1u << 2)
@@ -293,6 +299,9 @@ static uint8_t g_nail_damage_bonus;
 static uint8_t g_item_showcase_active;
 static uint8_t g_item_showcase_tile;
 static uint8_t g_blood_active_count;
+static uint8_t g_cheat_enabled;
+static uint8_t g_cheat_sequence_index;
+static uint8_t g_cheat_last_direction;
 static uint8_t g_respawn_room_index;
 static Low_Knight_Vec2i g_respawn_player;
 static uint8_t g_has_bench_respawn;
@@ -344,6 +353,39 @@ static uint8_t player_strike_damage(void) {
 
 static int16_t strike_reach_extra(void) {
     return player_has_ability(ABILITY_LONGNAIL) ? 2 : 0;
+}
+
+static uint8_t cheat_direction_from_input(const Low_Knight_Input* input) {
+    if (input->move_y > 0 && input->move_x == 0) { return CHEAT_INPUT_UP; }
+    if (input->move_y < 0 && input->move_x == 0) { return CHEAT_INPUT_DOWN; }
+    if (input->move_x < 0 && input->move_y == 0) { return CHEAT_INPUT_LEFT; }
+    if (input->move_x > 0 && input->move_y == 0) { return CHEAT_INPUT_RIGHT; }
+    return 0u;
+}
+
+static void update_cheat_sequence(const Low_Knight_Input* input) {
+    static const uint8_t sequence[CHEAT_SEQUENCE_LENGTH] = {
+        CHEAT_INPUT_UP, CHEAT_INPUT_UP, CHEAT_INPUT_DOWN, CHEAT_INPUT_DOWN,
+        CHEAT_INPUT_LEFT, CHEAT_INPUT_LEFT, CHEAT_INPUT_RIGHT, CHEAT_INPUT_RIGHT,
+    };
+    const uint8_t direction = cheat_direction_from_input(input);
+    if (direction == 0u) {
+        g_cheat_last_direction = 0u;
+        return;
+    }
+    if (g_cheat_last_direction != 0u) { return; }
+    g_cheat_last_direction = direction;
+
+    if (direction == sequence[g_cheat_sequence_index]) {
+        g_cheat_sequence_index++;
+        if (g_cheat_sequence_index >= CHEAT_SEQUENCE_LENGTH) {
+            g_cheat_enabled = 1u;
+            g_cheat_sequence_index = 0u;
+        }
+        return;
+    }
+
+    g_cheat_sequence_index = direction == sequence[0] ? 1u : 0u;
 }
 
 static uint8_t sample_packed_pixel(const uint8_t* bytes, uint8_t pixel_index) {
@@ -2424,7 +2466,7 @@ static uint8_t interact_with_bench(const Low_Knight_Input* input) {
 }
 
 static void hurt_player(int16_t source_x) {
-    if (g_player_invulnerable > 0 || g_player_death_timer > 0 || g_player_hp == 0) { return; }
+    if (g_cheat_enabled || g_player_invulnerable > 0 || g_player_death_timer > 0 || g_player_hp == 0) { return; }
 
     mark_dirty_rect(player_rect_for(g_player, 2));
     mark_dirty_rect(player_hud_rect());
@@ -2460,7 +2502,7 @@ static void hurt_player(int16_t source_x) {
 }
 
 static void check_player_damage(void) {
-    if (g_player_invulnerable > 0 || g_player_death_timer > 0) { return; }
+    if (g_cheat_enabled || g_player_invulnerable > 0 || g_player_death_timer > 0) { return; }
 
     const Low_Knight_Box player_box = player_hitbox_at(g_player.x, g_player.y);
     for (uint8_t i = 0; i < LOW_KNIGHT_MAX_PROJECTILES; i++) {
@@ -2727,6 +2769,9 @@ uint8_t Low_Knight_Runtime_Init(Low_Knight_Resources* resources) {
     g_nail_damage_bonus = 0;
     g_item_showcase_active = 0;
     g_item_showcase_tile = 0;
+    g_cheat_enabled = 0;
+    g_cheat_sequence_index = 0;
+    g_cheat_last_direction = 0;
     g_collected_item_count = 0;
     memset(g_collected_item_keys, 0, sizeof(g_collected_item_keys));
     g_player_air_jumps_used = 0;
@@ -2795,6 +2840,7 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
     g_runtime_frame++;
     g_dynamic_redraw_due = 0;
     g_pending_dirty_count = 0;
+    update_cheat_sequence(input);
     const Low_Knight_Vec2i before = g_player;
     const uint8_t before_facing_left = g_player_facing_left;
     const uint8_t before_moving = g_player_vx != 0;
@@ -2892,6 +2938,12 @@ Low_Knight_Step_Result Low_Knight_Runtime_Step(const Low_Knight_Input* input) {
         g_player_vy = PLAYER_JUMP_Q;
         g_player_on_ground = 0;
         g_coyote_frames = 0;
+        g_jump_buffer_frames = 0;
+        g_player_air_jumps_used = 0;
+        g_player_dash_timer = 0;
+    } else if (g_jump_buffer_frames > 0 && g_cheat_enabled) {
+        g_player_vy = PLAYER_JUMP_Q;
+        g_player_on_ground = 0;
         g_jump_buffer_frames = 0;
         g_player_air_jumps_used = 0;
         g_player_dash_timer = 0;
