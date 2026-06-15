@@ -12,7 +12,7 @@
 
 #define SCORE_STORE_MAGIC     0x53434f52u
 #define SCORE_STORE_VERSION   2u
-#define SCORE_STORE_MAX_GAMES 8u
+#define SCORE_STORE_MAX_GAMES 16u
 #define SCORE_STORE_PATH      "/scores.bin"
 
 typedef struct {
