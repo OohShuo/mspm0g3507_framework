@@ -447,12 +447,10 @@ static void render_menu(void) {
     draw_page_indicator();
 
     /* Bottom hints */
-    Game_Graphics_Draw_Text(g_lcd, 14, 258, "< >", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 42, 258, "page", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_lcd, 88, 258, "MOVE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 130, 258, "pick", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_lcd, 168, 258, "PRESS", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 210, 258, "go", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 14, 258, "< > ^ v", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 258, "to select", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 135, 258, "PRESS", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 170, 258, "to pick", 1, COLOR_GRAY);
 
     Game_Graphics_Draw_Text(g_lcd, 46, 282, "HOLD TO BACK", 1, COLOR_GRAY);
 }

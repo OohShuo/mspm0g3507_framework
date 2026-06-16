@@ -4,7 +4,6 @@
 
 #include "game_graphics.h"
 #include "info_image_hitsz.h"
-#include "info_image_mizuno_25.h"
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -85,13 +84,9 @@ static void render_page2(void) {
     Game_Graphics_Draw_Text(g_lcd, 78, 120, "refer to:", 2, COLOR_WHITE);
 
     /* URL lines */
-    Game_Graphics_Draw_Text(g_lcd, 22, 179, "github.com/OohShu", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 22, 204, "o/mspm0g3507_fram", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 22, 225, "ework.git", 2, COLOR_WHITE);
-
-    /* 25x25 MizunoAkane — bottom-right corner */
-    Game_Graphics_Draw_Bitmap(
-        g_lcd, 106, 145, INFO_IMAGE_MIZUNO_25_W, INFO_IMAGE_MIZUNO_25_H, info_image_mizuno_25_data);
+    Game_Graphics_Draw_Text(g_lcd, 22, 159, "github.com/OohShu", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 184, "o/mspm0g3507_fram", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 205, "ework.git", 2, COLOR_WHITE);
 
     /* Page indicator */
     draw_page_indicator();

@@ -7,6 +7,11 @@ get_subdirs_and_self(${CMAKE_CURRENT_SOURCE_DIR} BSP_INC)
 
 add_library(bsp STATIC "${BSP_SRC}" "${SYSCFG_GEN_C}")
 
+set_source_files_properties(
+    "${SYSCFG_GEN_C}"
+    PROPERTIES COMPILE_FLAGS "-O2"
+)
+
 target_include_directories(bsp PUBLIC "${BSP_INC}" "${CFG_DIR}" "${SYSCFG_GEN_DIR}")
 
 target_link_libraries(bsp PRIVATE lib syscall)
