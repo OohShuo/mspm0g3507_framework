@@ -21,9 +21,9 @@
 #define CELL_SIZE     16
 #define MAZE_X0       0
 #define MAZE_Y0       PLAY_TOP
-#define MAZE_W        (MAZE_COLS * CELL_SIZE)   /* 240 */
-#define MAZE_H        (MAZE_ROWS * CELL_SIZE)   /* 272 */
-#define GAP_Y         (MAZE_Y0 + MAZE_H)        /* 284，迷宫下方间隙起点 */
+#define MAZE_W        (MAZE_COLS * CELL_SIZE) /* 240 */
+#define MAZE_H        (MAZE_ROWS * CELL_SIZE) /* 272 */
+#define GAP_Y         (MAZE_Y0 + MAZE_H)      /* 284，迷宫下方间隙起点 */
 
 /* ── 墙壁位标记 ── */
 #define WALL_N        0x01u
@@ -31,8 +31,8 @@
 #define WALL_W        0x04u
 #define WALL_E        0x08u
 #define WALL_ALL      0x0Fu
-#define CELL_VISITED  0x80u   /* 生成时用 */
-#define CELL_HAS_GEM  0x10u   /* 宝石标记 */
+#define CELL_VISITED  0x80u /* 生成时用 */
+#define CELL_HAS_GEM  0x10u /* 宝石标记 */
 
 /* ── 颜色 RGB565 ── */
 #define COLOR_BLACK   0x0000u
@@ -48,9 +48,9 @@
 #define PLAYER_SIZE   12
 #define GEM_SIZE      8
 #define EXIT_SIZE     12
-#define PLAYER_OFF    ((CELL_SIZE - PLAYER_SIZE) / 2)  /* 2 */
-#define GEM_OFF       ((CELL_SIZE - GEM_SIZE) / 2)     /* 4 */
-#define EXIT_OFF      ((CELL_SIZE - EXIT_SIZE) / 2)    /* 2 */
+#define PLAYER_OFF    ((CELL_SIZE - PLAYER_SIZE) / 2) /* 2 */
+#define GEM_OFF       ((CELL_SIZE - GEM_SIZE) / 2)    /* 4 */
+#define EXIT_OFF      ((CELL_SIZE - EXIT_SIZE) / 2)   /* 2 */
 
 /* ── 类型定义 ── */
 typedef enum { maze_state_ready, maze_state_playing, maze_state_over } Maze_state;
@@ -63,7 +63,7 @@ typedef struct {
 /* ── 静态全局变量 ── */
 static Game_hardware g_hardware;
 static Maze_state g_state;
-static uint8_t g_maze[MAZE_ROWS][MAZE_COLS];   /* 墙壁 + 宝石 + 访问标记 */
+static uint8_t g_maze[MAZE_ROWS][MAZE_COLS]; /* 墙壁 + 宝石 + 访问标记 */
 static MazePos g_player;
 static MazePos g_old_player;
 static MazePos g_exit;
@@ -131,9 +131,7 @@ static void draw_maze_walls(void) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, MAZE_X0, MAZE_Y0, MAZE_W, MAZE_H, COLOR_DARK);
 
     for (uint8_t r = 0; r < MAZE_ROWS; r++) {
-        for (uint8_t c = 0; c < MAZE_COLS; c++) {
-            redraw_cell(c, r);
-        }
+        for (uint8_t c = 0; c < MAZE_COLS; c++) { redraw_cell(c, r); }
     }
 }
 
@@ -174,9 +172,7 @@ static void generate_maze(void) {
     uint8_t r, c;
 
     for (r = 0; r < MAZE_ROWS; r++) {
-        for (c = 0; c < MAZE_COLS; c++) {
-            g_maze[r][c] = WALL_ALL;
-        }
+        for (c = 0; c < MAZE_COLS; c++) { g_maze[r][c] = WALL_ALL; }
     }
 
     g_maze[0][0] |= CELL_VISITED;
@@ -236,9 +232,7 @@ static void generate_maze(void) {
     }
 
     for (r = 0; r < MAZE_ROWS; r++) {
-        for (c = 0; c < MAZE_COLS; c++) {
-            g_maze[r][c] &= (uint8_t)(~CELL_VISITED);
-        }
+        for (c = 0; c < MAZE_COLS; c++) { g_maze[r][c] &= (uint8_t)(~CELL_VISITED); }
     }
 }
 
@@ -252,9 +246,7 @@ static void mark_solution_path(void) {
     uint8_t r, c;
 
     for (r = 0; r < MAZE_ROWS; r++) {
-        for (c = 0; c < MAZE_COLS; c++) {
-            dist[r][c] = 0xFFFFu;
-        }
+        for (c = 0; c < MAZE_COLS; c++) { dist[r][c] = 0xFFFFu; }
     }
 
     MazePos* q = g_stack;
@@ -302,8 +294,7 @@ static void mark_solution_path(void) {
             if (nr16 < 0 || nr16 >= MAZE_ROWS || nc16 < 0 || nc16 >= MAZE_COLS) { continue; }
             const uint8_t nr = (uint8_t)nr16;
             const uint8_t nc = (uint8_t)nc16;
-            const uint8_t opp_wall =
-                (d == 0) ? WALL_S : (d == 1) ? WALL_N : (d == 2) ? WALL_E : WALL_W;
+            const uint8_t opp_wall = (d == 0) ? WALL_S : (d == 1) ? WALL_N : (d == 2) ? WALL_E : WALL_W;
             if (!(g_maze[nr][nc] & opp_wall) && dist[nr][nc] == cur_dist - 1) {
                 g_maze[nr][nc] |= 0x40u;
                 r = nr;
@@ -341,9 +332,7 @@ static void place_gems(void) {
                 }
             }
 
-            if ((r == 0 && c == 0) || (r == MAZE_ROWS - 1 && c == MAZE_COLS - 1)) {
-                place = 0;
-            }
+            if ((r == 0 && c == 0) || (r == MAZE_ROWS - 1 && c == MAZE_COLS - 1)) { place = 0; }
 
             g_maze[r][c] = walls;
             if (place) {
@@ -382,9 +371,7 @@ static void draw_exit_marker(void) {
 static void draw_all_gems(void) {
     for (uint8_t r = 0; r < MAZE_ROWS; r++) {
         for (uint8_t c = 0; c < MAZE_COLS; c++) {
-            if (g_maze[r][c] & CELL_HAS_GEM) {
-                draw_gem_at(c, r);
-            }
+            if (g_maze[r][c] & CELL_HAS_GEM) { draw_gem_at(c, r); }
         }
     }
 }
@@ -394,9 +381,7 @@ static void draw_all_gems(void) {
 static void draw_prompt(const char* text) {
     /* 擦除间隙区域 */
     bar_fill(0, GAP_Y, SCREEN_WIDTH, BAR_BOT - GAP_Y, COLOR_BLACK);
-    if (text != NULL) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 52, GAP_Y + 3, text, 1, COLOR_WHITE);
-    }
+    if (text != NULL) { Game_Graphics_Draw_Text(g_hardware.lcd, 52, GAP_Y + 3, text, 1, COLOR_WHITE); }
 }
 
 /* ── 重启游戏 ── */
@@ -517,9 +502,7 @@ Game_result Maze_Update(const Game_input* input) {
             /* 擦除旧玩家位置：重绘该格 */
             redraw_cell(g_old_player.col, g_old_player.row);
             /* 如果旧位置是出口，重画出口标记 */
-            if (g_old_player.col == g_exit.col && g_old_player.row == g_exit.row) {
-                draw_exit_marker();
-            }
+            if (g_old_player.col == g_exit.col && g_old_player.row == g_exit.row) { draw_exit_marker(); }
             /* 如果旧位置有宝石，重画宝石 */
             if (g_maze[g_old_player.row][g_old_player.col] & CELL_HAS_GEM) {
                 draw_gem_at(g_old_player.col, g_old_player.row);
