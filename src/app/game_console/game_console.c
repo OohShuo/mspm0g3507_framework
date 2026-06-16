@@ -1,6 +1,8 @@
 #include "game_console.h"
 
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "FreeRTOS.h"
 #include "app_config.h"
@@ -18,20 +20,31 @@
 #include "st7789.h"
 #include "task.h"
 
-#define SCREEN_WIDTH       240
-#define SCREEN_HEIGHT      320
+#define SCREEN_WIDTH  240
+#define SCREEN_HEIGHT 320
 
-#define BACK_HOLD_MS       1000u
-#define MENU_VISIBLE_GAMES 3u
+#define BACK_HOLD_MS  1000u
 
-#define COLOR_BLACK        0x0000u
-#define COLOR_WHITE        0xffffu
-#define COLOR_CYAN         0x07ffu
-#define COLOR_BLUE         0x0010u
-#define COLOR_YELLOW       0xffe0u
-#define COLOR_GREEN        0x07e0u
-#define COLOR_RED          0xf800u
-#define COLOR_DARK         0x0841u
+/* ── 3×2 grid menu layout ── */
+#define MENU_COLS     3u
+#define MENU_ROWS     2u
+#define MENU_PER_PAGE (MENU_COLS * MENU_ROWS)
+#define CELL_W        68
+#define CELL_H        88
+#define CELL_GAP_X    8
+#define CELL_GAP_Y    10
+#define GRID_X0       10
+#define GRID_Y0       30
+
+#define COLOR_BLACK   0x0000u
+#define COLOR_WHITE   0xffffu
+#define COLOR_CYAN    0x07ffu
+#define COLOR_BLUE    0x0010u
+#define COLOR_YELLOW  0xffe0u
+#define COLOR_GREEN   0x07e0u
+#define COLOR_RED     0xf800u
+#define COLOR_GRAY    0x8410u
+#define COLOR_DARK    0x4208u
 
 typedef enum {
     console_state_menu,
@@ -50,7 +63,7 @@ static Button_state g_last_button_state = button_state_up;
 static uint32_t g_button_down_time = 0;
 static uint8_t g_back_sent = 0;
 static uint8_t g_menu_selection = 0;
-static uint8_t g_menu_first_visible = 0;
+static uint8_t g_current_page = 0;
 static uint32_t g_last_monitor_time = 0;
 
 static Game_direction read_direction(void) {
@@ -212,63 +225,174 @@ static void draw_2048_icon(int32_t x, int32_t y) {
     Game_Graphics_Draw_Text(g_lcd, x + 2, y + 7, "2", 1, COLOR_CYAN);
 }
 
-static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
+static void draw_dino_icon(int32_t x, int32_t y) {
+    /* Ground line */
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 32, 44, 3, COLOR_DARK);
+    /* Back leg */
+    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 22, 4, 10, COLOR_GREEN);
+    /* Front leg */
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 22, 4, 10, COLOR_GREEN);
+    /* Body */
+    Game_Graphics_Fill_Rect(g_lcd, x + 10, y + 12, 16, 12, COLOR_GREEN);
+    /* Head */
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 4, 16, 12, COLOR_GREEN);
+    /* Eye */
+    Game_Graphics_Fill_Rect(g_lcd, x + 32, y + 6, 3, 3, COLOR_WHITE);
+    /* Tail */
+    Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 16, 8, 4, COLOR_GREEN);
+}
+
+static void draw_flappy_icon(int32_t x, int32_t y) {
+    /* Ground */
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 34, 44, 2, COLOR_DARK);
+    /* Bird body */
+    Game_Graphics_Fill_Rect(g_lcd, x + 14, y + 14, 10, 8, COLOR_YELLOW);
+    /* Beak */
+    Game_Graphics_Fill_Rect(g_lcd, x + 24, y + 16, 4, 2, COLOR_RED);
+    /* Eye */
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 14, 2, 2, COLOR_WHITE);
+    /* Wing */
+    Game_Graphics_Fill_Rect(g_lcd, x + 12, y + 16, 4, 3, COLOR_DARK);
+    /* Top pipe */
+    Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 2, 10, 10, COLOR_GREEN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 9, 14, 3, COLOR_GREEN);
+    /* Bottom pipe */
+    Game_Graphics_Fill_Rect(g_lcd, x + 34, y + 20, 10, 14, COLOR_GREEN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 32, y + 20, 14, 3, COLOR_GREEN);
+}
+
+static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
+static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
+
+static void draw_dot(int32_t x, int32_t y, uint8_t filled, uint16_t color) {
+    if (filled) {
+        Game_Graphics_Fill_Rect(g_lcd, x - 3, y - 3, 7, 7, color);
+    } else {
+        Game_Graphics_Fill_Rect(g_lcd, x - 3, y - 3, 7, 7, COLOR_DARK);
+        Game_Graphics_Fill_Rect(g_lcd, x - 1, y - 1, 3, 3, color);
+    }
+}
+
+static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t game_index) {
     const Game_descriptor* game = Game_Registry_Get(game_index);
     if (game == NULL) { return; }
 
+    const int32_t cx = cell_x(col);
+    const int32_t cy = cell_y(row);
     const uint16_t border = selected ? COLOR_CYAN : COLOR_DARK;
     const uint16_t background = selected ? COLOR_BLUE : COLOR_BLACK;
 
-    Game_Graphics_Fill_Rect(g_lcd, 18, y, 204, 56, border);
-    Game_Graphics_Fill_Rect(g_lcd, 21, y + 3, 198, 50, background);
+    Game_Graphics_Fill_Rect(g_lcd, cx - 2, cy - 2, CELL_W + 4, CELL_H + 4, border);
+    Game_Graphics_Fill_Rect(g_lcd, cx, cy, CELL_W, CELL_H, background);
 
+    /* Icon centered in upper portion of cell */
+    const int32_t icon_cx = cx + CELL_W / 2;
+    const int32_t icon_cy = cy + 26;
     if (game->icon == game_icon_pacman) {
-        draw_pacman_icon(62, y + 28);
-        Game_Graphics_Draw_Text(g_lcd, 100, y + 12, game->name, 2, COLOR_YELLOW);
+        draw_pacman_icon(icon_cx, icon_cy);
     } else if (game->icon == game_icon_snake) {
-        draw_snake_icon(38, y + 14);
-        Game_Graphics_Draw_Text(g_lcd, 108, y + 12, game->name, 2, COLOR_GREEN);
+        draw_snake_icon(cx + 11, cy + 8);
     } else if (game->icon == game_icon_racing) {
-        draw_racing_icon(38, y + 11);
-        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_CYAN);
+        draw_racing_icon(cx + 10, cy + 5);
     } else if (game->icon == game_icon_tank) {
-        draw_tank_icon(40, y + 9);
-        Game_Graphics_Draw_Text(g_lcd, 112, y + 12, game->name, 2, COLOR_GREEN);
+        draw_tank_icon(cx + 12, cy + 6);
     } else if (game->icon == game_icon_tetris) {
-        draw_tetris_icon(38, y + 14);
-        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_CYAN);
+        draw_tetris_icon(cx + 14, cy + 8);
     } else if (game->icon == game_icon_breakout) {
-        draw_breakout_icon(38, y + 12);
-        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_YELLOW);
+        draw_breakout_icon(cx + 16, cy + 8);
     } else if (game->icon == game_icon_pong) {
-        draw_pong_icon(38, y + 12);
-        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_GREEN);
+        draw_pong_icon(cx + 12, cy + 7);
     } else if (game->icon == game_icon_gomoku) {
-        draw_gomoku_icon(38, y + 8);
-        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_CYAN);
+        draw_gomoku_icon(cx + 14, cy + 6);
     } else if (game->icon == game_icon_2048) {
-        draw_2048_icon(38, y + 10);
-        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_YELLOW);
+        draw_2048_icon(cx + 16, cy + 8);
+    } else if (game->icon == game_icon_dino) {
+        draw_dino_icon(cx + 10, cy + 5);
+    } else if (game->icon == game_icon_flappy) {
+        draw_flappy_icon(cx + 10, cy + 5);
     } else {
-        draw_air_icon(39, y + 11);
-        Game_Graphics_Draw_Text(g_lcd, 99, y + 12, game->name, 2, COLOR_CYAN);
+        draw_air_icon(cx + 12, cy + 5);
     }
 
-    Game_Graphics_Draw_Text(g_lcd, 108, y + 37, "HI", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_lcd, 128, y + 37, Score_Store_Get(game->id), 5, 1, COLOR_WHITE);
+    /* Game name below icon */
+    const int32_t name_len = (int32_t)strlen(game->name);
+    const int32_t name_x = cx + (CELL_W - name_len * 6) / 2;
+    Game_Graphics_Draw_Text(g_lcd, name_x, cy + 54, game->name, 1,
+        selected                         ? COLOR_WHITE
+        : game->icon == game_icon_snake  ? COLOR_GREEN
+        : game->icon == game_icon_pacman ? COLOR_YELLOW
+                                         : COLOR_CYAN);
+
+    /* High score */
+    Game_Graphics_Draw_Text(g_lcd, cx + 8, cy + 70, "HI", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_lcd, cx + 26, cy + 70, Score_Store_Get(game->id), 5, 1, COLOR_WHITE);
+}
+
+static void draw_page_indicator(void) {
+    const uint8_t game_count = Game_Registry_Count();
+    const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
+    const int32_t bar_y = 222;
+    const int32_t dot_y = bar_y + 12;
+
+    /* Separator line */
+    Game_Graphics_Fill_Rect(g_lcd, 10, bar_y, SCREEN_WIDTH - 20, 1, COLOR_DARK);
+
+    /* Left arrow */
+    const uint16_t left_color = g_current_page > 0 ? COLOR_CYAN : COLOR_DARK;
+    Game_Graphics_Draw_Text(g_lcd, 20, bar_y + 6, "<", 2, left_color);
+
+    /* Page dots */
+    const int32_t dots_x = (int32_t)(SCREEN_WIDTH / 2 - total_pages * 8);
+    for (uint8_t p = 0; p < total_pages; p++) {
+        draw_dot(dots_x + (int32_t)p * 16, dot_y, p == g_current_page, COLOR_CYAN);
+    }
+
+    /* Right arrow */
+    const uint16_t right_color = g_current_page < total_pages - 1 ? COLOR_CYAN : COLOR_DARK;
+    Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 36, bar_y + 6, ">", 2, right_color);
+
+    /* Page number */
+    char page_text[8];
+    snprintf(page_text, sizeof(page_text), "%u/%u", g_current_page + 1, total_pages);
+    Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 60, bar_y + 6, page_text, 1, COLOR_WHITE);
+
+    /* Separator line */
+    Game_Graphics_Fill_Rect(g_lcd, 10, bar_y + 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 }
 
 static void render_menu(void) {
     const uint8_t game_count = Game_Registry_Count();
+    const uint8_t page_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
+    const uint8_t page_end = page_start + MENU_PER_PAGE;
+    const uint8_t page_game_count =
+        page_end <= game_count ? MENU_PER_PAGE : (uint8_t)(game_count - page_start);
+
     Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_lcd, 52, 17, "GAME SELECT", 2, COLOR_CYAN);
-    for (uint8_t slot = 0; slot < MENU_VISIBLE_GAMES; slot++) {
-        const uint8_t game_index = (uint8_t)(g_menu_first_visible + slot);
-        if (game_index >= game_count) { break; }
-        draw_menu_card(54 + slot * 62, g_menu_selection == game_index, game_index);
+
+    /* Title bar */
+    Game_Graphics_Draw_Text(g_lcd, 62, 5, "SELECT GAME", 2, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, 10, 26, SCREEN_WIDTH - 20, 1, COLOR_DARK);
+
+    /* Draw grid cells */
+    for (uint8_t slot = 0; slot < page_game_count; slot++) {
+        const uint8_t row = slot / MENU_COLS;
+        const uint8_t col = slot % MENU_COLS;
+        const uint8_t game_index = (uint8_t)(page_start + slot);
+        draw_grid_cell(row, col, g_menu_selection == game_index, game_index);
     }
-    Game_Graphics_Draw_Text(g_lcd, 42, 252, "MOVE JOYSTICK", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 48, 284, "PRESS TO START", 1, COLOR_WHITE);
+
+    /* Page indicator with arrows and dots */
+    draw_page_indicator();
+
+    /* Bottom hints */
+    Game_Graphics_Draw_Text(g_lcd, 14, 258, "< >", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 42, 258, "page", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 88, 258, "MOVE", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 130, 258, "pick", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 168, 258, "PRESS", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 210, 258, "go", 1, COLOR_GRAY);
+
+    Game_Graphics_Draw_Text(g_lcd, 46, 282, "HOLD TO BACK", 1, COLOR_GRAY);
 }
 
 static void enter_menu(void) {
@@ -278,29 +402,109 @@ static void enter_menu(void) {
     Buzzer_Play_Music(g_buzzer, music_idx_menu_theme, 1);
 }
 
+static void redraw_cell(uint8_t game_index, uint8_t selected) {
+    const uint8_t page_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
+    const uint8_t slot = (uint8_t)(game_index - page_start);
+    draw_grid_cell(slot / MENU_COLS, slot % MENU_COLS, selected, game_index);
+}
+
 static void update_menu(const Game_input* input, const Game_hardware* hardware) {
     const uint8_t game_count = Game_Registry_Count();
     if (game_count == 0) { return; }
 
-    if (input->direction_pressed && input->direction == game_direction_up) {
-        g_menu_selection =
-            g_menu_selection == 0 ? (uint8_t)(game_count - 1) : (uint8_t)(g_menu_selection - 1);
-        if (g_menu_selection < g_menu_first_visible) {
-            g_menu_first_visible = g_menu_selection;
-        } else if (g_menu_selection == game_count - 1 && game_count > MENU_VISIBLE_GAMES) {
-            g_menu_first_visible = (uint8_t)(game_count - MENU_VISIBLE_GAMES);
+    const uint8_t page_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
+    const uint8_t page_game_count =
+        page_start + MENU_PER_PAGE <= game_count ? MENU_PER_PAGE : (uint8_t)(game_count - page_start);
+
+    if (input->direction_pressed) {
+        const uint8_t old_selection = g_menu_selection;
+        const uint8_t old_page = g_current_page;
+        uint8_t changed = 0;
+
+        /* Compute cursor slot within current page */
+        const uint8_t slot = (uint8_t)(g_menu_selection - page_start);
+        const uint8_t row = slot / MENU_COLS;
+        const uint8_t col = slot % MENU_COLS;
+
+        if (input->direction == game_direction_up) {
+            if (row == 0) {
+                /* Wrap to last row */
+                const uint8_t last_row = (uint8_t)((page_game_count - 1) / MENU_COLS);
+                const uint8_t new_slot = last_row * MENU_COLS + col;
+                g_menu_selection = new_slot < page_game_count ? (uint8_t)(page_start + new_slot)
+                                                              : (uint8_t)(page_start + page_game_count - 1);
+            } else {
+                g_menu_selection = (uint8_t)(page_start + (row - 1) * MENU_COLS + col);
+            }
+            changed = 1;
+        } else if (input->direction == game_direction_down) {
+            const uint8_t new_row = row + 1;
+            const uint8_t new_slot = new_row * MENU_COLS + col;
+            if (new_slot < page_game_count) {
+                g_menu_selection = (uint8_t)(page_start + new_slot);
+            } else {
+                /* Wrap to top row, same column */
+                g_menu_selection = col < page_game_count ? (uint8_t)(page_start + col) : page_start;
+            }
+            changed = 1;
+        } else if (input->direction == game_direction_left) {
+            if (col > 0) {
+                g_menu_selection = (uint8_t)(g_menu_selection - 1);
+            } else {
+                /* Flip page left */
+                const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
+                if (g_current_page > 0) {
+                    g_current_page--;
+                } else {
+                    g_current_page = (uint8_t)(total_pages - 1);
+                }
+                /* Position cursor on rightmost column of the same row */
+                const uint8_t new_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
+                const uint8_t new_count = new_start + MENU_PER_PAGE <= game_count
+                                              ? MENU_PER_PAGE
+                                              : (uint8_t)(game_count - new_start);
+                const uint8_t new_rows = (uint8_t)((new_count + MENU_COLS - 1) / MENU_COLS);
+                const uint8_t target_row = row < new_rows ? row : 0;
+                const uint8_t target_slot = target_row * MENU_COLS + (MENU_COLS - 1);
+                g_menu_selection = target_slot < new_count ? (uint8_t)(new_start + target_slot)
+                                                           : (uint8_t)(new_start + new_count - 1);
+            }
+            changed = 1;
+        } else if (input->direction == game_direction_right) {
+            const uint8_t next_slot = slot + 1;
+            if (col < MENU_COLS - 1 && next_slot < page_game_count) {
+                g_menu_selection = (uint8_t)(g_menu_selection + 1);
+            } else {
+                /* Flip page right */
+                const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
+                if (g_current_page < total_pages - 1) {
+                    g_current_page++;
+                } else {
+                    g_current_page = 0;
+                }
+                /* Position cursor on leftmost column of the same row */
+                const uint8_t new_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
+                const uint8_t new_count = new_start + MENU_PER_PAGE <= game_count
+                                              ? MENU_PER_PAGE
+                                              : (uint8_t)(game_count - new_start);
+                const uint8_t new_rows = (uint8_t)((new_count + MENU_COLS - 1) / MENU_COLS);
+                const uint8_t target_row = row < new_rows ? row : 0;
+                g_menu_selection = (uint8_t)(new_start + target_row * MENU_COLS);
+            }
+            changed = 1;
         }
-        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-        render_menu();
-    } else if (input->direction_pressed && input->direction == game_direction_down) {
-        g_menu_selection = (uint8_t)((g_menu_selection + 1) % game_count);
-        if (g_menu_selection == 0) {
-            g_menu_first_visible = 0;
-        } else if (g_menu_selection >= g_menu_first_visible + MENU_VISIBLE_GAMES) {
-            g_menu_first_visible = (uint8_t)(g_menu_selection - MENU_VISIBLE_GAMES + 1);
+
+        if (changed) {
+            Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
+            if (g_current_page != old_page) {
+                /* Page flip — full screen redraw */
+                render_menu();
+            } else if (g_menu_selection != old_selection) {
+                /* Same page — only redraw the two changed cells */
+                redraw_cell(old_selection, 0);
+                redraw_cell(g_menu_selection, 1);
+            }
         }
-        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-        render_menu();
     }
 
     if (!input->confirm_pressed) { return; }
@@ -392,12 +596,7 @@ static void console_init(void) {
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
         .hor_res = SCREEN_WIDTH,
         .ver_res = SCREEN_HEIGHT,
-        .flags =
-            {
-                .mirror_x = LCD_MIRROR_X,
-                .mirror_y = LCD_MIRROR_Y,
-                .color_use_bgr = LCD_COLOR_USE_BGR,
-            },
+        .flags = {.mirror_x = LCD_MIRROR_X, .mirror_y = LCD_MIRROR_Y, .color_use_bgr = LCD_COLOR_USE_BGR},
     };
     g_lcd = St7789_Create(&lcd_config);
     configASSERT(g_lcd != NULL);
