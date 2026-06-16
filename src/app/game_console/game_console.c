@@ -302,6 +302,30 @@ static void draw_needle_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, cx - 1, cy + 22, 2, 10, COLOR_WHITE);
 }
 
+static void draw_sfx_lib_icon(int32_t x, int32_t y) {
+    /* Speaker body */
+    Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 10, 8, 16, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 12, y + 6, 4, 24, COLOR_WHITE);
+    /* Cone */
+    Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 7, 10, 22, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 6, y + 10, 6, 16, COLOR_WHITE);
+    /* Sound waves */
+    Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 12, 4, 12, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 28, y + 8, 4, 20, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 36, y + 4, 4, 28, COLOR_CYAN);
+    /* Wave gaps (using black to cut notches) */
+    Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 16, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 18, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 28, y + 12, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 28, y + 15, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 28, y + 18, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 36, y + 8, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 36, y + 12, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 36, y + 16, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 36, y + 20, 4, 1, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 36, y + 24, 4, 1, COLOR_BLACK);
+}
+
 static void draw_info_icon(int32_t x, int32_t y) {
     /* Circle */
     const int32_t cx = x + 22;
@@ -394,6 +418,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_info_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_fps_test) {
         draw_fps_test_icon(cx + 10, cy + 2);
+    } else if (game->icon == game_icon_sfx_lib) {
+        draw_sfx_lib_icon(cx + 12, cy + 4);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }

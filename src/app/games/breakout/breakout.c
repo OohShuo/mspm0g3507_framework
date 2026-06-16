@@ -192,9 +192,7 @@ Game_result Breakout_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == breakout_state_over || g_state == breakout_state_win) {
-        if (input->confirm_pressed) {
-            restart_game();
-        }
+        if (input->confirm_pressed) { restart_game(); }
         return game_result_running;
     }
 

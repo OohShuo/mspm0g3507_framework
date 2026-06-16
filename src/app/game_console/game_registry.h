@@ -21,6 +21,7 @@ typedef enum {
     game_icon_needle,
     game_icon_fps_test,
     game_icon_info,
+    game_icon_sfx_lib,
 } Game_icon;
 
 typedef enum {
@@ -40,6 +41,7 @@ typedef enum {
     game_id_needle,
     game_id_fps_test,
     game_id_info,
+    game_id_sfx_lib,
     game_id_count,
 } Game_id;
 

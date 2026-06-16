@@ -283,9 +283,7 @@ Game_result Game_2048_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == state_over) {
-        if (input->confirm_pressed) {
-            restart_game();
-        }
+        if (input->confirm_pressed) { restart_game(); }
         return game_result_running;
     }
 

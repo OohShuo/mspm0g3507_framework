@@ -15,6 +15,7 @@
 #include "pacman.h"
 #include "pong.h"
 #include "racing.h"
+#include "sfx_lib.h"
 #include "snake.h"
 #include "tank_battle.h"
 #include "tetris.h"
@@ -145,6 +146,15 @@ static const Game_descriptor g_games[] = {
         .update = Needle_Update,
         .get_score = Needle_Get_Score,
         .is_finished = Needle_Is_Finished,
+    },
+    {
+        .name = "SFX",
+        .icon = game_icon_sfx_lib,
+        .id = game_id_sfx_lib,
+        .init = Sfx_Lib_Init,
+        .update = Sfx_Lib_Update,
+        .get_score = Sfx_Lib_Get_Score,
+        .is_finished = Sfx_Lib_Is_Finished,
     },
     {
         .name = "FPS TEST",

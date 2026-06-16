@@ -158,9 +158,7 @@ Game_result Pong_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == pong_state_over) {
-        if (input->confirm_pressed) {
-            restart_game();
-        }
+        if (input->confirm_pressed) { restart_game(); }
         return game_result_running;
     }
 
