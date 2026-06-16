@@ -20,30 +20,31 @@
 #include "st7789.h"
 #include "task.h"
 
-#define SCREEN_WIDTH       240
-#define SCREEN_HEIGHT      320
+#define SCREEN_WIDTH  240
+#define SCREEN_HEIGHT 320
 
-#define BACK_HOLD_MS       1000u
+#define BACK_HOLD_MS  1000u
 
 /* ── 3×2 grid menu layout ── */
-#define MENU_COLS          3u
-#define MENU_ROWS          2u
-#define MENU_PER_PAGE      (MENU_COLS * MENU_ROWS)
-#define CELL_W             68
-#define CELL_H             88
-#define CELL_GAP_X         8
-#define CELL_GAP_Y         10
-#define GRID_X0            10
-#define GRID_Y0            30
+#define MENU_COLS     3u
+#define MENU_ROWS     2u
+#define MENU_PER_PAGE (MENU_COLS * MENU_ROWS)
+#define CELL_W        68
+#define CELL_H        88
+#define CELL_GAP_X    8
+#define CELL_GAP_Y    10
+#define GRID_X0       10
+#define GRID_Y0       30
 
-#define COLOR_BLACK        0x0000u
-#define COLOR_WHITE        0xffffu
-#define COLOR_CYAN         0x07ffu
-#define COLOR_BLUE         0x0010u
-#define COLOR_YELLOW       0xffe0u
-#define COLOR_GREEN        0x07e0u
-#define COLOR_RED          0xf800u
-#define COLOR_DARK         0x0841u
+#define COLOR_BLACK   0x0000u
+#define COLOR_WHITE   0xffffu
+#define COLOR_CYAN    0x07ffu
+#define COLOR_BLUE    0x0010u
+#define COLOR_YELLOW  0xffe0u
+#define COLOR_GREEN   0x07e0u
+#define COLOR_RED     0xf800u
+#define COLOR_GRAY    0x8410u
+#define COLOR_DARK    0x4208u
 
 typedef enum {
     console_state_menu,
@@ -277,8 +278,10 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
     const int32_t name_len = (int32_t)strlen(game->name);
     const int32_t name_x = cx + (CELL_W - name_len * 6) / 2;
     Game_Graphics_Draw_Text(g_lcd, name_x, cy + 54, game->name, 1,
-                            selected ? COLOR_WHITE : game->icon == game_icon_snake ? COLOR_GREEN :
-                            game->icon == game_icon_pacman ? COLOR_YELLOW : COLOR_CYAN);
+        selected                         ? COLOR_WHITE
+        : game->icon == game_icon_snake  ? COLOR_GREEN
+        : game->icon == game_icon_pacman ? COLOR_YELLOW
+                                         : COLOR_CYAN);
 
     /* High score */
     Game_Graphics_Draw_Text(g_lcd, cx + 8, cy + 70, "HI", 1, COLOR_WHITE);
@@ -287,8 +290,7 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
 
 static void draw_page_indicator(void) {
     const uint8_t game_count = Game_Registry_Count();
-    const uint8_t total_pages =
-        (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
+    const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
     const int32_t bar_y = 222;
     const int32_t dot_y = bar_y + 12;
 
@@ -306,8 +308,7 @@ static void draw_page_indicator(void) {
     }
 
     /* Right arrow */
-    const uint16_t right_color =
-        g_current_page < total_pages - 1 ? COLOR_CYAN : COLOR_DARK;
+    const uint16_t right_color = g_current_page < total_pages - 1 ? COLOR_CYAN : COLOR_DARK;
     Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 36, bar_y + 6, ">", 2, right_color);
 
     /* Page number */
@@ -345,13 +346,13 @@ static void render_menu(void) {
 
     /* Bottom hints */
     Game_Graphics_Draw_Text(g_lcd, 14, 258, "< >", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 42, 258, "page", 1, COLOR_DARK);
+    Game_Graphics_Draw_Text(g_lcd, 42, 258, "page", 1, COLOR_GRAY);
     Game_Graphics_Draw_Text(g_lcd, 88, 258, "MOVE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 130, 258, "pick", 1, COLOR_DARK);
+    Game_Graphics_Draw_Text(g_lcd, 130, 258, "pick", 1, COLOR_GRAY);
     Game_Graphics_Draw_Text(g_lcd, 168, 258, "PRESS", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 210, 258, "go", 1, COLOR_DARK);
+    Game_Graphics_Draw_Text(g_lcd, 210, 258, "go", 1, COLOR_GRAY);
 
-    Game_Graphics_Draw_Text(g_lcd, 46, 282, "HOLD TO BACK", 1, COLOR_DARK);
+    Game_Graphics_Draw_Text(g_lcd, 46, 282, "HOLD TO BACK", 1, COLOR_GRAY);
 }
 
 static void enter_menu(void) {
@@ -373,9 +374,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
 
     const uint8_t page_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
     const uint8_t page_game_count =
-        page_start + MENU_PER_PAGE <= game_count
-            ? MENU_PER_PAGE
-            : (uint8_t)(game_count - page_start);
+        page_start + MENU_PER_PAGE <= game_count ? MENU_PER_PAGE : (uint8_t)(game_count - page_start);
 
     if (input->direction_pressed) {
         const uint8_t old_selection = g_menu_selection;
@@ -392,10 +391,8 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
                 /* Wrap to last row */
                 const uint8_t last_row = (uint8_t)((page_game_count - 1) / MENU_COLS);
                 const uint8_t new_slot = last_row * MENU_COLS + col;
-                g_menu_selection =
-                    new_slot < page_game_count
-                        ? (uint8_t)(page_start + new_slot)
-                        : (uint8_t)(page_start + page_game_count - 1);
+                g_menu_selection = new_slot < page_game_count ? (uint8_t)(page_start + new_slot)
+                                                              : (uint8_t)(page_start + page_game_count - 1);
             } else {
                 g_menu_selection = (uint8_t)(page_start + (row - 1) * MENU_COLS + col);
             }
@@ -407,9 +404,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
                 g_menu_selection = (uint8_t)(page_start + new_slot);
             } else {
                 /* Wrap to top row, same column */
-                g_menu_selection = col < page_game_count
-                                       ? (uint8_t)(page_start + col)
-                                       : page_start;
+                g_menu_selection = col < page_game_count ? (uint8_t)(page_start + col) : page_start;
             }
             changed = 1;
         } else if (input->direction == game_direction_left) {
@@ -417,8 +412,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
                 g_menu_selection = (uint8_t)(g_menu_selection - 1);
             } else {
                 /* Flip page left */
-                const uint8_t total_pages =
-                    (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
+                const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
                 if (g_current_page > 0) {
                     g_current_page--;
                 } else {
@@ -426,19 +420,14 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
                 }
                 /* Position cursor on rightmost column of the same row */
                 const uint8_t new_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
-                const uint8_t new_count =
-                    new_start + MENU_PER_PAGE <= game_count
-                        ? MENU_PER_PAGE
-                        : (uint8_t)(game_count - new_start);
-                const uint8_t new_rows =
-                    (uint8_t)((new_count + MENU_COLS - 1) / MENU_COLS);
+                const uint8_t new_count = new_start + MENU_PER_PAGE <= game_count
+                                              ? MENU_PER_PAGE
+                                              : (uint8_t)(game_count - new_start);
+                const uint8_t new_rows = (uint8_t)((new_count + MENU_COLS - 1) / MENU_COLS);
                 const uint8_t target_row = row < new_rows ? row : 0;
-                const uint8_t target_slot =
-                    target_row * MENU_COLS + (MENU_COLS - 1);
-                g_menu_selection =
-                    target_slot < new_count
-                        ? (uint8_t)(new_start + target_slot)
-                        : (uint8_t)(new_start + new_count - 1);
+                const uint8_t target_slot = target_row * MENU_COLS + (MENU_COLS - 1);
+                g_menu_selection = target_slot < new_count ? (uint8_t)(new_start + target_slot)
+                                                           : (uint8_t)(new_start + new_count - 1);
             }
             changed = 1;
         } else if (input->direction == game_direction_right) {
@@ -447,8 +436,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
                 g_menu_selection = (uint8_t)(g_menu_selection + 1);
             } else {
                 /* Flip page right */
-                const uint8_t total_pages =
-                    (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
+                const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
                 if (g_current_page < total_pages - 1) {
                     g_current_page++;
                 } else {
@@ -456,15 +444,12 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
                 }
                 /* Position cursor on leftmost column of the same row */
                 const uint8_t new_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
-                const uint8_t new_count =
-                    new_start + MENU_PER_PAGE <= game_count
-                        ? MENU_PER_PAGE
-                        : (uint8_t)(game_count - new_start);
-                const uint8_t new_rows =
-                    (uint8_t)((new_count + MENU_COLS - 1) / MENU_COLS);
+                const uint8_t new_count = new_start + MENU_PER_PAGE <= game_count
+                                              ? MENU_PER_PAGE
+                                              : (uint8_t)(game_count - new_start);
+                const uint8_t new_rows = (uint8_t)((new_count + MENU_COLS - 1) / MENU_COLS);
                 const uint8_t target_row = row < new_rows ? row : 0;
-                g_menu_selection =
-                    (uint8_t)(new_start + target_row * MENU_COLS);
+                g_menu_selection = (uint8_t)(new_start + target_row * MENU_COLS);
             }
             changed = 1;
         }
@@ -571,12 +556,7 @@ static void console_init(void) {
         .bkl_gpio_idx = GPIO_TFT_BLK_IDX,
         .hor_res = SCREEN_WIDTH,
         .ver_res = SCREEN_HEIGHT,
-        .flags =
-            {
-                .mirror_x = LCD_MIRROR_X,
-                .mirror_y = LCD_MIRROR_Y,
-                .color_use_bgr = LCD_COLOR_USE_BGR,
-            },
+        .flags = {.mirror_x = LCD_MIRROR_X, .mirror_y = LCD_MIRROR_Y, .color_use_bgr = LCD_COLOR_USE_BGR},
     };
     g_lcd = St7789_Create(&lcd_config);
     configASSERT(g_lcd != NULL);
