@@ -19,7 +19,7 @@
 #define TIP_SIZE      4
 #define FLY_SPEED     5
 #define MAX_NEEDLES   80
-#define COLLIDE_ANGLE 10
+#define COLLIDE_ANGLE 7     /* 碰撞角度阈值，越小越宽松 */
 #define LAUNCH_Y      298
 
 /* 转速参数：定点 1/256 单位/帧，线性从 4 针到 20 针 */
@@ -179,16 +179,17 @@ static void draw_fly_tip(uint16_t color) {
 static int16_t g_old_launch_x;
 
 static void draw_aim_guide(void) {
-    const int16_t ref_y = DISK_CY + TIP_R + 6;  /* 圆盘下方起点 */
+    const int16_t ref_y = DISK_CY + TIP_R + 6;
+    const int16_t line_h = LAUNCH_Y - ref_y - 4;
 
-    /* 擦旧发射指示线 */
+    /* 先刷一块背景色方块，再画细线 */
     if (g_old_launch_x != 0) {
-        bar_fill(g_old_launch_x - 1, ref_y + 2, 2, LAUNCH_Y - ref_y - 4, COLOR_BLACK);
+        bar_fill(g_old_launch_x - 4, ref_y + 2, 8, line_h, COLOR_BLACK);
     }
     g_old_launch_x = g_launch_x;
 
-    /* 发射位竖线 */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, g_launch_x - 1, ref_y + 2, 2, LAUNCH_Y - ref_y - 4, COLOR_GRAY);
+    bar_fill(g_launch_x - 4, ref_y + 2, 8, line_h, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, g_launch_x - 1, ref_y + 2, 2, line_h, COLOR_GRAY);
 }
 
 /* ── UI ── */
