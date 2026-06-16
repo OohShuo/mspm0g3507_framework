@@ -12,5 +12,7 @@ void Bsp_Init(void) {
     Bsp_Adc_Init();
     Bsp_Hard_Spi_Init();
     Bsp_Soft_Spi_Init();
+#if FRAMEWORK_USE_UART
     Bsp_Uart_Init();
+#endif
 }

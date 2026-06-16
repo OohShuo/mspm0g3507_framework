@@ -10,21 +10,21 @@
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
 
-#define KEY_COLUMNS 6u
-#define KEY_ROWS    6u
-#define KEY_COUNT   36u
-#define KEY_DELETE  36u
-#define KEY_SAVE    37u
+#define KEY_COLUMNS   6u
+#define KEY_ROWS      6u
+#define KEY_COUNT     36u
+#define KEY_DELETE    36u
+#define KEY_SAVE      37u
 
-#define COLOR_BLACK       0x0000u
-#define COLOR_WHITE       0xffffu
-#define COLOR_CYAN        0x07ffu
-#define COLOR_BLUE        0x001fu
-#define COLOR_GREEN       0x07e0u
-#define COLOR_YELLOW      0xffe0u
-#define COLOR_RED         0xf800u
-#define COLOR_GRAY        0x8410u
-#define COLOR_DARK        0x2104u
+#define COLOR_BLACK   0x0000u
+#define COLOR_WHITE   0xffffu
+#define COLOR_CYAN    0x07ffu
+#define COLOR_BLUE    0x001fu
+#define COLOR_GREEN   0x07e0u
+#define COLOR_YELLOW  0xffe0u
+#define COLOR_RED     0xf800u
+#define COLOR_GRAY    0x8410u
+#define COLOR_DARK    0x2104u
 
 typedef enum {
     end_stage_prompt,
@@ -67,8 +67,8 @@ static void draw_prompt_button(uint8_t selection, uint8_t selected) {
     Game_Graphics_Fill_Rect(g_lcd, x, 205, width, 45, border);
     Game_Graphics_Fill_Rect(g_lcd, x + 3, 208, width - 6, 39, background);
     if (selection == 0) {
-        Game_Graphics_Draw_Text(g_lcd, x + 15, 218, "ENTER NAME", 1,
-            g_score_qualifies ? COLOR_WHITE : COLOR_GRAY);
+        Game_Graphics_Draw_Text(
+            g_lcd, x + 15, 218, "ENTER NAME", 1, g_score_qualifies ? COLOR_WHITE : COLOR_GRAY);
     } else {
         Game_Graphics_Draw_Text(g_lcd, x + 34, 218, "SKIP", 1, COLOR_WHITE);
     }
@@ -123,8 +123,7 @@ static void draw_special_key(uint8_t index, uint8_t selected) {
 
     Game_Graphics_Fill_Rect(g_lcd, x, 243, 84, 27, border);
     Game_Graphics_Fill_Rect(g_lcd, x + 2, 245, 80, 23, background);
-    Game_Graphics_Draw_Text(
-        g_lcd, x + (index == KEY_DELETE ? 33 : 30), 252, label, 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, x + (index == KEY_DELETE ? 33 : 30), 252, label, 1, COLOR_WHITE);
 }
 
 static void draw_keyboard_key(uint8_t index, uint8_t selected) {
@@ -155,10 +154,9 @@ static void draw_board_button(uint8_t selection, uint8_t selected) {
     const int32_t width = 93;
     const uint16_t border = selected ? COLOR_CYAN : COLOR_DARK;
     Game_Graphics_Fill_Rect(g_lcd, x, 281, width, 29, border);
-    Game_Graphics_Fill_Rect(
-        g_lcd, x + 2, 283, width - 4, 25, selected ? COLOR_BLUE : COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_lcd, x + (selection == 0 ? 28 : 34), 291,
-        selection == 0 ? "REPLAY" : "MENU", 1, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, 283, width - 4, 25, selected ? COLOR_BLUE : COLOR_BLACK);
+    Game_Graphics_Draw_Text(
+        g_lcd, x + (selection == 0 ? 28 : 34), 291, selection == 0 ? "REPLAY" : "MENU", 1, COLOR_WHITE);
 }
 
 static void render_leaderboard(void) {
@@ -196,16 +194,13 @@ static uint8_t move_keyboard_selection(uint8_t selection, Game_direction directi
         if (direction == game_direction_left) {
             return row * KEY_COLUMNS + (column == 0 ? KEY_COLUMNS - 1u : column - 1u);
         }
-        if (direction == game_direction_right) {
-            return row * KEY_COLUMNS + (column + 1u) % KEY_COLUMNS;
-        }
+        if (direction == game_direction_right) { return row * KEY_COLUMNS + (column + 1u) % KEY_COLUMNS; }
         if (direction == game_direction_up) {
-            return row == 0 ? (column < 3u ? KEY_DELETE : KEY_SAVE)
-                            : (uint8_t)(selection - KEY_COLUMNS);
+            return row == 0 ? (column < 3u ? KEY_DELETE : KEY_SAVE) : (uint8_t)(selection - KEY_COLUMNS);
         }
         if (direction == game_direction_down) {
             return row == KEY_ROWS - 1u ? (column < 3u ? KEY_DELETE : KEY_SAVE)
-                                       : (uint8_t)(selection + KEY_COLUMNS);
+                                        : (uint8_t)(selection + KEY_COLUMNS);
         }
         return selection;
     }
@@ -213,12 +208,8 @@ static uint8_t move_keyboard_selection(uint8_t selection, Game_direction directi
     if (direction == game_direction_left || direction == game_direction_right) {
         return selection == KEY_DELETE ? KEY_SAVE : KEY_DELETE;
     }
-    if (direction == game_direction_up) {
-        return selection == KEY_DELETE ? 31u : 34u;
-    }
-    if (direction == game_direction_down) {
-        return selection == KEY_DELETE ? 1u : 4u;
-    }
+    if (direction == game_direction_up) { return selection == KEY_DELETE ? 31u : 34u; }
+    if (direction == game_direction_down) { return selection == KEY_DELETE ? 1u : 4u; }
     return selection;
 }
 
@@ -228,8 +219,7 @@ static Game_over_action update_prompt(const Game_input* input) {
         uint8_t next = g_prompt_selection;
         if (input->direction == game_direction_left || input->direction == game_direction_up) {
             next = 0;
-        } else if (input->direction == game_direction_right ||
-                   input->direction == game_direction_down) {
+        } else if (input->direction == game_direction_right || input->direction == game_direction_down) {
             next = 1;
         }
         if (!g_score_qualifies) { next = 1; }
@@ -267,8 +257,7 @@ static Game_over_action update_keyboard(const Game_input* input) {
 
     if (input->direction_pressed) {
         const uint8_t old = g_keyboard_selection;
-        g_keyboard_selection =
-            move_keyboard_selection(g_keyboard_selection, input->direction);
+        g_keyboard_selection = move_keyboard_selection(g_keyboard_selection, input->direction);
         if (old != g_keyboard_selection) {
             draw_keyboard_key(old, 0);
             draw_keyboard_key(g_keyboard_selection, 1);

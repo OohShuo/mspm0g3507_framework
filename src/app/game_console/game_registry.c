@@ -3,10 +3,15 @@
 #include <stddef.h>
 
 #include "air_battle.h"
+#include "breakout.h"
+#include "game_2048.h"
+#include "gomoku.h"
 #include "pacman.h"
+#include "pong.h"
 #include "racing.h"
 #include "snake.h"
 #include "tank_battle.h"
+#include "tetris.h"
 
 static const Game_descriptor g_games[] = {
     {
@@ -53,6 +58,51 @@ static const Game_descriptor g_games[] = {
         .update = Air_Battle_Update,
         .get_score = Air_Battle_Get_Score,
         .is_finished = Air_Battle_Is_Finished,
+    },
+    {
+        .name = "TETRIS",
+        .icon = game_icon_tetris,
+        .id = game_id_tetris,
+        .init = Tetris_Init,
+        .update = Tetris_Update,
+        .get_score = Tetris_Get_Score,
+        .is_finished = Tetris_Is_Finished,
+    },
+    {
+        .name = "BREAKOUT",
+        .icon = game_icon_breakout,
+        .id = game_id_breakout,
+        .init = Breakout_Init,
+        .update = Breakout_Update,
+        .get_score = Breakout_Get_Score,
+        .is_finished = Breakout_Is_Finished,
+    },
+    {
+        .name = "PONG",
+        .icon = game_icon_pong,
+        .id = game_id_pong,
+        .init = Pong_Init,
+        .update = Pong_Update,
+        .get_score = Pong_Get_Score,
+        .is_finished = Pong_Is_Finished,
+    },
+    {
+        .name = "GOMOKU",
+        .icon = game_icon_gomoku,
+        .id = game_id_gomoku,
+        .init = Gomoku_Init,
+        .update = Gomoku_Update,
+        .get_score = Gomoku_Get_Score,
+        .is_finished = Gomoku_Is_Finished,
+    },
+    {
+        .name = "2048",
+        .icon = game_icon_2048,
+        .id = game_id_2048,
+        .init = Game_2048_Init,
+        .update = Game_2048_Update,
+        .get_score = Game_2048_Get_Score,
+        .is_finished = Game_2048_Is_Finished,
     },
 };
 

@@ -6,24 +6,24 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
+#define SCREEN_WIDTH     240
+#define SCREEN_HEIGHT    320
 
-#define ROAD_X      35
-#define ROAD_Y      48
-#define ROAD_WIDTH  170
-#define ROAD_HEIGHT 244
-#define LANE_COUNT  3
-#define LANE_WIDTH  (ROAD_WIDTH / LANE_COUNT)
+#define ROAD_X           35
+#define ROAD_Y           48
+#define ROAD_WIDTH       170
+#define ROAD_HEIGHT      244
+#define LANE_COUNT       3
+#define LANE_WIDTH       (ROAD_WIDTH / LANE_COUNT)
 
-#define CAR_WIDTH  28
-#define CAR_HEIGHT 38
+#define CAR_WIDTH        28
+#define CAR_HEIGHT       38
 #define CAR_STRIP_HEIGHT 4
-#define PLAYER_Y   (ROAD_Y + ROAD_HEIGHT - CAR_HEIGHT - 8)
+#define PLAYER_Y         (ROAD_Y + ROAD_HEIGHT - CAR_HEIGHT - 8)
 
-#define OBSTACLE_COUNT 4
-#define MIN_FRAME_MS   35u
-#define MAX_FRAME_MS   90u
+#define OBSTACLE_COUNT   4
+#define MIN_FRAME_MS     35u
+#define MAX_FRAME_MS     90u
 
 #define COLOR_BLACK      0x0000u
 #define COLOR_WHITE      0xffffu
@@ -64,9 +64,7 @@ static uint32_t random_next(void) {
     return g_random_state;
 }
 
-static int32_t lane_x(int8_t lane) {
-    return ROAD_X + lane * LANE_WIDTH + (LANE_WIDTH - CAR_WIDTH) / 2;
-}
+static int32_t lane_x(int8_t lane) { return ROAD_X + lane * LANE_WIDTH + (LANE_WIDTH - CAR_WIDTH) / 2; }
 
 static uint32_t frame_interval(void) {
     const uint32_t reduction = (g_score / 10u) * 2u;
@@ -85,12 +83,10 @@ static void draw_car(int8_t lane, int16_t y, uint16_t body_color) {
             const int32_t car_y = strip_y + row;
             for (int32_t x = 0; x < CAR_WIDTH; x++) {
                 uint16_t color = COLOR_ROAD;
-                const uint8_t body =
-                    x >= 4 && x < CAR_WIDTH - 4 && car_y >= 2 && car_y < CAR_HEIGHT - 2;
+                const uint8_t body = x >= 4 && x < CAR_WIDTH - 4 && car_y >= 2 && car_y < CAR_HEIGHT - 2;
                 const uint8_t cabin = x >= 7 && x < CAR_WIDTH - 7 && car_y >= 8 && car_y < 21;
-                const uint8_t tire =
-                    (x < 4 || x >= CAR_WIDTH - 4) &&
-                    ((car_y >= 7 && car_y < 15) || (car_y >= 25 && car_y < 34));
+                const uint8_t tire = (x < 4 || x >= CAR_WIDTH - 4) &&
+                                     ((car_y >= 7 && car_y < 15) || (car_y >= 25 && car_y < 34));
 
                 if (body) { color = body_color; }
                 if (cabin) { color = COLOR_WINDOW; }
@@ -114,8 +110,7 @@ static void draw_road(void) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_GRASS);
     Game_Graphics_Fill_Rect(g_hardware.lcd, ROAD_X, ROAD_Y, ROAD_WIDTH, ROAD_HEIGHT, COLOR_ROAD);
     Game_Graphics_Fill_Rect(g_hardware.lcd, ROAD_X - 3, ROAD_Y, 3, ROAD_HEIGHT, COLOR_WHITE);
-    Game_Graphics_Fill_Rect(
-        g_hardware.lcd, ROAD_X + ROAD_WIDTH, ROAD_Y, 3, ROAD_HEIGHT, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, ROAD_X + ROAD_WIDTH, ROAD_Y, 3, ROAD_HEIGHT, COLOR_WHITE);
 
     for (int32_t lane = 1; lane < LANE_COUNT; lane++) {
         const int32_t x = ROAD_X + lane * LANE_WIDTH;
@@ -168,9 +163,7 @@ static uint8_t obstacle_hits_player(const Racing_obstacle* obstacle) {
 
 static void end_game(void) {
     g_state = racing_state_over;
-    if (g_hardware.buzzer != NULL) {
-        Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
-    }
+    if (g_hardware.buzzer != NULL) { Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0); }
     render_hud();
 }
 

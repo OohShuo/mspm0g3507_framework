@@ -35,6 +35,7 @@ void Bsp_Hard_Spi_Init(void) {
         bsp_spi_instances[i].dma_tx_channel = ((uint32_t[])SPI_DMA_TX_CHANNELS)[i];
         bsp_spi_instances[i].dma_rx_channel = ((uint32_t[])SPI_DMA_RX_CHANNELS)[i];
         bsp_spi_instances[i].int_irqn = ((IRQn_Type[])SPI_INT_IRQNS)[i];
+        DL_SPI_setBitRateSerialClockDivider(bsp_spi_instances[i].inst, ((uint32_t[])SPI_CLOCK_DIVIDERS)[i]);
         bsp_spi_instances[i].tx_dma_done.cb_vec = Vector_Init(sizeof(Bsp_spi_tx_dma_done_cb_t), 1);
         bsp_spi_instances[i].tx_dma_done.cb_arg_vec = Vector_Init(sizeof(void*), 1);
         bsp_spi_instances[i].tx_done.cb_vec = Vector_Init(sizeof(Bsp_spi_tx_done_cb_t), 1);
@@ -54,6 +55,9 @@ void Bsp_Hard_Spi_Write(uint32_t idx, const uint8_t* data, uint32_t len) {
     if (idx >= SPI_NUM) return;
 
     if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
+
+    DL_DMA_disableChannel(DMA, bsp_spi_instances[idx].dma_rx_channel);
+    DL_DMA_disableChannel(DMA, bsp_spi_instances[idx].dma_tx_channel);
 
     DL_DMA_setSrcAddr(
         DMA, bsp_spi_instances[idx].dma_rx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->RXDATA));
@@ -75,6 +79,9 @@ void Bsp_Hard_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
 
     if (len > SPI_RX_SCRATCH_SIZE) { len = SPI_RX_SCRATCH_SIZE; }
 
+    DL_DMA_disableChannel(DMA, bsp_spi_instances[idx].dma_rx_channel);
+    DL_DMA_disableChannel(DMA, bsp_spi_instances[idx].dma_tx_channel);
+
     DL_DMA_setSrcAddr(DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)s_spi_dummy_tx);
     DL_DMA_setDestAddr(
         DMA, bsp_spi_instances[idx].dma_tx_channel, (uint32_t)(&bsp_spi_instances[idx].inst->TXDATA));
@@ -91,7 +98,14 @@ void Bsp_Hard_Spi_Read(uint32_t idx, uint8_t* data, uint32_t len) {
 
 static void busy_wait_for_complete(uint32_t idx) {
     if (idx >= SPI_NUM) { return; }
-    SPI_Regs* inst = bsp_spi_instances[idx].inst;
+    struct Bsp_spi_instance_t* spi = &bsp_spi_instances[idx];
+
+    while (DL_DMA_getTransferSize(DMA, spi->dma_tx_channel) != 0u ||
+           DL_DMA_getTransferSize(DMA, spi->dma_rx_channel) != 0u) {
+        __NOP();
+    }
+
+    SPI_Regs* inst = spi->inst;
     while (!DL_SPI_isTXFIFOEmpty(inst)) { __NOP(); }
     while (DL_SPI_isBusy(inst)) { __NOP(); }
 }

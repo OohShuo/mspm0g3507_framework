@@ -10,9 +10,18 @@
 #include "dl_timerg.h"
 #include "dl_uart_main.h"
 #include "rtt_log.h"
+#include "ti_msp_dl_config.h"
 #include "vector.h"
 
 #if UART_NUM
+
+    #if UART_0_DMA_TX_CHANNEL != DMA_CH4_CHAN_ID
+        #error "UART0 TX DMA channel does not match the SysConfig-generated channel"
+    #endif
+
+    #if UART_0_DMA_RX_CHANNEL != DMA_CH3_CHAN_ID
+        #error "UART0 RX DMA channel does not match the SysConfig-generated channel"
+    #endif
 
 struct Bsp_uart_instance_t {
     UART_Regs* inst;
@@ -286,9 +295,11 @@ void Bsp_Uart_Read(uint32_t idx, uint8_t* data, uint32_t len) {
     (void)len;
 }
 
-void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms) {
+void Bsp_Uart_Start_Continuous_Rx(uint32_t idx, uint32_t idle_timeout_ms, uint8_t* buf, uint32_t max_len) {
     (void)idx;
     (void)idle_timeout_ms;
+    (void)buf;
+    (void)max_len;
 }
 
 void Bsp_Uart_Stop_Continuous_Rx(uint32_t idx) { (void)idx; }
@@ -323,9 +334,10 @@ void Bsp_Uart_Register_Rx_Dma_Done_Cb(uint32_t idx, Bsp_uart_rx_dma_done_cb_t cb
     (void)cb_arg;
 }
 
-void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb) {
+void Bsp_Uart_Register_Rx_Idle_Cb(uint32_t idx, Bsp_uart_rx_idle_cb_t cb, void* cb_arg) {
     (void)idx;
     (void)cb;
+    (void)cb_arg;
 }
 
 void Bsp_Uart_Irq_Handler(UART_Regs* uart_inst) { (void)uart_inst; }
