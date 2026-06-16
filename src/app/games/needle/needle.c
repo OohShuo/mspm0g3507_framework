@@ -20,8 +20,12 @@
 #define FLY_SPEED     5
 #define MAX_NEEDLES   80
 #define COLLIDE_ANGLE 10
-#define START_ANG_VEL 2
 #define LAUNCH_Y      298
+
+/* 转速参数：定点 1/256 单位/帧，线性从 4 针到 20 针 */
+#define ANG_VEL_INIT  341   /* 341/256 ≈ 1.33（原 2 的 2/3） */
+#define ANG_VEL_MAX   512   /* 512/256 = 2 */
+#define NEEDLE_FULL   20    /* 到达最大转速的针数 */
 
 /* ── 颜色 ── */
 #define COLOR_BLACK   0x0000u
@@ -33,7 +37,7 @@
 #define COLOR_LIGHT   0xc618u
 
 /* ── sin 表 64 等分 0-90°，缩放 128 ── */
-static const int8_t g_sin_table[65] = {
+static const uint8_t g_sin_table[65] = {
     0,   3,   6,   9,  13,  16,  19,  22,
    25,  28,  31,  34,  37,  40,  43,  46,
    49,  52,  55,  58,  60,  63,  66,  68,
@@ -59,7 +63,8 @@ static uint8_t g_needle_angles[MAX_NEEDLES];  /* 针在圆盘上的固定角度 
 static uint8_t g_prev_angles[MAX_NEEDLES];    /* 上一帧针的屏幕绝对角度 */
 static uint8_t g_needle_count;
 static uint8_t g_disk_angle;
-static uint8_t g_ang_vel;
+static uint16_t g_ang_vel;
+static uint16_t g_disk_accum;
 static int16_t g_fly_x, g_fly_y, g_fly_dx, g_fly_dy;
 static int16_t g_launch_x;
 static uint32_t g_score;
@@ -200,7 +205,8 @@ static void restart_game(void) {
     g_state = needle_state_ready;
     g_needle_count = 0;
     g_disk_angle = 0;
-    g_ang_vel = START_ANG_VEL;
+    g_disk_accum = 0;
+    g_ang_vel = ANG_VEL_INIT;
     g_launch_x = DISK_CX;
     g_score = 0;
 
@@ -258,8 +264,9 @@ Game_result Needle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    /* ══ 每帧：旋转圆盘 ══ */
-    g_disk_angle = (uint8_t)(g_disk_angle + g_ang_vel);
+    /* ══ 每帧：旋转圆盘（定点累加） ══ */
+    g_disk_accum += g_ang_vel;
+    g_disk_angle = (uint8_t)(g_disk_accum >> 8);
     rotate_needles();
 
     St7789* lcd = g_hardware.lcd;
@@ -314,7 +321,15 @@ Game_result Needle_Update(const Game_input* input) {
                 g_score++;
                 draw_score();
 
-                if ((g_score % 5) == 0 && g_ang_vel < 8) { g_ang_vel++; }
+                /* 线性增速：针越多转越快，20 针封顶 */
+                if (g_needle_count >= NEEDLE_FULL) {
+                    g_ang_vel = ANG_VEL_MAX;
+                } else {
+                    g_ang_vel = ANG_VEL_INIT
+                              + (uint16_t)((g_needle_count - 4)
+                                           * (ANG_VEL_MAX - ANG_VEL_INIT)
+                                           / (NEEDLE_FULL - 4));
+                }
 
                 g_state = needle_state_ready;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_select);
