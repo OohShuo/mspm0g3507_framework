@@ -1,7 +1,8 @@
-#include "button.h"
-#include "input_vm.h"
 #include <stdlib.h>
 #include <string.h>
+
+#include "button.h"
+#include "input_vm.h"
 
 static Button* g_btn = NULL;
 
@@ -28,8 +29,6 @@ void Button_Update_All(void) {
     Button_state raw = pressed ? button_state_down : button_state_up;
 
     // Simple debounce: state changes immediately (VM doesn't need real debounce)
-    if (raw != g_btn->last_state) {
-        g_btn->state = raw;
-    }
+    if (raw != g_btn->last_state) { g_btn->state = raw; }
     g_btn->last_state = raw;
 }

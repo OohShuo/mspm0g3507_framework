@@ -2,21 +2,19 @@
 """
 YAML-driven build driver for the framework.
 
-Reads config/config.yaml and runs cmake + the build step, forwarding every
-key under `build:` (except the three meta keys `build_type`, `generator`,
-`graphviz`) verbatim as -D<key>=<value> to cmake. The root CMakeLists.txt
-turns each cache var into a 0/1 global compile def so .c code can
-#if FRAMEWORK_USE_<NAME> on it.
+Reads config/config.yaml (a list of build targets) and runs cmake + build
+for each target.  Each target gets its own build/ directory (e.g. build/arm/,
+build/vm/).
 
 Usage:
-    python3 scripts/cm.py
-
-Edit config/config.yaml to change the profile. No CLI flags for v1 — the
-yaml is the single source of truth.
+    python3 scripts/cm.py                  # build all targets
+    python3 scripts/cm.py --target arm      # build only the named target
+    python3 scripts/cm.py --target vm
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 import pathlib
 import shutil
@@ -25,55 +23,34 @@ import sys
 
 import yaml
 
-# ----------------------------------------------------------------------- paths
-
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CFG_PATH = ROOT / "config" / "config.yaml"
+BUILD_ROOT = ROOT / "build"
 
-# cmake -G values for the supported yaml `generator:` values.
-GENERATOR_MAP = {
-    "ninja": "Ninja",
-    "make": "Unix Makefiles",
-}
+GENERATOR_MAP = {"ninja": "Ninja", "make": "Unix Makefiles"}
 
-# Keys handled by this script itself, NOT forwarded to cmake as -D.
-META_KEYS = {"build_type", "generator", "graphviz"}
+META_KEYS = {"name", "platform", "build_type", "generator", "graphviz"}
+STRING_KEYS = set()  # reserved for future non-boolean keys
 
 
-def load_config() -> dict:
-    """Load and return the `build:` dict from config/config.yaml."""
+def load_targets() -> list[dict]:
     with CFG_PATH.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
-    build = cfg.get("build")
-    if not isinstance(build, dict):
-        sys.exit(f"-- [cm.py] {CFG_PATH}: expected a `build:` dict, got {type(build).__name__}")
-    return build
+    targets = cfg.get("build")
+    if not isinstance(targets, list):
+        sys.exit(f"-- [cm.py] {CFG_PATH}: expected a `build:` list, got {type(targets).__name__}")
+    return targets
 
 
-def resolve_generator(yaml_value: str | None) -> str:
-    """Map yaml `generator:` to a cmake -G value. 'auto' probes the host."""
-    if yaml_value is None:
-        pass  # fall through to auto
-    elif yaml_value in GENERATOR_MAP:
-        return GENERATOR_MAP[yaml_value]
-    elif yaml_value != "auto":
-        sys.exit(
-            f"-- [cm.py] unknown generator: {yaml_value!r} "
-            f"(expected one of: {', '.join(sorted(GENERATOR_MAP))}, auto)"
-        )
-    # auto / None: prefer ninja if installed, else fall back to make.
-    if shutil.which("ninja"):
-        return "Ninja"
-    return "Unix Makefiles"
+def resolve_generator(value: str | None) -> str:
+    if value is None or value == "auto":
+        return "Ninja" if shutil.which("ninja") else "Unix Makefiles"
+    if value in GENERATOR_MAP:
+        return GENERATOR_MAP[value]
+    sys.exit(f"-- [cm.py] unknown generator: {value!r}")
 
 
 def _is_truthy(value: object) -> bool:
-    """Coerce a yaml value to a boolean.
-
-    yaml parses `ON`/`OFF`/`YES`/`NO`/`TRUE`/`FALSE` and bare numbers as
-    native Python bool/int. Strings like `"on"` or `"yes"` should also
-    count as on. Anything else is off.
-    """
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
@@ -83,61 +60,61 @@ def _is_truthy(value: object) -> bool:
     return False
 
 
-def build_cmake_command(cfg: dict) -> list[str]:
-    """Construct the cmake invocation from the parsed yaml dict."""
-    build_type = cfg.get("build_type")
-    if not build_type:
-        sys.exit("-- [cm.py] `build_type:` is required in config.yaml")
+def build_one(target: dict) -> None:
+    name = target.get("name")
+    if not name:
+        sys.exit("-- [cm.py] every build target needs a `name:`")
 
-    generator = resolve_generator(cfg.get("generator"))
-    graphviz = _is_truthy(cfg.get("graphviz", False))
+    build_dir = BUILD_ROOT / name
+    build_dir.mkdir(parents=True, exist_ok=True)
 
-    cmd: list[str] = [
-        "cmake",
-        "-G", generator,
+    build_type = target.get("build_type", "RelWithDebInfo")
+    generator = resolve_generator(target.get("generator"))
+    graphviz = _is_truthy(target.get("graphviz", False))
+
+    cmake_cmd: list[str] = [
+        "cmake", "-G", generator,
         f"-DCMAKE_BUILD_TYPE={build_type}",
+        f"-DBUILD_PLATFORM={target.get('platform', 'ARM')}",
     ]
 
-    # Forward every non-meta key as -D<key>=ON|OFF. Order matches the
-    # yaml file order, stable enough for reproducible logs.
-    for key, value in cfg.items():
+    # Forward remaining keys as -D<key>=ON|OFF (or verbatim for STRING_KEYS)
+    for key, value in target.items():
         if key in META_KEYS:
             continue
-        flag = "ON" if _is_truthy(value) else "OFF"
-        cmd.append(f"-D{key}={flag}")
+        if key in STRING_KEYS:
+            cmake_cmd.append(f"-D{key}={value}")
+        else:
+            cmake_cmd.append(f"-D{key}={'ON' if _is_truthy(value) else 'OFF'}")
 
-    # graphviz goes between the -D flags and the source-dir `..`. cmake
-    # accepts it on either side, but keeping the source dir last makes
-    # the command visually scan-friendly.
     if graphviz:
-        cmd.append("--graphviz=framework.dot")
+        cmake_cmd.append("--graphviz=framework.dot")
 
-    cmd.append("..")
-    return cmd
+    cmake_cmd.append("../..")   # source dir (build/<name>/ → root)
 
+    print(f"\n-- [cm.py] === target '{name}' | {build_type} | {generator} ===")
+    print(f"-- [cm.py] $ (cd {build_dir} && {' '.join(cmake_cmd)})")
+    subprocess.run(cmake_cmd, cwd=build_dir, check=True)
 
-def run(cmd: list[str], cwd: pathlib.Path) -> None:
-    """Echo + run a command; non-zero exit aborts the script."""
-    print(f"-- [cm.py] $ (cd {cwd} && {' '.join(cmd)})")
-    subprocess.run(cmd, cwd=cwd, check=True)
+    nproc = str(os.cpu_count() or 1)
+    build_cmd = ["cmake", "--build", ".", "-j", nproc]
+    print(f"-- [cm.py] $ (cd {build_dir} && {' '.join(build_cmd)})")
+    subprocess.run(build_cmd, cwd=build_dir, check=True)
 
 
 def main() -> None:
-    cfg = load_config()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--target", help="Build only the named target")
+    args = parser.parse_args()
 
-    # Use separate build dir for VM to avoid ARM/x86 conflicts.
-    build_dir = ROOT / ("build_vm" if _is_truthy(cfg.get("FRAMEWORK_VIRTUAL_DEVICE")) else "build")
+    targets = load_targets()
+    if args.target:
+        targets = [t for t in targets if t.get("name") == args.target]
+        if not targets:
+            sys.exit(f"-- [cm.py] no target named '{args.target}'")
 
-    cmake_cmd = build_cmake_command(cfg)
-
-    build_dir.mkdir(parents=True, exist_ok=True)
-    run(cmake_cmd, build_dir)
-
-    # Generator-agnostic build: avoids the trap of trying to spawn
-    # `unix makefiles` when the generator is "Unix Makefiles".
-    nproc = str(os.cpu_count() or 1)
-    build_cmd = ["cmake", "--build", ".", "-j", nproc]
-    run(build_cmd, build_dir)
+    for t in targets:
+        build_one(t)
 
 
 if __name__ == "__main__":
