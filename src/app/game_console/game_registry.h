@@ -15,6 +15,8 @@ typedef enum {
     game_icon_pong,
     game_icon_gomoku,
     game_icon_2048,
+    game_icon_dino,
+    game_icon_flappy,
 } Game_icon;
 
 typedef enum {
@@ -28,6 +30,8 @@ typedef enum {
     game_id_pong,
     game_id_gomoku,
     game_id_2048,
+    game_id_dino,
+    game_id_flappy,
     game_id_count,
 } Game_id;
 
