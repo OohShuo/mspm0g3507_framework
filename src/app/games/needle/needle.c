@@ -88,11 +88,16 @@ static void bar_fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, x, y, w, h, c);
 }
 
-/* ── 针尖屏幕坐标 ── */
+/* ── 针尖屏幕坐标（+64 四舍五入，消除 LUT 平坦区的像素重叠） ── */
+
+static int16_t round_div_128(int32_t val) {
+    if (val >= 0) { return (int16_t)((val + 64) / 128); }
+    return (int16_t)((val - 64) / 128);
+}
 
 static void pos_from_angle(uint8_t angle, int16_t* out_x, int16_t* out_y) {
-    *out_x = (int16_t)(DISK_CX + (int32_t)needle_cos(angle) * TIP_R / 128);
-    *out_y = (int16_t)(DISK_CY - (int32_t)needle_sin(angle) * TIP_R / 128);
+    *out_x = (int16_t)(DISK_CX + round_div_128((int32_t)needle_cos(angle) * TIP_R));
+    *out_y = (int16_t)(DISK_CY - round_div_128((int32_t)needle_sin(angle) * TIP_R));
 }
 
 /* ── atan2 近似 ── */
