@@ -6,6 +6,7 @@
 #include "breakout.h"
 #include "dino_runner.h"
 #include "flappy_bird.h"
+#include "fps_test.h"
 #include "game_2048.h"
 #include "gomoku.h"
 #include "info.h"
@@ -144,6 +145,15 @@ static const Game_descriptor g_games[] = {
         .update = Needle_Update,
         .get_score = Needle_Get_Score,
         .is_finished = Needle_Is_Finished,
+    },
+    {
+        .name = "FPS TEST",
+        .icon = game_icon_fps_test,
+        .id = game_id_fps_test,
+        .init = Fps_Test_Init,
+        .update = Fps_Test_Update,
+        .get_score = Fps_Test_Get_Score,
+        .is_finished = Fps_Test_Is_Finished,
     },
     {
         .name = "INFO",
