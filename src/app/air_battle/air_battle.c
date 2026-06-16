@@ -5,36 +5,41 @@
 #include <string.h>
 
 #include "air_assets.h"
+#include "app_config.h"
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "image_asset.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
-#define HUD_HEIGHT    30
+#define SCREEN_WIDTH             240
+#define SCREEN_HEIGHT            320
+#define HUD_HEIGHT               30
 
-#define MAX_ENEMIES       7
-#define MAX_BULLETS       18
-#define MAX_PICKUPS       3
-#define MAX_EXPLOSIONS    5
-#define MAX_DIRTY_RECTS   36
-#define NORMAL_ENEMIES    18
+#define MAX_ENEMIES              7
+#define MAX_PLAYER_BULLETS       18
+#define MAX_ENEMY_BULLETS        8
+#define MAX_BULLETS              (MAX_PLAYER_BULLETS + MAX_ENEMY_BULLETS)
+#define MAX_PICKUPS              3
+#define MAX_EXPLOSIONS           5
+#define MAX_DIRTY_RECTS          36
+#define NORMAL_ENEMIES           18
 
-#define PLAYER_MOVE_STEP  4
-#define PLAYER_FIRE_MS    190u
-#define WORLD_STEP_MS     50u
-#define ENEMY_SPAWN_MS    720u
-#define INVINCIBLE_MS     1300u
+#define PLAYER_MOVE_STEP         4
+#define WORLD_STEP_MS            50u
+#define PLAYER_FIRE_STEPS        4u
+#define ENEMY_SPAWN_MS           720u
+#define INVINCIBLE_MS            1300u
+#define EXTERNAL_BACKGROUND_PATH "/air_bg.r565"
 
-#define COLOR_BLACK       0x0000u
-#define COLOR_WHITE       0xffffu
-#define COLOR_CYAN        0x07ffu
-#define COLOR_BLUE_DARK   0x0864u
-#define COLOR_BLUE        0x041fu
-#define COLOR_GREEN       0x07e0u
-#define COLOR_YELLOW      0xffe0u
-#define COLOR_ORANGE      0xfd20u
-#define COLOR_RED         0xf800u
-#define COLOR_PINK        0xf81fu
+#define COLOR_BLACK              0x0000u
+#define COLOR_WHITE              0xffffu
+#define COLOR_CYAN               0x07ffu
+#define COLOR_BLUE_DARK          0x0864u
+#define COLOR_BLUE               0x041fu
+#define COLOR_GREEN              0x07e0u
+#define COLOR_YELLOW             0xffe0u
+#define COLOR_ORANGE             0xfd20u
+#define COLOR_RED                0xf800u
+#define COLOR_PINK               0xf81fu
 
 typedef enum {
     air_state_playing,
@@ -96,6 +101,11 @@ typedef struct {
     int16_t height;
 } Dirty_rect;
 
+typedef struct {
+    int16_t x1;
+    int16_t x2;
+} Dirty_span;
+
 static Game_hardware g_hardware;
 static Air_state g_state = air_state_playing;
 static Enemy g_enemies[MAX_ENEMIES];
@@ -104,7 +114,6 @@ static Pickup g_pickups[MAX_PICKUPS];
 static Explosion g_explosions[MAX_EXPLOSIONS];
 static Dirty_rect g_dirty[MAX_DIRTY_RECTS];
 static uint8_t g_dirty_count = 0;
-static uint8_t g_force_full_redraw = 0;
 static int16_t g_player_x = 102;
 static int16_t g_player_y = 270;
 static uint8_t g_lives = 3;
@@ -118,11 +127,12 @@ static uint8_t g_boss_max_hp = 0;
 static uint8_t g_fire_sound_divider = 0;
 static uint32_t g_score = 0;
 static uint32_t g_invincible_until = 0;
-static uint32_t g_last_fire = 0;
 static uint32_t g_last_world_step = 0;
 static uint32_t g_last_spawn = 0;
+static uint8_t g_fire_step_count = 0;
 static uint32_t g_random_state = 0x6d2b79f5u;
-static uint16_t g_line_buffer[SCREEN_WIDTH];
+static uint16_t* g_line_buffer = NULL;
+static Image_asset g_external_background;
 
 static uint32_t random_next(void) {
     g_random_state = g_random_state * 1664525u + 1013904223u;
@@ -149,13 +159,21 @@ static const Air_sprite* pickup_sprite(Pickup_kind kind) {
 }
 
 static uint8_t rects_touch(const Dirty_rect* a, const Dirty_rect* b) {
-    return a->x <= b->x + b->width + 2 && b->x <= a->x + a->width + 2 &&
-           a->y <= b->y + b->height + 2 && b->y <= a->y + a->height + 2;
+    return a->x <= b->x + b->width + 2 && b->x <= a->x + a->width + 2 && a->y <= b->y + b->height + 2 &&
+           b->y <= a->y + a->height + 2;
+}
+
+static Dirty_rect rect_union(const Dirty_rect* a, const Dirty_rect* b) {
+    const int16_t left = a->x < b->x ? a->x : b->x;
+    const int16_t top = a->y < b->y ? a->y : b->y;
+    const int16_t right = a->x + a->width > b->x + b->width ? a->x + a->width : b->x + b->width;
+    const int16_t bottom = a->y + a->height > b->y + b->height ? a->y + a->height : b->y + b->height;
+    return (Dirty_rect){left, top, (int16_t)(right - left), (int16_t)(bottom - top)};
 }
 
 static void mark_dirty(int16_t x, int16_t y, int16_t width, int16_t height) {
-    if (width <= 0 || height <= 0 || x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT ||
-        x + width <= 0 || y + height <= HUD_HEIGHT) {
+    if (width <= 0 || height <= 0 || x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT || x + width <= 0 ||
+        y + height <= HUD_HEIGHT) {
         return;
     }
 
@@ -165,26 +183,31 @@ static void mark_dirty(int16_t x, int16_t y, int16_t width, int16_t height) {
     const int16_t y2 = clamp_i16((int16_t)(y + height), HUD_HEIGHT, SCREEN_HEIGHT);
     Dirty_rect incoming = {x1, y1, (int16_t)(x2 - x1), (int16_t)(y2 - y1)};
 
-    for (uint8_t i = 0; i < g_dirty_count; i++) {
-        Dirty_rect* existing = &g_dirty[i];
-        if (!rects_touch(existing, &incoming)) { continue; }
-        const int16_t right = existing->x + existing->width > incoming.x + incoming.width
-                                  ? existing->x + existing->width
-                                  : incoming.x + incoming.width;
-        const int16_t bottom = existing->y + existing->height > incoming.y + incoming.height
-                                   ? existing->y + existing->height
-                                   : incoming.y + incoming.height;
-        existing->x = existing->x < incoming.x ? existing->x : incoming.x;
-        existing->y = existing->y < incoming.y ? existing->y : incoming.y;
-        existing->width = right - existing->x;
-        existing->height = bottom - existing->y;
-        return;
+    for (uint8_t i = 0; i < g_dirty_count;) {
+        if (!rects_touch(&g_dirty[i], &incoming)) {
+            i++;
+            continue;
+        }
+        incoming = rect_union(&g_dirty[i], &incoming);
+        g_dirty[i] = g_dirty[--g_dirty_count];
+        i = 0;
     }
 
     if (g_dirty_count < MAX_DIRTY_RECTS) {
         g_dirty[g_dirty_count++] = incoming;
     } else {
-        g_force_full_redraw = 1;
+        uint8_t best_index = 0;
+        uint32_t best_growth = UINT32_MAX;
+        for (uint8_t i = 0; i < g_dirty_count; i++) {
+            const Dirty_rect merged = rect_union(&g_dirty[i], &incoming);
+            const uint32_t old_area = (uint32_t)g_dirty[i].width * (uint32_t)g_dirty[i].height;
+            const uint32_t new_area = (uint32_t)merged.width * (uint32_t)merged.height;
+            if (new_area - old_area < best_growth) {
+                best_growth = new_area - old_area;
+                best_index = i;
+            }
+        }
+        g_dirty[best_index] = rect_union(&g_dirty[best_index], &incoming);
     }
 }
 
@@ -192,31 +215,29 @@ static void mark_sprite(int16_t x, int16_t y, const Air_sprite* sprite) {
     mark_dirty(x, y, sprite->width, sprite->height);
 }
 
-static uint8_t overlaps(int16_t ax, int16_t ay, int16_t aw, int16_t ah, int16_t bx,
-    int16_t by, int16_t bw, int16_t bh) {
+static uint8_t overlaps(
+    int16_t ax, int16_t ay, int16_t aw, int16_t ah, int16_t bx, int16_t by, int16_t bw, int16_t bh) {
     return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
 }
 
-static void draw_sprite_line(const Air_sprite* sprite, int16_t sprite_x, int16_t sprite_y,
-    int16_t screen_y, int16_t region_x, int16_t region_width) {
+static void draw_sprite_line(const Air_sprite* sprite, int16_t sprite_x, int16_t sprite_y, int16_t screen_y,
+    int16_t region_x, int16_t region_width) {
     const int16_t source_y = screen_y - sprite_y;
     if (source_y < 0 || source_y >= sprite->height) { return; }
 
     int16_t start_x = sprite_x > region_x ? sprite_x : region_x;
-    int16_t end_x = sprite_x + sprite->width < region_x + region_width
-                        ? sprite_x + sprite->width
-                        : region_x + region_width;
+    int16_t end_x = sprite_x + sprite->width < region_x + region_width ? sprite_x + sprite->width
+                                                                       : region_x + region_width;
     for (int16_t screen_x = start_x; screen_x < end_x; screen_x++) {
-        const uint16_t index =
-            (uint16_t)(source_y * sprite->width + (screen_x - sprite_x));
+        const uint16_t index = (uint16_t)(source_y * sprite->width + (screen_x - sprite_x));
         if ((sprite->mask[index >> 3] & (1u << (index & 7u))) != 0) {
             g_line_buffer[screen_x - region_x] = sprite->pixels[index];
         }
     }
 }
 
-static void draw_explosion_line(const Explosion* explosion, int16_t screen_y,
-    int16_t region_x, int16_t region_width) {
+static void draw_explosion_line(
+    const Explosion* explosion, int16_t screen_y, int16_t region_x, int16_t region_width) {
     const int16_t dy = screen_y - explosion->y;
     if (dy < -(int16_t)explosion->radius || dy > explosion->radius) { return; }
 
@@ -225,24 +246,22 @@ static void draw_explosion_line(const Explosion* explosion, int16_t screen_y,
         const int16_t distance = (int16_t)(dx * dx + dy * dy);
         const int16_t radius2 = explosion->radius * explosion->radius;
         if (distance <= radius2 && ((x + screen_y + explosion->life) & 1) == 0) {
-            g_line_buffer[x - region_x] =
-                distance < radius2 / 3 ? COLOR_YELLOW : COLOR_ORANGE;
+            g_line_buffer[x - region_x] = distance < radius2 / 3 ? COLOR_YELLOW : COLOR_ORANGE;
         }
     }
 }
 
 static void compose_line(int16_t x, int16_t y, int16_t width) {
-    for (int16_t col = 0; col < width; col++) {
-        const int16_t screen_x = x + col;
-        const uint16_t bg_x = (uint16_t)(screen_x / AIR_BACKGROUND_SCALE);
-        const uint16_t bg_y = (uint16_t)(y / AIR_BACKGROUND_SCALE);
-        g_line_buffer[col] = air_background[bg_y * AIR_BACKGROUND_WIDTH + bg_x];
+    if (g_external_background.is_open) {
+        Image_Asset_Read_Span(
+            &g_external_background, (uint16_t)y, (uint16_t)x, (uint16_t)width, g_line_buffer);
+    } else {
+        for (int16_t col = 0; col < width; col++) { g_line_buffer[col] = COLOR_BLACK; }
     }
 
     for (uint8_t i = 0; i < MAX_PICKUPS; i++) {
         if (g_pickups[i].active) {
-            draw_sprite_line(
-                pickup_sprite(g_pickups[i].kind), g_pickups[i].x, g_pickups[i].y, y, x, width);
+            draw_sprite_line(pickup_sprite(g_pickups[i].kind), g_pickups[i].x, g_pickups[i].y, y, x, width);
         }
     }
     for (uint8_t i = 0; i < MAX_BULLETS; i++) {
@@ -253,8 +272,7 @@ static void compose_line(int16_t x, int16_t y, int16_t width) {
     }
     for (uint8_t i = 0; i < MAX_ENEMIES; i++) {
         if (g_enemies[i].active) {
-            draw_sprite_line(enemy_sprite(g_enemies[i].kind), g_enemies[i].x,
-                g_enemies[i].y, y, x, width);
+            draw_sprite_line(enemy_sprite(g_enemies[i].kind), g_enemies[i].x, g_enemies[i].y, y, x, width);
         }
     }
 
@@ -263,30 +281,80 @@ static void compose_line(int16_t x, int16_t y, int16_t width) {
         draw_sprite_line(&air_sprite_hero, g_player_x, g_player_y, y, x, width);
     }
     for (uint8_t i = 0; i < MAX_EXPLOSIONS; i++) {
-        if (g_explosions[i].active) {
-            draw_explosion_line(&g_explosions[i], y, x, width);
-        }
+        if (g_explosions[i].active) { draw_explosion_line(&g_explosions[i], y, x, width); }
     }
 }
 
 static void render_region(const Dirty_rect* rect) {
+    St7789_Begin_Write(
+        g_hardware.lcd, rect->x, rect->y, rect->x + rect->width - 1, rect->y + rect->height - 1);
     for (int16_t row = 0; row < rect->height; row++) {
         const int16_t screen_y = rect->y + row;
         compose_line(rect->x, screen_y, rect->width);
-        St7789_Flush(g_hardware.lcd, rect->x, screen_y, rect->x + rect->width - 1,
-            screen_y, (uint8_t*)g_line_buffer, (uint32_t)rect->width * sizeof(uint16_t));
+        St7789_Write_Pixels(
+            g_hardware.lcd, (uint8_t*)g_line_buffer, (uint32_t)rect->width * sizeof(uint16_t));
     }
+    St7789_End_Write(g_hardware.lcd);
 }
 
 static void flush_dirty(void) {
-    if (g_force_full_redraw) {
-        const Dirty_rect full = {0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT};
-        render_region(&full);
-    } else {
-        for (uint8_t i = 0; i < g_dirty_count; i++) { render_region(&g_dirty[i]); }
+    Dirty_span spans[MAX_DIRTY_RECTS];
+    for (int16_t y = HUD_HEIGHT; y < SCREEN_HEIGHT; y++) {
+        uint8_t span_count = 0;
+        for (uint8_t i = 0; i < g_dirty_count; i++) {
+            const Dirty_rect* rect = &g_dirty[i];
+            if (y < rect->y || y >= rect->y + rect->height) { continue; }
+            spans[span_count++] = (Dirty_span){rect->x, (int16_t)(rect->x + rect->width)};
+        }
+        if (span_count == 0) { continue; }
+
+        for (uint8_t i = 1; i < span_count; i++) {
+            const Dirty_span current = spans[i];
+            uint8_t position = i;
+            while (position > 0 && spans[position - 1].x1 > current.x1) {
+                spans[position] = spans[position - 1];
+                position--;
+            }
+            spans[position] = current;
+        }
+
+        uint8_t merged_count = 0;
+        for (uint8_t i = 0; i < span_count; i++) {
+            if (merged_count == 0 || spans[i].x1 > spans[merged_count - 1].x2 + 2) {
+                spans[merged_count++] = spans[i];
+            } else if (spans[i].x2 > spans[merged_count - 1].x2) {
+                spans[merged_count - 1].x2 = spans[i].x2;
+            }
+        }
+
+        Dirty_span output[2];
+        uint8_t output_count = merged_count;
+        if (merged_count <= 2) {
+            for (uint8_t i = 0; i < merged_count; i++) { output[i] = spans[i]; }
+        } else {
+            uint8_t split = 0;
+            int16_t largest_gap = -1;
+            for (uint8_t i = 0; i + 1 < merged_count; i++) {
+                const int16_t gap = spans[i + 1].x1 - spans[i].x2;
+                if (gap > largest_gap) {
+                    largest_gap = gap;
+                    split = i;
+                }
+            }
+            output_count = 2;
+            output[0] = (Dirty_span){spans[0].x1, spans[split].x2};
+            output[1] = (Dirty_span){spans[split + 1].x1, spans[merged_count - 1].x2};
+        }
+
+        for (uint8_t i = 0; i < output_count; i++) {
+            const int16_t width = output[i].x2 - output[i].x1;
+            compose_line(output[i].x1, y, width);
+            St7789_Begin_Write(g_hardware.lcd, output[i].x1, y, output[i].x2 - 1, y);
+            St7789_Write_Pixels(g_hardware.lcd, (uint8_t*)g_line_buffer, (uint32_t)width * sizeof(uint16_t));
+            St7789_End_Write(g_hardware.lcd);
+        }
     }
     g_dirty_count = 0;
-    g_force_full_redraw = 0;
 }
 
 static void render_hud(void) {
@@ -300,8 +368,7 @@ static void render_hud(void) {
 
     if (g_boss_hp > 0 && g_boss_max_hp > 0) {
         Game_Graphics_Fill_Rect(g_hardware.lcd, 5, 19, 230, 6, COLOR_BLACK);
-        Game_Graphics_Fill_Rect(g_hardware.lcd, 7, 21,
-            (226 * g_boss_hp) / g_boss_max_hp, 2, COLOR_RED);
+        Game_Graphics_Fill_Rect(g_hardware.lcd, 7, 21, (226 * g_boss_hp) / g_boss_max_hp, 2, COLOR_RED);
     } else {
         Game_Graphics_Draw_Text(g_hardware.lcd, 73, 19, "SKY FORCE", 1, COLOR_CYAN);
     }
@@ -322,39 +389,42 @@ static void add_explosion(int16_t x, int16_t y) {
     }
 }
 
-static Bullet* allocate_bullet(void) {
-    for (uint8_t i = 0; i < MAX_BULLETS; i++) {
+static Bullet* allocate_bullet(uint8_t from_enemy) {
+    const uint8_t begin = from_enemy ? MAX_PLAYER_BULLETS : 0;
+    const uint8_t end = from_enemy ? MAX_BULLETS : MAX_PLAYER_BULLETS;
+    for (uint8_t i = begin; i < end; i++) {
         if (!g_bullets[i].active) { return &g_bullets[i]; }
     }
     return NULL;
 }
 
-static void spawn_bullet(
-    int16_t x, int16_t y, int8_t dx, int8_t dy, uint8_t from_enemy) {
-    Bullet* bullet = allocate_bullet();
-    if (bullet == NULL) { return; }
+static uint8_t spawn_bullet(int16_t x, int16_t y, int8_t dx, int8_t dy, uint8_t from_enemy) {
+    Bullet* bullet = allocate_bullet(from_enemy);
+    if (bullet == NULL) { return 0; }
     *bullet = (Bullet){x, y, dx, dy, 1, from_enemy};
     mark_sprite(x, y, from_enemy ? &air_sprite_bullet_enemy : &air_sprite_bullet_hero);
+    return 1;
 }
 
-static void player_fire(void) {
-    const int16_t center = g_player_x + air_sprite_hero.width / 2 -
-                           air_sprite_bullet_hero.width / 2;
+static uint8_t player_fire(void) {
+    const int16_t center = g_player_x + air_sprite_hero.width / 2 - air_sprite_bullet_hero.width / 2;
+    uint8_t fired = 0;
     if (g_shot_level == 1) {
-        spawn_bullet(center, g_player_y - 8, 0, -6, 0);
+        fired += spawn_bullet(center, g_player_y - 8, 0, -11, 0);
     } else if (g_shot_level == 2) {
-        spawn_bullet(g_player_x + 7, g_player_y - 5, 0, -6, 0);
-        spawn_bullet(g_player_x + air_sprite_hero.width - 11, g_player_y - 5, 0, -6, 0);
+        fired += spawn_bullet(g_player_x + 7, g_player_y - 5, 0, -11, 0);
+        fired += spawn_bullet(g_player_x + air_sprite_hero.width - 11, g_player_y - 5, 0, -11, 0);
     } else {
-        spawn_bullet(center, g_player_y - 9, 0, -7, 0);
-        spawn_bullet(g_player_x + 5, g_player_y - 3, -1, -6, 0);
-        spawn_bullet(g_player_x + air_sprite_hero.width - 9, g_player_y - 3, 1, -6, 0);
+        fired += spawn_bullet(center, g_player_y - 9, 0, -12, 0);
+        fired += spawn_bullet(g_player_x + 5, g_player_y - 3, -1, -11, 0);
+        fired += spawn_bullet(g_player_x + air_sprite_hero.width - 9, g_player_y - 3, 1, -11, 0);
     }
 
-    if (++g_fire_sound_divider >= 3) {
+    if (fired > 0 && ++g_fire_sound_divider >= 3) {
         g_fire_sound_divider = 0;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_air_fire);
     }
+    return fired > 0;
 }
 
 static uint8_t active_enemy_count(void) {
@@ -380,8 +450,7 @@ static void spawn_enemy(uint32_t now) {
         const int16_t x = (int16_t)(8 + random_next() % (SCREEN_WIDTH - sprite->width - 16));
         const uint8_t hp = kind == enemy_mob ? 1 : (kind == enemy_elite ? 3 : 5);
         const int8_t vx = kind == enemy_mob ? 0 : ((random_next() & 1u) ? 2 : -2);
-        g_enemies[i] = (Enemy){x, HUD_HEIGHT, vx, 1, hp, kind,
-            now + 550u + random_next() % 700u};
+        g_enemies[i] = (Enemy){x, HUD_HEIGHT, vx, 1, hp, kind, now + 550u + random_next() % 700u};
         g_spawned++;
         mark_sprite(x, HUD_HEIGHT, sprite);
         return;
@@ -389,15 +458,13 @@ static void spawn_enemy(uint32_t now) {
 }
 
 static void spawn_boss(uint32_t now) {
-    if (g_boss_spawned || g_spawned < NORMAL_ENEMIES || active_enemy_count() != 0) {
-        return;
-    }
+    if (g_boss_spawned || g_spawned < NORMAL_ENEMIES || active_enemy_count() != 0) { return; }
     for (uint8_t i = 0; i < MAX_ENEMIES; i++) {
         if (g_enemies[i].active) { continue; }
         g_boss_max_hp = 36;
         g_boss_hp = g_boss_max_hp;
-        g_enemies[i] = (Enemy){(SCREEN_WIDTH - air_sprite_boss.width) / 2, HUD_HEIGHT + 8,
-            2, 1, g_boss_hp, enemy_boss, now + 700u};
+        g_enemies[i] = (Enemy){(SCREEN_WIDTH - air_sprite_boss.width) / 2, HUD_HEIGHT + 8, 2, 1, g_boss_hp,
+            enemy_boss, now + 700u};
         g_boss_spawned = 1;
         mark_sprite(g_enemies[i].x, g_enemies[i].y, &air_sprite_boss);
         render_hud();
@@ -410,8 +477,7 @@ static void spawn_pickup(int16_t x, int16_t y) {
     if ((random_next() % 100u) >= 38u) { return; }
     for (uint8_t i = 0; i < MAX_PICKUPS; i++) {
         if (g_pickups[i].active) { continue; }
-        g_pickups[i] =
-            (Pickup){x, y, 1, (Pickup_kind)(random_next() % 3u)};
+        g_pickups[i] = (Pickup){x, y, 1, (Pickup_kind)(random_next() % 3u)};
         mark_sprite(x, y, pickup_sprite(g_pickups[i].kind));
         return;
     }
@@ -420,8 +486,8 @@ static void spawn_pickup(int16_t x, int16_t y) {
 static void finish_game(Air_state state) {
     if (g_state != air_state_playing) { return; }
     g_state = state;
-    Buzzer_Play_Music(g_hardware.buzzer,
-        state == air_state_win ? music_idx_victory : music_idx_defeat, 0);
+    Image_Asset_Close(&g_external_background);
+    Buzzer_Play_Music(g_hardware.buzzer, state == air_state_win ? music_idx_victory : music_idx_defeat, 0);
     Game_Graphics_Fill_Rect(g_hardware.lcd, 31, 133, 178, 70, COLOR_BLUE_DARK);
     Game_Graphics_Fill_Rect(g_hardware.lcd, 35, 137, 170, 62, COLOR_BLACK);
     Game_Graphics_Draw_Text(g_hardware.lcd, state == air_state_win ? 42 : 37, 148,
@@ -473,8 +539,7 @@ static void damage_enemy(Enemy* enemy, uint8_t damage) {
 
 static void hit_player(uint32_t now) {
     if (now < g_invincible_until || g_state != air_state_playing) { return; }
-    add_explosion(g_player_x + air_sprite_hero.width / 2,
-        g_player_y + air_sprite_hero.height / 2);
+    add_explosion(g_player_x + air_sprite_hero.width / 2, g_player_y + air_sprite_hero.height / 2);
     if (g_lives > 0) { g_lives--; }
     g_invincible_until = now + INVINCIBLE_MS;
     Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
@@ -497,8 +562,7 @@ static void use_bomb(void) {
     for (uint8_t i = 0; i < MAX_ENEMIES; i++) {
         if (!g_enemies[i].active) { continue; }
         const Air_sprite* sprite = enemy_sprite(g_enemies[i].kind);
-        add_explosion(g_enemies[i].x + sprite->width / 2,
-            g_enemies[i].y + sprite->height / 2);
+        add_explosion(g_enemies[i].x + sprite->width / 2, g_enemies[i].y + sprite->height / 2);
         damage_enemy(&g_enemies[i], g_enemies[i].kind == enemy_boss ? 6 : 3);
         if (g_state != air_state_playing) { return; }
     }
@@ -519,8 +583,7 @@ static void move_player(Game_direction direction) {
         g_player_y += PLAYER_MOVE_STEP;
     }
     g_player_x = clamp_i16(g_player_x, 0, SCREEN_WIDTH - air_sprite_hero.width);
-    g_player_y =
-        clamp_i16(g_player_y, HUD_HEIGHT + 4, SCREEN_HEIGHT - air_sprite_hero.height);
+    g_player_y = clamp_i16(g_player_y, HUD_HEIGHT + 4, SCREEN_HEIGHT - air_sprite_hero.height);
     if (old_x != g_player_x || old_y != g_player_y) {
         mark_sprite(old_x, old_y, &air_sprite_hero);
         mark_sprite(g_player_x, g_player_y, &air_sprite_hero);
@@ -556,8 +619,8 @@ static void update_pickups(void) {
             continue;
         }
 
-        if (overlaps(pickup->x, pickup->y, sprite->width, sprite->height, g_player_x,
-                g_player_y, air_sprite_hero.width, air_sprite_hero.height)) {
+        if (overlaps(pickup->x, pickup->y, sprite->width, sprite->height, g_player_x, g_player_y,
+                air_sprite_hero.width, air_sprite_hero.height)) {
             pickup->active = 0;
             if (pickup->kind == pickup_blood && g_lives < 5) {
                 g_lives++;
@@ -579,16 +642,14 @@ static void update_pickups(void) {
 static void update_enemy_fire(Enemy* enemy, uint32_t now) {
     if (now < enemy->next_fire_at || enemy->y < HUD_HEIGHT) { return; }
     const Air_sprite* sprite = enemy_sprite(enemy->kind);
-    const int16_t center = enemy->x + sprite->width / 2 -
-                           air_sprite_bullet_enemy.width / 2;
+    const int16_t center = enemy->x + sprite->width / 2 - air_sprite_bullet_enemy.width / 2;
     if (enemy->kind == enemy_boss) {
         spawn_bullet(center, enemy->y + sprite->height - 2, 0, 4, 1);
         spawn_bullet(center - 18, enemy->y + sprite->height - 5, -1, 4, 1);
         spawn_bullet(center + 18, enemy->y + sprite->height - 5, 1, 4, 1);
         enemy->next_fire_at = now + 650u;
     } else {
-        spawn_bullet(center, enemy->y + sprite->height - 2, 0,
-            enemy->kind == enemy_mob ? 3 : 4, 1);
+        spawn_bullet(center, enemy->y + sprite->height - 2, 0, enemy->kind == enemy_mob ? 3 : 4, 1);
         enemy->next_fire_at = now + 900u + random_next() % 900u;
     }
 }
@@ -621,9 +682,8 @@ static void update_enemies(uint32_t now) {
             continue;
         }
 
-        if (overlaps(enemy->x + 3, enemy->y + 3, sprite->width - 6, sprite->height - 6,
-                g_player_x + 5, g_player_y + 5, air_sprite_hero.width - 10,
-                air_sprite_hero.height - 8)) {
+        if (overlaps(enemy->x + 3, enemy->y + 3, sprite->width - 6, sprite->height - 6, g_player_x + 5,
+                g_player_y + 5, air_sprite_hero.width - 10, air_sprite_hero.height - 8)) {
             if (enemy->kind != enemy_boss) { destroy_enemy(enemy); }
             hit_player(now);
             continue;
@@ -634,8 +694,7 @@ static void update_enemies(uint32_t now) {
 }
 
 static void deactivate_bullet(Bullet* bullet) {
-    const Air_sprite* sprite =
-        bullet->from_enemy ? &air_sprite_bullet_enemy : &air_sprite_bullet_hero;
+    const Air_sprite* sprite = bullet->from_enemy ? &air_sprite_bullet_enemy : &air_sprite_bullet_hero;
     mark_sprite(bullet->x, bullet->y, sprite);
     bullet->active = 0;
 }
@@ -644,8 +703,7 @@ static void update_bullets(uint32_t now) {
     for (uint8_t i = 0; i < MAX_BULLETS; i++) {
         Bullet* bullet = &g_bullets[i];
         if (!bullet->active) { continue; }
-        const Air_sprite* sprite =
-            bullet->from_enemy ? &air_sprite_bullet_enemy : &air_sprite_bullet_hero;
+        const Air_sprite* sprite = bullet->from_enemy ? &air_sprite_bullet_enemy : &air_sprite_bullet_hero;
         mark_sprite(bullet->x, bullet->y, sprite);
         bullet->x += bullet->dx;
         bullet->y += bullet->dy;
@@ -657,9 +715,8 @@ static void update_bullets(uint32_t now) {
         }
 
         if (bullet->from_enemy) {
-            if (overlaps(bullet->x, bullet->y, sprite->width, sprite->height,
-                    g_player_x + 6, g_player_y + 5, air_sprite_hero.width - 12,
-                    air_sprite_hero.height - 8)) {
+            if (overlaps(bullet->x, bullet->y, sprite->width, sprite->height, g_player_x + 6, g_player_y + 5,
+                    air_sprite_hero.width - 12, air_sprite_hero.height - 8)) {
                 deactivate_bullet(bullet);
                 hit_player(now);
                 if (g_state != air_state_playing) { return; }
@@ -670,9 +727,8 @@ static void update_bullets(uint32_t now) {
                 Enemy* enemy = &g_enemies[enemy_index];
                 if (!enemy->active) { continue; }
                 const Air_sprite* target = enemy_sprite(enemy->kind);
-                if (!overlaps(bullet->x, bullet->y, sprite->width, sprite->height,
-                        enemy->x + 2, enemy->y + 2, target->width - 4,
-                        target->height - 4)) {
+                if (!overlaps(bullet->x, bullet->y, sprite->width, sprite->height, enemy->x + 2, enemy->y + 2,
+                        target->width - 4, target->height - 4)) {
                     continue;
                 }
                 deactivate_bullet(bullet);
@@ -687,6 +743,16 @@ static void update_bullets(uint32_t now) {
 }
 
 static void restart_game(void) {
+    Image_Asset_Close(&g_external_background);
+    if (Image_Asset_Open(&g_external_background, EXTERNAL_BACKGROUND_PATH) &&
+        (g_external_background.width != SCREEN_WIDTH || g_external_background.height != SCREEN_HEIGHT)) {
+        Image_Asset_Close(&g_external_background);
+    }
+    if (g_external_background.is_open && !Image_Asset_Prepare_Raw_Cache(&g_external_background,
+                                             AIR_BATTLE_BG_CACHE_ADDRESS, AIR_BATTLE_BG_CACHE_CAPACITY)) {
+        Image_Asset_Close(&g_external_background);
+    }
+
     memset(g_enemies, 0, sizeof(g_enemies));
     memset(g_bullets, 0, sizeof(g_bullets));
     memset(g_pickups, 0, sizeof(g_pickups));
@@ -705,12 +771,11 @@ static void restart_game(void) {
     g_invincible_until = 0;
     g_state = air_state_playing;
     g_dirty_count = 0;
-    g_force_full_redraw = 0;
 
     const uint32_t now = Bsp_Get_Tick_Ms();
-    g_last_fire = now;
     g_last_world_step = now;
     g_last_spawn = now - ENEMY_SPAWN_MS;
+    g_fire_step_count = 0;
     render_full();
     Buzzer_Play_Music(g_hardware.buzzer, music_idx_air_theme, 1);
 }
@@ -718,12 +783,16 @@ static void restart_game(void) {
 void Air_Battle_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
+    g_line_buffer = Game_Graphics_Get_Line_Buffer();
     restart_game();
 }
 
 Game_result Air_Battle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
-    if (input->back_requested) { return game_result_exit; }
+    if (input->back_requested) {
+        Image_Asset_Close(&g_external_background);
+        return game_result_exit;
+    }
     if (g_state != air_state_playing) {
         if (input->confirm_pressed) {
             Buzzer_Stop(g_hardware.buzzer);
@@ -737,10 +806,6 @@ Game_result Air_Battle_Update(const Game_input* input) {
     if (g_state != air_state_playing) { return game_result_running; }
 
     const uint32_t now = Bsp_Get_Tick_Ms();
-    if (now - g_last_fire >= PLAYER_FIRE_MS) {
-        g_last_fire = now;
-        player_fire();
-    }
     if (now - g_last_spawn >= ENEMY_SPAWN_MS && g_spawned < NORMAL_ENEMIES) {
         g_last_spawn = now;
         spawn_enemy(now);
@@ -755,6 +820,7 @@ Game_result Air_Battle_Update(const Game_input* input) {
         if (g_state != air_state_playing) { return game_result_running; }
         update_pickups();
         update_explosions();
+        if (++g_fire_step_count >= PLAYER_FIRE_STEPS && player_fire()) { g_fire_step_count = 0; }
     }
     flush_dirty();
     return game_result_running;
