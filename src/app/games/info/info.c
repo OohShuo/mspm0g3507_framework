@@ -4,6 +4,9 @@
 
 #include "game_graphics.h"
 #include "info_image_hitsz.h"
+#include "info_image_morrow.h"
+#include "info_image_oooshuo.h"
+#include "info_image_polaris.h"
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -78,16 +81,23 @@ static void render_page2(void) {
     Game_Graphics_Fill_Rect(g_lcd, 10, 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 
     /* Intro text */
-    Game_Graphics_Draw_Text(g_lcd, 78, 40, "For more", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 60, 60, "information", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 110, 80, "and", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 60, 100, "source code,", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 78, 120, "refer to:", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 78, 35, "For more", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 55, "information", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 110, 75, "and", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 95, "source code,", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 78, 115, "refer to:", 2, COLOR_WHITE);
 
     /* URL lines */
-    Game_Graphics_Draw_Text(g_lcd, 22, 159, "github.com/OohShu", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 22, 184, "o/mspm0g3507_fram", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 22, 205, "ework.git", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 194, "github.com/OohShu", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 219, "o/mspm0g3507_fram", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 240, "ework.git", 2, COLOR_WHITE);
+
+    Game_Graphics_Draw_Gray4_Bitmap(
+        g_lcd, 35, 135, INFO_IMAGE_OOOSHUO_50_W, INFO_IMAGE_OOOSHUO_50_H, info_image_oooshuo_50_data);
+    Game_Graphics_Draw_Gray4_Bitmap(
+        g_lcd, 95, 135, INFO_IMAGE_MORROW_50_W, INFO_IMAGE_MORROW_50_H, info_image_morrow_50_data);
+    Game_Graphics_Draw_Gray4_Bitmap(
+        g_lcd, 155, 135, INFO_IMAGE_POLARIS_50_W, INFO_IMAGE_POLARIS_50_H, info_image_polaris_50_data);
 
     /* Page indicator */
     draw_page_indicator();
