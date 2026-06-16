@@ -13,7 +13,7 @@ build:
 
   - name: arm
     platform: ARM
-    build_type: RelWithDebInfo # Debug | Release | RelWithDebInfo | MinSizeRel
+    build_type: MinSizeRel # Debug | Release | RelWithDebInfo | MinSizeRel
     generator: ninja       # ninja | make | auto
     graphviz: ON           # ON | OFF
 
