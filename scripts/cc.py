@@ -7,9 +7,9 @@ for each target.  Each target gets its own build/ directory (e.g. build/arm/,
 build/vm/).
 
 Usage:
-    python3 scripts/cm.py                  # build all targets
-    python3 scripts/cm.py --target arm      # build only the named target
-    python3 scripts/cm.py --target vm
+    python3 scripts/cc.py                  # build all targets
+    python3 scripts/cc.py --target arm      # build only the named target
+    python3 scripts/cc.py --target vm
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def load_targets() -> list[dict]:
         cfg = yaml.safe_load(f) or {}
     targets = cfg.get("build")
     if not isinstance(targets, list):
-        sys.exit(f"-- [cm.py] {CFG_PATH}: expected a `build:` list, got {type(targets).__name__}")
+        sys.exit(f"-- [cc.py] {CFG_PATH}: expected a `build:` list, got {type(targets).__name__}")
     return targets
 
 
@@ -47,7 +47,7 @@ def resolve_generator(value: str | None) -> str:
         return "Ninja" if shutil.which("ninja") else "Unix Makefiles"
     if value in GENERATOR_MAP:
         return GENERATOR_MAP[value]
-    sys.exit(f"-- [cm.py] unknown generator: {value!r}")
+    sys.exit(f"-- [cc.py] unknown generator: {value!r}")
 
 
 def _is_truthy(value: object) -> bool:
@@ -63,7 +63,7 @@ def _is_truthy(value: object) -> bool:
 def build_one(target: dict) -> None:
     name = target.get("name")
     if not name:
-        sys.exit("-- [cm.py] every build target needs a `name:`")
+        sys.exit("-- [cc.py] every build target needs a `name:`")
 
     build_dir = BUILD_ROOT / name
     build_dir.mkdir(parents=True, exist_ok=True)
@@ -92,13 +92,13 @@ def build_one(target: dict) -> None:
 
     cmake_cmd.append("../..")   # source dir (build/<name>/ → root)
 
-    print(f"\n-- [cm.py] === target '{name}' | {build_type} | {generator} ===")
-    print(f"-- [cm.py] $ (cd {build_dir} && {' '.join(cmake_cmd)})")
+    print(f"\n-- [cc.py] === target '{name}' | {build_type} | {generator} ===")
+    print(f"-- [cc.py] $ (cd {build_dir} && {' '.join(cmake_cmd)})")
     subprocess.run(cmake_cmd, cwd=build_dir, check=True)
 
     nproc = str(os.cpu_count() or 1)
     build_cmd = ["cmake", "--build", ".", "-j", nproc]
-    print(f"-- [cm.py] $ (cd {build_dir} && {' '.join(build_cmd)})")
+    print(f"-- [cc.py] $ (cd {build_dir} && {' '.join(build_cmd)})")
     subprocess.run(build_cmd, cwd=build_dir, check=True)
 
 
@@ -111,7 +111,7 @@ def main() -> None:
     if args.target:
         targets = [t for t in targets if t.get("name") == args.target]
         if not targets:
-            sys.exit(f"-- [cm.py] no target named '{args.target}'")
+            sys.exit(f"-- [cc.py] no target named '{args.target}'")
 
     for t in targets:
         build_one(t)
