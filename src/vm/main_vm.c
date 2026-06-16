@@ -1,16 +1,20 @@
+#include <SDL2/SDL.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "app.h"
 #include "display_vm.h"
 #include "hal.h"
 #include "input_vm.h"
 #include "local_lib.h"
-#include <SDL2/SDL.h>
-#include <stdio.h>
-#include <signal.h>
-#include <stdlib.h>
 
 static volatile int g_run = 1;
 
-static void on_signal(int s) { (void)s; g_run = 0; }
+static void on_signal(int s) {
+    (void)s;
+    g_run = 0;
+}
 
 int main(void) {
     signal(SIGINT, on_signal);
@@ -27,7 +31,8 @@ int main(void) {
     printf("[VM] Starting virtual device...\n");
 
     Local_Lib_Init();
-    extern void Bsp_Init(void); Bsp_Init();
+    extern void Bsp_Init(void);
+    Bsp_Init();
     Hal_Init();
     App_Init();
     Hal_Task_Def();
@@ -38,10 +43,9 @@ int main(void) {
     while (g_run) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT || (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE))
-                g_run = 0;
+            if (e.type == SDL_QUIT || (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)) g_run = 0;
         }
-        Vm_Input_Poll();           // snapshot keyboard → shared struct (main thread only)
+        Vm_Input_Poll();  // snapshot keyboard → shared struct (main thread only)
         Vm_Display_Render();
         SDL_Delay(5);
     }

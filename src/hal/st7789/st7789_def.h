@@ -5,6 +5,7 @@
 #define ST7789_SWRESET      0x01
 #define ST7789_SLPIN        0x10
 #define ST7789_SLPOUT       0x11
+#define ST7789_INVOFF       0x20
 #define ST7789_INVON        0x21
 #define ST7789_DISPON       0x29
 #define ST7789_CASET        0x2A
