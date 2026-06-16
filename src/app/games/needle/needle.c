@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "bsp_time.h"
 #include "buzzer.h"
 #include "game_graphics.h"
 
@@ -16,12 +15,12 @@
 /* ── 圆盘参数 ── */
 #define DISK_CX       120
 #define DISK_CY       145
-#define DISK_R        30
 #define TIP_R         55
-#define NEEDLE_SIZE   4
+#define TIP_SIZE      4
+#define DISK_AREA_R   (TIP_R + TIP_SIZE + 2)  /* 整盘刷新区域半径 */
 #define FLY_SPEED     5
 #define MAX_NEEDLES   80
-#define COLLIDE_ANGLE 10    /* 碰撞角度阈值 (256 圆) */
+#define COLLIDE_ANGLE 10
 #define START_ANG_VEL 2
 #define LAUNCH_Y      298
 
@@ -30,10 +29,8 @@
 #define COLOR_WHITE   0xffffu
 #define COLOR_CYAN    0x07ffu
 #define COLOR_RED     0xf800u
-#define COLOR_YELLOW  0xffe0u
 #define COLOR_GRAY    0x8410u
 #define COLOR_DARK    0x4208u
-#define COLOR_MID     0x8410u
 #define COLOR_LIGHT   0xc618u
 
 /* ── sin 表 64 等分 0-90°，缩放 128 ── */
@@ -60,7 +57,6 @@ typedef enum { needle_state_ready, needle_state_flying, needle_state_over } Need
 static Game_hardware g_hardware;
 static Needle_state g_state;
 static uint8_t g_needle_angles[MAX_NEEDLES];  /* 针在圆盘上的固定角度 (0-255) */
-static uint8_t g_prev_angles[MAX_NEEDLES];    /* 上一帧针的屏幕绝对角度 */
 static uint8_t g_needle_count;
 static uint8_t g_disk_angle;
 static uint8_t g_ang_vel;
@@ -92,74 +88,71 @@ static void bar_fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, x, y, w, h, c);
 }
 
-/* ── 获取针尖屏幕坐标 ── */
+/* ── 针尖屏幕坐标 ── */
 
 static void pos_from_angle(uint8_t angle, int16_t* out_x, int16_t* out_y) {
     *out_x = (int16_t)(DISK_CX + (int32_t)needle_cos(angle) * TIP_R / 128);
     *out_y = (int16_t)(DISK_CY - (int32_t)needle_sin(angle) * TIP_R / 128);
 }
 
-/* ── atan2 近似：计算 (dx, dy) 的角度 (0-255) ── */
+/* ── atan2 近似（修正版，八象限线性插值） ── */
 
 static uint8_t atan2_approx(int32_t dx, int32_t dy) {
-    /* dy 向上为负（屏幕坐标系），需要翻转 */
     dy = -dy;
     if (dx == 0 && dy == 0) { return 0; }
 
     const int32_t adx = dx < 0 ? -dx : dx;
     const int32_t ady = dy < 0 ? -dy : dy;
     int32_t raw;
+    uint8_t base;
 
     if (adx > ady) {
-        raw = ady * 64 / adx;  /* 0..63 */
-        if (dx >= 0 && dy >= 0) { return (uint8_t)raw; }                  /* Q1 */
-        if (dx < 0 && dy >= 0) { return (uint8_t)(128 - raw); }           /* Q2 */
-        if (dx < 0 && dy < 0) { return (uint8_t)(128 + raw); }            /* Q3 */
-        return (uint8_t)(256 - raw);                                       /* Q4 */
+        /* 角度在八分区 0/3/4/7：靠近 x 轴，偏离 0-45° */
+        raw = ady * 32 / adx;  /* 0..32 */
+        if (raw > 31) { raw = 31; }
+        if (dx >= 0 && dy >= 0)       { base = 0; }              /* Q1 近 x 轴 */
+        else if (dx < 0 && dy >= 0)   { base = 96; raw = 31 - raw; } /* Q2 近 -x 轴 */
+        else if (dx < 0 && dy < 0)    { base = 128; }             /* Q3 近 -x 轴 */
+        else                           { base = 224; raw = 31 - raw; } /* Q4 近 x 轴 */
     } else {
-        raw = adx * 64 / ady;  /* 0..63 */
-        if (dx >= 0 && dy >= 0) { return (uint8_t)(64 - raw); }           /* Q1 */
-        if (dx < 0 && dy >= 0) { return (uint8_t)(64 + raw); }            /* Q2 */
-        if (dx < 0 && dy < 0) { return (uint8_t)(192 - raw); }            /* Q3 */
-        return (uint8_t)(192 + raw);                                       /* Q4 */
+        /* 角度在八分区 1/2/5/6：靠近 y 轴，偏离 45-90° */
+        raw = adx * 32 / ady;  /* 0..32 */
+        if (raw > 31) { raw = 31; }
+        if (dx >= 0 && dy >= 0)       { base = 32; raw = 31 - raw; } /* Q1 近 y 轴 */
+        else if (dx < 0 && dy >= 0)   { base = 64; }              /* Q2 近 y 轴 */
+        else if (dx < 0 && dy < 0)    { base = 160; raw = 31 - raw; } /* Q3 近 y 轴 */
+        else                           { base = 192; }             /* Q4 近 y 轴 */
     }
+    return (uint8_t)(base + raw);
 }
 
-/* ── 绘制圆盘（静态，不旋转） ── */
+/* ── 整盘刷新：填黑 → 画圆盘 → 画所有针尖 ── */
 
-static void draw_disk(void) {
+static void draw_disk_area(void) {
+    const int32_t area_x = DISK_CX - DISK_AREA_R;
+    const int32_t area_y = DISK_CY - DISK_AREA_R;
+    const int32_t area_s = DISK_AREA_R * 2;
+
+    /* 1. 填充黑色 */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, area_x, area_y, area_s, area_s, COLOR_BLACK);
+
+    /* 2. 画三层圆盘 */
     Game_Graphics_Fill_Rect(g_hardware.lcd, DISK_CX - 24, DISK_CY - 24, 48, 48, COLOR_DARK);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, DISK_CX - 18, DISK_CY - 18, 36, 36, COLOR_MID);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, DISK_CX - 18, DISK_CY - 18, 36, 36, COLOR_GRAY);
     Game_Graphics_Fill_Rect(g_hardware.lcd, DISK_CX - 10, DISK_CY - 10, 20, 20, COLOR_LIGHT);
     Game_Graphics_Fill_Rect(g_hardware.lcd, DISK_CX - 2, DISK_CY - 2, 4, 4, COLOR_WHITE);
-}
 
-/* ── 绘制/擦除针尖 ── */
-
-static void draw_tip_at_angle(uint8_t angle, uint16_t color) {
-    int16_t tx, ty;
-    pos_from_angle(angle, &tx, &ty);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, tx - NEEDLE_SIZE / 2, ty - NEEDLE_SIZE / 2,
-        NEEDLE_SIZE, NEEDLE_SIZE, color);
-}
-
-/* ── 绘制所有针（旋转后） ── */
-
-static void redraw_all_needles(void) {
-    uint8_t i;
-    /* 擦旧 */
-    for (i = 0; i < g_needle_count; i++) {
-        draw_tip_at_angle(g_prev_angles[i], COLOR_BLACK);
-    }
-    /* 画新 */
-    for (i = 0; i < g_needle_count; i++) {
+    /* 3. 画所有针尖 */
+    for (uint8_t i = 0; i < g_needle_count; i++) {
         const uint8_t abs_angle = (uint8_t)(g_needle_angles[i] + g_disk_angle);
-        g_prev_angles[i] = abs_angle;
-        draw_tip_at_angle(abs_angle, g_needle_colors[i % 7]);
+        int16_t tx, ty;
+        pos_from_angle(abs_angle, &tx, &ty);
+        Game_Graphics_Fill_Rect(g_hardware.lcd, tx - TIP_SIZE / 2, ty - TIP_SIZE / 2,
+            TIP_SIZE, TIP_SIZE, g_needle_colors[i % 7]);
     }
 }
 
-/* ── 画/擦飞行针 ── */
+/* ── 飞行针 ── */
 
 static void draw_fly_tip(uint16_t color) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, color);
@@ -181,8 +174,6 @@ static void draw_score(void) {
     bar_fill(SCREEN_WIDTH - 48, 2, 48, 8, COLOR_BLACK);
     Game_Graphics_Draw_U32(g_hardware.lcd, SCREEN_WIDTH - 48, 2, g_score, 5, 1, COLOR_CYAN);
 }
-
-/* ── 刷新底栏提示 ── */
 
 static void draw_bottom_text(const char* s, uint16_t color) {
     bar_fill(0, LAUNCH_Y, SCREEN_WIDTH, SCREEN_HEIGHT - LAUNCH_Y, COLOR_BLACK);
@@ -206,14 +197,10 @@ static void restart_game(void) {
     g_needle_angles[2] = 128;
     g_needle_angles[3] = 192;
     g_needle_count = 4;
-    for (uint8_t i = 0; i < g_needle_count; i++) {
-        g_prev_angles[i] = g_needle_angles[i];
-    }
 
     Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
     draw_bars();
-    draw_disk();
-    redraw_all_needles();
+    draw_disk_area();
     draw_score();
     draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
 
@@ -232,24 +219,17 @@ void Needle_Init(const Game_hardware* hardware) {
 
 static void launch_needle(void) {
     const int32_t dx = DISK_CX - g_launch_x;
-    const int32_t dy = DISK_CY - LAUNCH_Y;  /* 负值：向上 */
-    /* 缩放方向向量到 FLY_SPEED 长度 */
+    const int32_t dy = DISK_CY - LAUNCH_Y;
     if (dx == 0 && dy == 0) {
         g_fly_dx = 0;
-        g_fly_dy = FLY_SPEED;
-        g_fly_x = g_launch_x;
-        g_fly_y = LAUNCH_Y;
-        g_state = needle_state_flying;
-        return;
+        g_fly_dy = (int16_t)(-FLY_SPEED);
+    } else {
+        g_fly_dy = (int16_t)(-FLY_SPEED);
+        g_fly_dx = (int16_t)(dx * FLY_SPEED / (-dy));
     }
-    /* 用 dx, dy 的比例计算各分量（dy 主导，因为垂直距离大） */
-    g_fly_dy = -FLY_SPEED;
-    g_fly_dx = (int16_t)(dx * FLY_SPEED / (-dy));
     g_fly_x = g_launch_x;
     g_fly_y = LAUNCH_Y;
     g_state = needle_state_flying;
-
-    /* 清除底部提示 */
     draw_bottom_text("", COLOR_BLACK);
 }
 
@@ -259,11 +239,9 @@ Game_result Needle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    /* ══ 每帧：旋转圆盘 ══ */
+    /* ══ 每帧：旋转圆盘并刷新 ══ */
     g_disk_angle = (uint8_t)(g_disk_angle + g_ang_vel);
-    if (g_needle_count > 0) {
-        redraw_all_needles();
-    }
+    draw_disk_area();
 
     St7789* lcd = g_hardware.lcd;
     (void)lcd;
@@ -277,29 +255,27 @@ Game_result Needle_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    /* ── Flying：移动飞行针 + 碰撞检测 ── */
+    /* ── Flying ── */
     if (g_state == needle_state_flying) {
-        /* 擦旧 */
+        /* 擦旧飞行针（在圆盘区域外） */
         draw_fly_tip(COLOR_BLACK);
 
         /* 移动 */
         g_fly_x += g_fly_dx;
         g_fly_y += g_fly_dy;
 
-        /* 画新 */
+        /* 画新飞行针 */
         draw_fly_tip(COLOR_WHITE);
 
-        /* 检查是否到达圆盘附近 */
+        /* 到达圆盘附近 → 碰撞检测 */
         const int32_t dx = g_fly_x - DISK_CX;
         const int32_t dy = g_fly_y - DISK_CY;
         const int32_t dist2 = dx * dx + dy * dy;
 
         if (dist2 <= (TIP_R + 6) * (TIP_R + 6)) {
-            /* 计算飞行针接近圆心的角度 */
             const uint8_t fly_angle = atan2_approx(dx, dy);
-
-            /* 碰撞检测 */
             uint8_t collision = 0;
+
             for (uint8_t i = 0; i < g_needle_count; i++) {
                 const uint8_t needle_abs = (uint8_t)(g_needle_angles[i] + g_disk_angle);
                 int16_t diff = (int16_t)fly_angle - (int16_t)needle_abs;
@@ -314,14 +290,15 @@ Game_result Needle_Update(const Game_input* input) {
                 Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
                 draw_bottom_text("GAME OVER  PUSH RESTART", COLOR_RED);
             } else {
-                /* 成功插入 */
                 g_needle_angles[g_needle_count] = (uint8_t)((fly_angle - g_disk_angle) & 0xFFu);
-                g_prev_angles[g_needle_count] = fly_angle;
                 g_needle_count++;
                 g_score++;
                 draw_score();
 
                 if ((g_score % 5) == 0 && g_ang_vel < 8) { g_ang_vel++; }
+
+                /* 立即刷新圆盘区域以显示新针 */
+                draw_disk_area();
 
                 g_state = needle_state_ready;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_select);
@@ -331,19 +308,14 @@ Game_result Needle_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    /* ── Ready：输入处理 ── */
+    /* ── Ready ── */
     if (g_state == needle_state_ready) {
-        /* 摇杆左右摆动发射位置 */
         if (input->direction == game_direction_left && g_launch_x > 30) {
             g_launch_x -= 4;
-            draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
         } else if (input->direction == game_direction_right && g_launch_x < 210) {
             g_launch_x += 4;
-            draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
         }
-
         if (input->confirm_pressed) {
-            draw_bottom_text("", COLOR_BLACK);
             launch_needle();
         }
     }
