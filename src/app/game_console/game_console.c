@@ -478,10 +478,8 @@ static void render_menu(void) {
 }
 
 static void enter_menu(void) {
-    Buzzer_Stop(g_buzzer);
     g_console_state = console_state_menu;
     render_menu();
-    Buzzer_Play_Music(g_buzzer, music_idx_menu_theme, 1);
 }
 
 static void redraw_cell(uint8_t game_index, uint8_t selected) {
@@ -687,7 +685,6 @@ static void console_init(void) {
 
     Score_Store_Init(game_id_count);
     render_menu();
-    Buzzer_Play_Music(g_buzzer, music_idx_menu_theme, 1);
 }
 
 static void console_task(void* arg) {

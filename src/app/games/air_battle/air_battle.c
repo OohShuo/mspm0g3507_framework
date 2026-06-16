@@ -485,9 +485,7 @@ static void spawn_pickup(int16_t x, int16_t y) {
 
 static void finish_game(Air_state state) {
     if (g_state != air_state_playing) { return; }
-    g_state = state;
-    Image_Asset_Close(&g_external_background);
-    Buzzer_Play_Music(g_hardware.buzzer, state == air_state_win ? music_idx_victory : music_idx_defeat, 0);
+    Buzzer_Play_Sfx(g_hardware.buzzer, state == air_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
     Game_Graphics_Fill_Rect(g_hardware.lcd, 31, 133, 178, 70, COLOR_BLUE_DARK);
     Game_Graphics_Fill_Rect(g_hardware.lcd, 35, 137, 170, 62, COLOR_BLACK);
     Game_Graphics_Draw_Text(g_hardware.lcd, state == air_state_win ? 42 : 37, 148,
@@ -777,7 +775,6 @@ static void restart_game(void) {
     g_last_spawn = now - ENEMY_SPAWN_MS;
     g_fire_step_count = 0;
     render_full();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_air_theme, 1);
 }
 
 void Air_Battle_Init(const Game_hardware* hardware) {
@@ -795,7 +792,6 @@ Game_result Air_Battle_Update(const Game_input* input) {
     }
     if (g_state != air_state_playing) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;

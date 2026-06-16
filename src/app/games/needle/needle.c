@@ -253,7 +253,6 @@ static void restart_game(void) {
     draw_aim_guide();
     draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
 
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_racing_theme, 1);
 }
 
 /* ── Init ── */
@@ -279,6 +278,7 @@ static void launch_needle(void) {
     g_fly_x = g_launch_x;
     g_fly_y = LAUNCH_Y;
     g_state = needle_state_flying;
+    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_needle_launch);
     draw_bottom_text("", COLOR_BLACK);
 }
 
@@ -299,7 +299,6 @@ Game_result Needle_Update(const Game_input* input) {
     /* ── Game Over ── */
     if (g_state == needle_state_over) {
         if (input->direction_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -342,7 +341,7 @@ Game_result Needle_Update(const Game_input* input) {
                 Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
                 g_state = needle_state_over;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-                Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
                 draw_bottom_text("GAME OVER  PUSH RESTART", COLOR_RED);
             } else {
                 /* 擦除最后一帧的白色方块，修复残留 */
@@ -365,7 +364,7 @@ Game_result Needle_Update(const Game_input* input) {
                 }
 
                 g_state = needle_state_ready;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_select);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_needle_stick);
                 draw_aim_guide();
                 draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
             }

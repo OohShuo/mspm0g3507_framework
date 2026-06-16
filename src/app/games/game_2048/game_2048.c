@@ -270,7 +270,6 @@ static void restart_game(void) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
     render_board();
     render_hud();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_snake_theme, 1);
 }
 
 void Game_2048_Init(const Game_hardware* hardware) {
@@ -285,7 +284,6 @@ Game_result Game_2048_Update(const Game_input* input) {
 
     if (g_state == state_over) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -309,7 +307,7 @@ Game_result Game_2048_Update(const Game_input* input) {
             spawn_tile();
             force_render();
             render_hud();
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_slide);
 
             if (has_2048() && g_state == state_playing) {
                 g_state = state_win;
@@ -317,7 +315,7 @@ Game_result Game_2048_Update(const Game_input* input) {
             }
             if (!can_move()) {
                 g_state = state_over;
-                Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
                 render_hud();
             }
         }

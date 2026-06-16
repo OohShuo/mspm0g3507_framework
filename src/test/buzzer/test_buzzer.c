@@ -12,7 +12,7 @@ static void buzzer_task(void* arg) {
     const Buzzer_config cfg = {.pwm_idx = PWM_BUZZER_IDX};
     g_buzzer = Buzzer_Create(&cfg);
     while (1) {
-        Buzzer_Play_Music(g_buzzer, music_idx_menu_theme, 0);
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_victory);
 
         vTaskDelay(pdMS_TO_TICKS(10000));
     }

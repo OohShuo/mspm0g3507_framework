@@ -147,7 +147,7 @@ static void clear_lines(void) {
         g_score += (uint32_t)scores[cleared] * (g_level + 1);
         g_lines = (uint16_t)(g_lines + cleared);
         g_level = g_lines / 10u;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_explosion);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tetris_line_clear);
     }
 }
 
@@ -294,7 +294,6 @@ static void restart_game(void) {
     g_next.rotation = 0;
     new_piece();
     render_full();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_snake_theme, 1);
 }
 
 static uint32_t drop_interval(void) {
@@ -314,7 +313,6 @@ Game_result Tetris_Update(const Game_input* input) {
 
     if (g_state != tetris_state_playing) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -413,7 +411,7 @@ Game_result Tetris_Update(const Game_input* input) {
             g_piece.y = (int8_t)(g_piece.y + best_ky);
             draw_ghost();
             render_piece(&g_piece, -1);
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tetris_rotate);  /* rotate */
         }
     }
 
@@ -432,7 +430,7 @@ Game_result Tetris_Update(const Game_input* input) {
         /* Lock piece */
         if (g_piece.y < 0) {
             g_state = tetris_state_over;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
             render_hud();
             return game_result_running;
         }
@@ -450,7 +448,7 @@ Game_result Tetris_Update(const Game_input* input) {
         /* Check if new piece immediately collides */
         if (collides(g_piece.x, g_piece.y, g_piece.kind, g_piece.rotation)) {
             g_state = tetris_state_over;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
             render_hud();
         }
     }

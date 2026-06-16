@@ -14,16 +14,13 @@ typedef struct {
     const Music* sequence;
     uint16_t note_index;
     uint32_t note_started_at;
-    uint32_t resume_elapsed_ms;
     uint8_t active;
-    uint8_t looping;
     uint8_t note_started;
     uint8_t note_silenced;
 } Buzzer_track;
 
 struct Buzzer_t {
     Buzzer_config config;
-    Buzzer_track music;
     Buzzer_track sfx;
     uint16_t output_frequency;
     uint8_t output_active;
@@ -31,22 +28,51 @@ struct Buzzer_t {
 };
 
 static Vector* buzzer_instances = NULL;
+
 static const uint8_t sfx_priorities[buzzer_sfx_count] = {
-    [buzzer_sfx_menu_move] = 1,
-    [buzzer_sfx_menu_select] = 2,
-    [buzzer_sfx_pellet] = 1,
-    [buzzer_sfx_power] = 3,
-    [buzzer_sfx_ghost] = 3,
-    [buzzer_sfx_snake_eat] = 1,
-    [buzzer_sfx_lane_change] = 1,
-    [buzzer_sfx_overtake] = 1,
-    [buzzer_sfx_tank_fire] = 1,
-    [buzzer_sfx_tank_hit] = 2,
-    [buzzer_sfx_air_fire] = 1,
-    [buzzer_sfx_air_pickup] = 2,
-    [buzzer_sfx_boss_alert] = 4,
-    [buzzer_sfx_explosion] = 3,
-    [buzzer_sfx_life_lost] = 4,
+    [buzzer_sfx_menu_move]        = 1,
+    [buzzer_sfx_menu_select]      = 2,
+    [buzzer_sfx_pellet]           = 1,
+    [buzzer_sfx_power]            = 3,
+    [buzzer_sfx_ghost]            = 3,
+    [buzzer_sfx_pacman_waka]      = 1,
+    [buzzer_sfx_snake_eat]        = 1,
+    [buzzer_sfx_snake_turn]       = 1,
+    [buzzer_sfx_snake_grow]       = 2,
+    [buzzer_sfx_lane_change]      = 1,
+    [buzzer_sfx_overtake]         = 1,
+    [buzzer_sfx_racing_crash]     = 4,
+    [buzzer_sfx_tank_fire]        = 1,
+    [buzzer_sfx_tank_hit]         = 2,
+    [buzzer_sfx_air_fire]         = 1,
+    [buzzer_sfx_air_hit]          = 2,
+    [buzzer_sfx_air_pickup]       = 2,
+    [buzzer_sfx_boss_alert]       = 5,
+    [buzzer_sfx_tetris_move]      = 1,
+    [buzzer_sfx_tetris_rotate]    = 1,
+    [buzzer_sfx_tetris_lock]      = 2,
+    [buzzer_sfx_tetris_line_clear]= 3,
+    [buzzer_sfx_tetris_tetris]    = 4,
+    [buzzer_sfx_breakout_bounce]  = 1,
+    [buzzer_sfx_breakout_brick]   = 2,
+    [buzzer_sfx_pong_paddle]      = 1,
+    [buzzer_sfx_pong_wall]        = 1,
+    [buzzer_sfx_pong_score]       = 3,
+    [buzzer_sfx_gomoku_place]     = 2,
+    [buzzer_sfx_slide]            = 1,
+    [buzzer_sfx_merge]            = 2,
+    [buzzer_sfx_dino_jump]        = 1,
+    [buzzer_sfx_dino_duck]        = 1,
+    [buzzer_sfx_flappy_flap]      = 1,
+    [buzzer_sfx_flappy_score]     = 2,
+    [buzzer_sfx_maze_move]        = 1,
+    [buzzer_sfx_maze_goal]        = 3,
+    [buzzer_sfx_needle_launch]    = 2,
+    [buzzer_sfx_needle_stick]     = 2,
+    [buzzer_sfx_explosion]        = 3,
+    [buzzer_sfx_life_lost]        = 5,
+    [buzzer_sfx_victory]          = 5,
+    [buzzer_sfx_defeat]           = 5,
 };
 
 static void silence(Buzzer* obj) {
@@ -71,13 +97,11 @@ static void output_frequency(Buzzer* obj, uint16_t frequency_hz, uint8_t volume_
     obj->output_frequency = frequency_hz;
 }
 
-static void reset_track(Buzzer_track* track, const Music* sequence, uint8_t looping) {
+static void reset_track(Buzzer_track* track, const Music* sequence) {
     track->sequence = sequence;
     track->note_index = 0;
     track->note_started_at = 0;
-    track->resume_elapsed_ms = 0;
     track->active = sequence != NULL && sequence->notes != NULL && sequence->length > 0;
-    track->looping = looping;
     track->note_started = 0;
     track->note_silenced = 0;
 }
@@ -86,22 +110,14 @@ static uint8_t advance_track(Buzzer_track* track) {
     track->note_index++;
     track->note_started = 0;
     track->note_silenced = 0;
-    track->resume_elapsed_ms = 0;
     if (track->note_index < track->sequence->length) { return 1; }
-    if (track->looping) {
-        track->note_index = 0;
-        return 1;
-    }
     track->active = 0;
     return 0;
 }
 
 static uint16_t next_frequency(const Buzzer_track* track) {
     uint16_t next_index = (uint16_t)(track->note_index + 1u);
-    if (next_index >= track->sequence->length) {
-        if (!track->looping) { return 0; }
-        next_index = 0;
-    }
+    if (next_index >= track->sequence->length) { return 0; }
     return track->sequence->notes[next_index].frequency_hz;
 }
 
@@ -111,8 +127,7 @@ static uint8_t update_track(Buzzer* obj, Buzzer_track* track, uint32_t now) {
     const Buzzer_note* note = &track->sequence->notes[track->note_index];
     if (!track->note_started) {
         track->note_started = 1;
-        track->note_started_at = now - track->resume_elapsed_ms;
-        track->resume_elapsed_ms = 0;
+        track->note_started_at = now;
         track->note_silenced = 0;
         output_frequency(obj, note->frequency_hz, note->volume_percent);
     }
@@ -160,15 +175,8 @@ Buzzer* Buzzer_Create(const Buzzer_config* config) {
 
     memset(obj, 0, sizeof(*obj));
     obj->config = *config;
-    Vector_Push_Back(buzzer_instances, &obj);
+    Vector_Push_Back(buzzer_instances, (void*)&obj);
     return obj;
-}
-
-void Buzzer_Play_Music(Buzzer* obj, Music_idx music, uint8_t is_loop) {
-    if (obj == NULL || music >= music_idx_count) { return; }
-    taskENTER_CRITICAL();
-    reset_track(&obj->music, &music_library[music], is_loop);
-    taskEXIT_CRITICAL();
 }
 
 void Buzzer_Play_Sfx(Buzzer* obj, Buzzer_sfx_idx sfx) {
@@ -179,26 +187,22 @@ void Buzzer_Play_Sfx(Buzzer* obj, Buzzer_sfx_idx sfx) {
         taskEXIT_CRITICAL();
         return;
     }
-    if (obj->music.note_started) {
-        obj->music.resume_elapsed_ms = Bsp_Get_Tick_Ms() - obj->music.note_started_at;
-        obj->music.note_started = 0;
-    }
-    reset_track(&obj->sfx, &buzzer_sfx_library[sfx], 0);
+    reset_track(&obj->sfx, &buzzer_sfx_library[sfx]);
     obj->sfx_priority = priority;
     taskEXIT_CRITICAL();
 }
 
-void Buzzer_Play(Buzzer* obj, const Music* music, uint8_t is_loop) {
+void Buzzer_Play(Buzzer* obj, const Music* music) {
     if (obj == NULL) { return; }
     taskENTER_CRITICAL();
-    reset_track(&obj->music, music, is_loop);
+    reset_track(&obj->sfx, music);
+    obj->sfx_priority = 0;
     taskEXIT_CRITICAL();
 }
 
 void Buzzer_Stop(Buzzer* obj) {
     if (obj == NULL) { return; }
     taskENTER_CRITICAL();
-    memset(&obj->music, 0, sizeof(obj->music));
     memset(&obj->sfx, 0, sizeof(obj->sfx));
     obj->sfx_priority = 0;
     silence(obj);
@@ -218,11 +222,7 @@ void Buzzer_Update_All(void) {
             if (update_track(obj, &obj->sfx, now)) { continue; }
             obj->sfx_priority = 0;
         }
-        if (obj->music.active) {
-            (void)update_track(obj, &obj->music, now);
-        } else {
-            silence(obj);
-        }
+        silence(obj);
     }
     taskEXIT_CRITICAL();
 }

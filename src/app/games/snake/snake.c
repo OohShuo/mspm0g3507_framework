@@ -168,7 +168,6 @@ static void restart_game(void) {
     place_food();
     g_last_move = Bsp_Get_Tick_Ms();
     render_full();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_snake_theme, 1);
 }
 
 static uint32_t move_interval(void) {
@@ -178,10 +177,7 @@ static uint32_t move_interval(void) {
 
 static void end_game(Snake_state state) {
     g_state = state;
-    if (g_hardware.buzzer != NULL) {
-        Buzzer_Play_Music(
-            g_hardware.buzzer, state == snake_state_win ? music_idx_victory : music_idx_defeat, 0);
-    }
+    Buzzer_Play_Sfx(g_hardware.buzzer, state == snake_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
     render_hud();
 }
 
@@ -205,6 +201,7 @@ static void move_snake(void) {
     if (ate_food) {
         g_score += 10u;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_snake_eat);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_snake_grow);
         if (g_length >= MAX_SNAKE) {
             end_game(snake_state_win);
             return;
@@ -232,7 +229,6 @@ Game_result Snake_Update(const Game_input* input) {
 
     if (g_state != snake_state_playing) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -241,6 +237,7 @@ Game_result Snake_Update(const Game_input* input) {
     if (input->direction_pressed && input->direction != game_direction_none &&
         !directions_are_opposite(input->direction, g_direction)) {
         g_wanted_direction = input->direction;
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_snake_turn);
     }
 
     const uint32_t now = Bsp_Get_Tick_Ms();

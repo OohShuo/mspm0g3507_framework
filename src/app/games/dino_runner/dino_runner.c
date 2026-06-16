@@ -322,7 +322,6 @@ Game_result Dino_Runner_Update(const Game_input* input) {
 
     if (g_state == dino_state_over) {
         if (input->direction_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -331,7 +330,6 @@ Game_result Dino_Runner_Update(const Game_input* input) {
     if (g_state == dino_state_ready) {
         if (input->direction == game_direction_up) {
             g_state = dino_state_running;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_racing_theme, 1);
             play_fill(20, 130, SCREEN_WIDTH - 40, 20, COLOR_BLACK);
             update_score();
         }
@@ -346,7 +344,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
             g_dino_in_air = 1;
             g_jump_held = 1;
             g_gravity_acc = 0;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_select);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_dino_jump);
         }
         if (!up || g_dino_vy >= 0) { g_jump_held = 0; }
         g_up_prev = up;
@@ -386,7 +384,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
     if (check_collision()) {
         g_state = dino_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-        Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
         draw_dino(g_dino_y, COLOR_RED);
         update_score();
         play_fill(50, 148, 140, 9, COLOR_BLACK);
