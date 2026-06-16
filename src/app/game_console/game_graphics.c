@@ -71,6 +71,7 @@ static const uint8_t g_glyph_dot[5] = {0x00, 0x00, 0x40, 0x00, 0x00};        /* 
 static const uint8_t g_glyph_colon[5] = {0x00, 0x00, 0x44, 0x00, 0x00};      /* : */
 static const uint8_t g_glyph_comma[5] = {0x00, 0x40, 0x30, 0x00, 0x00};      /* , */
 static const uint8_t g_glyph_underscore[5] = {0x40, 0x40, 0x40, 0x40, 0x40}; /* _ */
+static const uint8_t g_glyph_caret[5] = {0x04, 0x02, 0x01, 0x02, 0x04};      /* ^ */
 
 static const uint8_t g_digits[][5] = {
     {0x3e, 0x51, 0x49, 0x45, 0x3e},
@@ -104,6 +105,8 @@ static const uint8_t* glyph_for(char character) {
             return g_glyph_comma;
         case '_':
             return g_glyph_underscore;
+        case '^':
+            return g_glyph_caret;
         default:
             return NULL;
     }
