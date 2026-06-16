@@ -477,9 +477,7 @@ Game_result Maze_Update(const Game_input* input) {
 
     /* ── Game Over ── */
     if (g_state == maze_state_over) {
-        if (input->direction_pressed) {
-            restart_game();
-        }
+        if (input->direction_pressed) { restart_game(); }
         return game_result_running;
     }
 

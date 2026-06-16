@@ -252,7 +252,6 @@ static void restart_game(void) {
     draw_score();
     draw_aim_guide();
     draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
-
 }
 
 /* ── Init ── */
@@ -298,9 +297,7 @@ Game_result Needle_Update(const Game_input* input) {
 
     /* ── Game Over ── */
     if (g_state == needle_state_over) {
-        if (input->direction_pressed) {
-            restart_game();
-        }
+        if (input->direction_pressed) { restart_game(); }
         return game_result_running;
     }
 

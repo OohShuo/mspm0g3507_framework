@@ -791,9 +791,7 @@ Game_result Air_Battle_Update(const Game_input* input) {
         return game_result_exit;
     }
     if (g_state != air_state_playing) {
-        if (input->confirm_pressed) {
-            restart_game();
-        }
+        if (input->confirm_pressed) { restart_game(); }
         return game_result_running;
     }
 

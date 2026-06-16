@@ -321,9 +321,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
     St7789* lcd = g_hardware.lcd;
 
     if (g_state == dino_state_over) {
-        if (input->direction_pressed) {
-            restart_game();
-        }
+        if (input->direction_pressed) { restart_game(); }
         return game_result_running;
     }
 

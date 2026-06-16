@@ -312,9 +312,7 @@ Game_result Tetris_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state != tetris_state_playing) {
-        if (input->confirm_pressed) {
-            restart_game();
-        }
+        if (input->confirm_pressed) { restart_game(); }
         return game_result_running;
     }
 
@@ -411,7 +409,7 @@ Game_result Tetris_Update(const Game_input* input) {
             g_piece.y = (int8_t)(g_piece.y + best_ky);
             draw_ghost();
             render_piece(&g_piece, -1);
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tetris_rotate);  /* rotate */
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tetris_rotate); /* rotate */
         }
     }
 
