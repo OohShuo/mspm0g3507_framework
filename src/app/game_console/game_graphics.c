@@ -176,3 +176,54 @@ void Game_Graphics_Draw_Bitmap(
     }
     St7789_End_Write(lcd);
 }
+
+/* ── 4-bit grayscale (16 levels) → RGB565 lookup ── */
+static const uint16_t g_gray4_lut[16] = {
+    0x0000u, /*  0 — black */
+    0x1082u, /*  1 */
+    0x2104u, /*  2 */
+    0x31a6u, /*  3 */
+    0x4228u, /*  4 */
+    0x52aau, /*  5 */
+    0x632cu, /*  6 */
+    0x73aeu, /*  7 */
+    0x8c51u, /*  8 */
+    0x9cd3u, /*  9 */
+    0xad55u, /* 10 */
+    0xbdd7u, /* 11 */
+    0xce59u, /* 12 */
+    0xdefbu, /* 13 */
+    0xef7du, /* 14 */
+    0xffffu, /* 15 — white */
+};
+
+void Game_Graphics_Draw_Gray4_Bitmap(
+    St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t* data) {
+    if (lcd == NULL || data == NULL || w <= 0 || h <= 0) { return; }
+    if (w > SCREEN_WIDTH) { return; }
+
+    St7789_Begin_Write(lcd, x, y, x + w - 1, y + h - 1);
+
+    const int32_t row_bytes = (w + 1) / 2; /* 2 pixels per byte, round up */
+
+    for (int32_t row = 0; row < h; row++) {
+        const uint8_t* src = data + (int32_t)row * row_bytes;
+        uint16_t* dst = g_line_buffer;
+        int32_t remaining = w;
+
+        while (remaining >= 2) {
+            const uint8_t byte = *src++;
+            *dst++ = g_gray4_lut[byte >> 4];    /* high nibble → first pixel */
+            *dst++ = g_gray4_lut[byte & 0x0Fu]; /* low nibble  → second pixel */
+            remaining -= 2;
+        }
+        if (remaining > 0) {
+            /* Odd-width image: last byte has only one valid pixel (high nibble) */
+            *dst++ = g_gray4_lut[*src >> 4];
+        }
+
+        St7789_Write_Pixels(lcd, (uint8_t*)g_line_buffer, (uint32_t)w * sizeof(uint16_t));
+    }
+
+    St7789_End_Write(lcd);
+}
