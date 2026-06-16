@@ -3,7 +3,8 @@
 #include <string.h>
 
 #include "game_graphics.h"
-#include "info_image.h"
+#include "info_image_hitsz.h"
+#include "info_image_mizuno_25.h"
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -48,24 +49,20 @@ static void draw_page_indicator(void) {
     Game_Graphics_Fill_Rect(g_lcd, 10, bar_y + 18, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 }
 
-/* ── Page 1: development info + HITSZ logo ── */
+/* ── Page 1: development info + HITSZ 100x100 logo ── */
 static void render_page1(void) {
     /* Top status bar */
     Game_Graphics_Draw_Text(g_lcd, 10, 5, "INFO", 1, COLOR_CYAN);
     Game_Graphics_Fill_Rect(g_lcd, 10, 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 
     /* Credits */
-    Game_Graphics_Draw_Text(g_lcd, 48, 48, "Designed by:", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 48, 38, "Designed by:", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 96, 64, "Shuo", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 90, "MorrowHome", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 78, 116, "Polaris", 2, COLOR_WHITE);
 
-    Game_Graphics_Draw_Text(g_lcd, 96, 78, "Shuo", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 60, 108, "MorrowHome", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 78, 138, "Polaris", 2, COLOR_WHITE);
-
-    /* HITSZ — blue, scale=3, left side */
-    Game_Graphics_Draw_Text(g_lcd, 24, 210, "HITSZ", 3, COLOR_WHITE);
-
-    /* 50x50 logo image — right side */
-    Game_Graphics_Draw_Bitmap(g_lcd, 156, 200, INFO_IMAGE_W, INFO_IMAGE_H, info_image_data);
+    /* 100x100 HITSZ logo — centered */
+    Game_Graphics_Draw_Bitmap(g_lcd, 70, 148, INFO_IMAGE_HITSZ_W, INFO_IMAGE_HITSZ_H, info_image_hitsz_data);
 
     /* Page indicator */
     draw_page_indicator();
@@ -82,13 +79,19 @@ static void render_page2(void) {
 
     /* Intro text */
     Game_Graphics_Draw_Text(g_lcd, 78, 40, "For more", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 60, 60, "information,", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 78, 80, "refer to:", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 60, "information", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 110, 80, "and", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 100, "source code,", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 78, 120, "refer to:", 2, COLOR_WHITE);
 
-    /* URL lines — scale=1, centered */
-    Game_Graphics_Draw_Text(g_lcd, 22, 172 - 40, "github.com/OohShu", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 22, 199 - 40, "o/mspm0g3507_fram", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 22, 220 - 40, "ework.git", 2, COLOR_WHITE);
+    /* URL lines */
+    Game_Graphics_Draw_Text(g_lcd, 22, 179, "github.com/OohShu", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 204, "o/mspm0g3507_fram", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 225, "ework.git", 2, COLOR_WHITE);
+
+    /* 25x25 MizunoAkane — bottom-right corner */
+    Game_Graphics_Draw_Bitmap(
+        g_lcd, 106, 145, INFO_IMAGE_MIZUNO_25_W, INFO_IMAGE_MIZUNO_25_H, info_image_mizuno_25_data);
 
     /* Page indicator */
     draw_page_indicator();
