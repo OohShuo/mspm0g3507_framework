@@ -231,6 +231,25 @@ static void generate_maze(void) {
         g_stack_top++;
     }
 
+    /* 强制终点 2×2 区域联通，防止全收集必经之路被堵 */
+    {
+        const uint8_t r1 = MAZE_ROWS - 2, r2 = MAZE_ROWS - 1;
+        const uint8_t c1 = MAZE_COLS - 2, c2 = MAZE_COLS - 1;
+
+        /* 上排水平 */
+        g_maze[r1][c1] &= (uint8_t)(~WALL_E);
+        g_maze[r1][c2] &= (uint8_t)(~WALL_W);
+        /* 下排水平 */
+        g_maze[r2][c1] &= (uint8_t)(~WALL_E);
+        g_maze[r2][c2] &= (uint8_t)(~WALL_W);
+        /* 左列垂直 */
+        g_maze[r1][c1] &= (uint8_t)(~WALL_S);
+        g_maze[r2][c1] &= (uint8_t)(~WALL_N);
+        /* 右列垂直 */
+        g_maze[r1][c2] &= (uint8_t)(~WALL_S);
+        g_maze[r2][c2] &= (uint8_t)(~WALL_N);
+    }
+
     for (r = 0; r < MAZE_ROWS; r++) {
         for (c = 0; c < MAZE_COLS; c++) { g_maze[r][c] &= (uint8_t)(~CELL_VISITED); }
     }
