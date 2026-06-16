@@ -62,10 +62,12 @@ static void lfs_init(void) {
     }
     record("W25Q32 init", 0);
 
+    #if FRAMEWORK_USE_RTT
     extern char __heap_start__[];  // NOLINT (readability-identifier-naming)
     extern char __HeapLimit[];     // NOLINT (readability-identifier-naming)
     printf("       newlib heap: %p..%p (%u B)\n", (void*)__heap_start__, (void*)__HeapLimit,
         (unsigned)((char*)__HeapLimit - (char*)__heap_start__));
+    #endif
 
     const Lfs_port_config lfs_cfg = {
         .flash = g_flash,

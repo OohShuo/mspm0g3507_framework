@@ -30,6 +30,7 @@
 #define COLOR_BLUE         0x0010u
 #define COLOR_YELLOW       0xffe0u
 #define COLOR_GREEN        0x07e0u
+#define COLOR_RED          0xf800u
 #define COLOR_DARK         0x0841u
 
 typedef enum {
@@ -136,6 +137,81 @@ static void draw_air_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 22, y - 3, 3, 7, COLOR_YELLOW);
 }
 
+static void draw_tetris_icon(int32_t x, int32_t y) {
+    static const uint16_t tetris_colors[] = {COLOR_CYAN, COLOR_YELLOW, 0x8010u, COLOR_GREEN};
+    /* Draw a T-tetromino */
+    Game_Graphics_Fill_Rect(g_lcd, x + 10, y + 8, 9, 9, tetris_colors[0]);
+    Game_Graphics_Fill_Rect(g_lcd, x + 19, y + 8, 9, 9, tetris_colors[1]);
+    Game_Graphics_Fill_Rect(g_lcd, x + 28, y + 8, 9, 9, tetris_colors[2]);
+    Game_Graphics_Fill_Rect(g_lcd, x + 19, y + 17, 9, 9, tetris_colors[3]);
+    /* Inner highlights */
+    Game_Graphics_Fill_Rect(g_lcd, x + 11, y + 9, 4, 4, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 9, 4, 4, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 29, y + 9, 4, 4, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 18, 4, 4, COLOR_WHITE);
+}
+
+static void draw_breakout_icon(int32_t x, int32_t y) {
+    /* Paddle */
+    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 30, 32, 6, COLOR_GREEN);
+    /* Ball */
+    Game_Graphics_Fill_Rect(g_lcd, x + 26, y + 24, 5, 5, COLOR_WHITE);
+    /* Bricks */
+    for (int32_t r = 0; r < 3; r++) {
+        const uint16_t color = r == 0 ? COLOR_RED : (r == 1 ? COLOR_YELLOW : COLOR_CYAN);
+        for (int32_t c = 0; c < 5; c++) {
+            Game_Graphics_Fill_Rect(g_lcd, x + 3 + c * 9, y + 2 + r * 6, 7, 4, color);
+        }
+    }
+}
+
+static void draw_pong_icon(int32_t x, int32_t y) {
+    /* Left paddle */
+    Game_Graphics_Fill_Rect(g_lcd, x + 3, y + 9, 4, 20, COLOR_GREEN);
+    /* Right paddle */
+    Game_Graphics_Fill_Rect(g_lcd, x + 41, y + 9, 4, 20, COLOR_RED);
+    /* Center line */
+    for (int32_t i = 0; i < 5; i++) {
+        Game_Graphics_Fill_Rect(g_lcd, x + 23, y + 4 + i * 6, 2, 3, COLOR_DARK);
+    }
+    /* Ball */
+    Game_Graphics_Fill_Rect(g_lcd, x + 17, y + 16, 5, 5, COLOR_WHITE);
+}
+
+static void draw_gomoku_icon(int32_t x, int32_t y) {
+    /* Mini board grid */
+    for (int32_t i = 0; i < 4; i++) {
+        Game_Graphics_Fill_Rect(g_lcd, x + 6 + i * 12, y + 4, 1, 36, COLOR_DARK);
+        Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 6 + i * 12, 36, 1, COLOR_DARK);
+    }
+    /* Black stone */
+    for (int32_t dy = -4; dy <= 4; dy++) {
+        for (int32_t dx = -4; dx <= 4; dx++) {
+            if (dx * dx + dy * dy > 16) { continue; }
+            Game_Graphics_Fill_Rect(g_lcd, x + 18 + dx, y + 16 + dy, 1, 1, COLOR_BLACK);
+        }
+    }
+    /* White stone */
+    for (int32_t dy = -4; dy <= 4; dy++) {
+        for (int32_t dx = -4; dx <= 4; dx++) {
+            if (dx * dx + dy * dy > 16) { continue; }
+            Game_Graphics_Fill_Rect(g_lcd, x + 30 + dx, y + 28 + dy, 1, 1, COLOR_WHITE);
+        }
+    }
+}
+
+static void draw_2048_icon(int32_t x, int32_t y) {
+    /* 4x4 mini grid */
+    for (int32_t r = 0; r < 4; r++) {
+        for (int32_t c = 0; c < 4; c++) {
+            Game_Graphics_Fill_Rect(g_lcd, x + 4 + c * 10, y + 6 + r * 10, 8, 8, COLOR_DARK);
+        }
+    }
+    /* "2048" tile highlight */
+    Game_Graphics_Fill_Rect(g_lcd, x + 24, y + 16, 8, 8, COLOR_YELLOW);
+    Game_Graphics_Draw_Text(g_lcd, x + 2, y + 7, "2", 1, COLOR_CYAN);
+}
+
 static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     const Game_descriptor* game = Game_Registry_Get(game_index);
     if (game == NULL) { return; }
@@ -158,6 +234,21 @@ static void draw_menu_card(int32_t y, uint8_t selected, uint8_t game_index) {
     } else if (game->icon == game_icon_tank) {
         draw_tank_icon(40, y + 9);
         Game_Graphics_Draw_Text(g_lcd, 112, y + 12, game->name, 2, COLOR_GREEN);
+    } else if (game->icon == game_icon_tetris) {
+        draw_tetris_icon(38, y + 14);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_CYAN);
+    } else if (game->icon == game_icon_breakout) {
+        draw_breakout_icon(38, y + 12);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_YELLOW);
+    } else if (game->icon == game_icon_pong) {
+        draw_pong_icon(38, y + 12);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_GREEN);
+    } else if (game->icon == game_icon_gomoku) {
+        draw_gomoku_icon(38, y + 8);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_CYAN);
+    } else if (game->icon == game_icon_2048) {
+        draw_2048_icon(38, y + 10);
+        Game_Graphics_Draw_Text(g_lcd, 105, y + 12, game->name, 2, COLOR_YELLOW);
     } else {
         draw_air_icon(39, y + 11);
         Game_Graphics_Draw_Text(g_lcd, 99, y + 12, game->name, 2, COLOR_CYAN);
@@ -347,6 +438,6 @@ static void console_task(void* arg) {
 }
 
 void Game_Console_Task_Def(void) {
-    const BaseType_t result = xTaskCreate(console_task, "Game", 768, NULL, 1, NULL);
+    const BaseType_t result = xTaskCreate(console_task, "Game", 1024, NULL, 1, NULL);
     configASSERT(result == pdPASS);
 }

@@ -1,8 +1,12 @@
 #pragma once
 
-#define LFS_LOG_ENABLE 1
+#include <stddef.h>
 
+#define LFS_LOG_ENABLE 0
+
+#if FRAMEWORK_USE_RTT
 #include "SEGGER_RTT.h"
+#endif
 
 // NOLINTBEGIN(readability-identifier-naming)
 

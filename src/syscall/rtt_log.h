@@ -29,7 +29,18 @@
 
 #pragma once
 
-#include "SEGGER_RTT.h"
+#if FRAMEWORK_USE_RTT
 
-/* RTT up-buffer 0 is the standard "terminal" channel. */
-#define printf(...) SEGGER_RTT_printf(0, __VA_ARGS__)
+    #include "SEGGER_RTT.h"
+
+    /* RTT up-buffer 0 is the standard "terminal" channel. */
+    #define printf(...) SEGGER_RTT_printf(0, __VA_ARGS__)
+
+#else
+
+    #include <stddef.h>
+
+    /* RTT disabled: drop all printf output. No stdio functions are called. */
+    #define printf(...) ((void)0)
+
+#endif

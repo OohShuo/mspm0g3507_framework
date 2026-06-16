@@ -1,5 +1,7 @@
 .vscode/
 build/
+build_vm/
+
 jdebug/
 tools/sysconfig/*
 *.run
@@ -14,3 +16,5 @@ CLAUDE.md
 graphify-out/
 
 __pycache__/
+
+.understand-anything/

@@ -24,13 +24,21 @@
 #include <errno.h>
 #include <stddef.h>
 
-#include "SEGGER_RTT.h"
+#if FRAMEWORK_USE_RTT
+    #include "SEGGER_RTT.h"
+#endif
 
 /* ------------------------------------------------------------------ */
 /* Public init                                                         */
 /* ------------------------------------------------------------------ */
 
-void Syscall_Init(void) { SEGGER_RTT_Init(); }
+void Syscall_Init(void) {
+#if FRAMEWORK_USE_RTT
+    SEGGER_RTT_Init();
+#else
+    (void)0;
+#endif
+}
 
 /* ------------------------------------------------------------------ */
 /* _sbrk — newlib heap, used by malloc / FreeRTOS heap_*.c             */
@@ -38,6 +46,8 @@ void Syscall_Init(void) { SEGGER_RTT_Init(); }
 /* Heap region is fixed by the linker script (see .heap in            */
 /* ti_device/.../mspm0g3507.lds): __heap_start__ .. __HeapLimit.      */
 /* ------------------------------------------------------------------ */
+
+// NOLINTBEGIN (readability-identifier-naming)
 
 extern char __heap_start__[]; /* start of heap region, post-bss */
 extern char __HeapLimit[];    /* first byte PAST legal heap */
@@ -56,3 +66,5 @@ void* _sbrk(ptrdiff_t incr) {
     heap_end = next;
     return prev;
 }
+
+// NOLINTEND (readability-identifier-naming)

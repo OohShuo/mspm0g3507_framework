@@ -316,8 +316,8 @@ static void end_game(Tank_state state) {
     if (g_state != tank_state_playing) { return; }
     g_state = state;
     if (g_hardware.buzzer != NULL) {
-        Buzzer_Play_Music(g_hardware.buzzer,
-            state == tank_state_win ? music_idx_victory : music_idx_defeat, 0);
+        Buzzer_Play_Music(
+            g_hardware.buzzer, state == tank_state_win ? music_idx_victory : music_idx_defeat, 0);
     }
     render_hud();
 }

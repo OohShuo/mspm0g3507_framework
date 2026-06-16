@@ -26,6 +26,9 @@
 | MISO (POCI) | GPIOB | PB14 | PINCM31 |
 | CS | GPIOA | PA2 | PINCM7 |
 
+当前固件在 BSP 初始化阶段把 SPI1 串行时钟分频值设为 1，对应约 20 MHz，
+用于 W25Q32 原始资源缓存和 LittleFS。LCD 仍使用下方独立的软件 SPI 引脚。
+
 ## Soft SPI（软件 SPI — LCD）
 
 | 信号 | 端口 | 引脚 |
