@@ -140,7 +140,7 @@
 /* LCD mounting orientation. X + Y mirror rotates the portrait panel by 180 degrees. */
 #define LCD_MIRROR_X                 1
 #define LCD_MIRROR_Y                 1
-#define LCD_COLOR_USE_BGR            1
+#define LCD_COLOR_USE_BGR            0
 
 /* spi */
 
