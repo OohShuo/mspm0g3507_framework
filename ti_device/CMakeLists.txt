@@ -34,8 +34,6 @@ set_source_files_properties(
     PROPERTIES COMPILE_FLAGS "-Wno-maybe-uninitialized"
 )
 
-# TI 库整体使用 -O0 编译，避免 MinSizeRel (-Os) 优化导致
-# 时钟初始化（SYSPLL 配置）时序异常，引发 HardFault / Lockup
 target_compile_options(ti PRIVATE -O2)
 
 target_compile_options(ti PUBLIC

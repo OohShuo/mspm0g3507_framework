@@ -12,6 +12,15 @@ set_source_files_properties(
     PROPERTIES COMPILE_FLAGS "-O2"
 )
 
+file(GLOB BSP_SPI_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/spi/soft/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/spi/hard/*.c"
+)
+set_source_files_properties(
+    ${BSP_SPI_SRC}
+    PROPERTIES COMPILE_FLAGS "-O3"
+)
+
 target_include_directories(bsp PUBLIC "${BSP_INC}" "${CFG_DIR}" "${SYSCFG_GEN_DIR}")
 
 target_link_libraries(bsp PRIVATE lib syscall)
