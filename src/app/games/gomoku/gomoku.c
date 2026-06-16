@@ -311,9 +311,7 @@ Game_result Gomoku_Update(const Game_input* input) {
             g_old_state = (uint8_t)g_state;
             render_status();
         }
-        if (input->confirm_pressed) {
-            restart_game();
-        }
+        if (input->confirm_pressed) { restart_game(); }
         return game_result_running;
     }
 
