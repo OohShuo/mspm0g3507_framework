@@ -23,7 +23,7 @@
 #define COLOR_GREEN    0x07e0u
 #define COLOR_GRAY     0x8410u
 #define COLOR_DARK     0x4208u
-#define COLOR_HILITE   0x0760u
+#define COLOR_HILITE   0xc618u /* 浅灰底 */
 
 /* ── SFX 名称，顺序必须与 Buzzer_sfx_idx 一致 ── */
 static const char* const g_sfx_names[] = {"menu move", "menu select", "pellet", "power", "ghost",
@@ -89,14 +89,12 @@ static void draw_list(void) {
 
         if (is_selected) {
             Game_Graphics_Fill_Rect(g_hardware.lcd, 4, y, SCREEN_WIDTH - 8, ROW_H - 1, COLOR_HILITE);
-            Game_Graphics_Fill_Rect(g_hardware.lcd, 4, y, 3, ROW_H - 1, COLOR_CYAN);
         }
 
         Game_Graphics_Draw_U32(g_hardware.lcd, 14, y + 2, (uint32_t)(sfx_index + 1), 2, 1,
             is_selected ? COLOR_WHITE : COLOR_GRAY);
 
-        Game_Graphics_Draw_Text(
-            g_hardware.lcd, 38, y + 2, g_sfx_names[sfx_index], 1, is_selected ? COLOR_GREEN : COLOR_WHITE);
+        Game_Graphics_Draw_Text(g_hardware.lcd, 38, y + 2, g_sfx_names[sfx_index], 1, COLOR_WHITE);
     }
 
     /* 每次都重绘底栏，确保不被列表刷掉 */
