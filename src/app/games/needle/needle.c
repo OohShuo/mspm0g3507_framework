@@ -142,19 +142,17 @@ static void draw_tip_at_angle(uint8_t angle, uint16_t color) {
         TIP_SIZE, TIP_SIZE, color);
 }
 
-/* ── 旋转刷新：擦旧位置 → 在新位置重绘每根针 ── */
+/* ── 旋转刷新：逐针原子擦旧绘新，避免批量擦绘的顺序污染 ── */
 
 static void rotate_needles(void) {
     uint8_t i;
 
-    /* 1. 擦除所有旧针尖 */
     for (i = 0; i < g_needle_count; i++) {
+        /* 先擦除这根针的旧位置 */
         draw_tip_at_angle(g_prev_angles[i], COLOR_BLACK);
-    }
 
-    /* 2. 在新位置绘制所有针尖 */
-    for (i = 0; i < g_needle_count; i++) {
-        const uint8_t abs_angle = (uint8_t)(g_needle_angles[i] + g_disk_angle);
+        /* 计算新绝对角度并立即绘制，不留间隙 */
+        const uint8_t abs_angle = g_needle_angles[i] + g_disk_angle;
         g_prev_angles[i] = abs_angle;
         draw_tip_at_angle(abs_angle, g_needle_colors[i % 7]);
     }
