@@ -225,6 +225,42 @@ static void draw_2048_icon(int32_t x, int32_t y) {
     Game_Graphics_Draw_Text(g_lcd, x + 2, y + 7, "2", 1, COLOR_CYAN);
 }
 
+static void draw_dino_icon(int32_t x, int32_t y) {
+    /* Ground line */
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 32, 44, 3, COLOR_DARK);
+    /* Back leg */
+    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 22, 4, 10, COLOR_GREEN);
+    /* Front leg */
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 22, 4, 10, COLOR_GREEN);
+    /* Body */
+    Game_Graphics_Fill_Rect(g_lcd, x + 10, y + 12, 16, 12, COLOR_GREEN);
+    /* Head */
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 4, 16, 12, COLOR_GREEN);
+    /* Eye */
+    Game_Graphics_Fill_Rect(g_lcd, x + 32, y + 6, 3, 3, COLOR_WHITE);
+    /* Tail */
+    Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 16, 8, 4, COLOR_GREEN);
+}
+
+static void draw_flappy_icon(int32_t x, int32_t y) {
+    /* Ground */
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 34, 44, 2, COLOR_DARK);
+    /* Bird body */
+    Game_Graphics_Fill_Rect(g_lcd, x + 14, y + 14, 10, 8, COLOR_YELLOW);
+    /* Beak */
+    Game_Graphics_Fill_Rect(g_lcd, x + 24, y + 16, 4, 2, COLOR_RED);
+    /* Eye */
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 14, 2, 2, COLOR_WHITE);
+    /* Wing */
+    Game_Graphics_Fill_Rect(g_lcd, x + 12, y + 16, 4, 3, COLOR_DARK);
+    /* Top pipe */
+    Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 2, 10, 10, COLOR_GREEN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 9, 14, 3, COLOR_GREEN);
+    /* Bottom pipe */
+    Game_Graphics_Fill_Rect(g_lcd, x + 34, y + 20, 10, 14, COLOR_GREEN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 32, y + 20, 14, 3, COLOR_GREEN);
+}
+
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
 static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
 
@@ -270,6 +306,10 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_gomoku_icon(cx + 14, cy + 6);
     } else if (game->icon == game_icon_2048) {
         draw_2048_icon(cx + 16, cy + 8);
+    } else if (game->icon == game_icon_dino) {
+        draw_dino_icon(cx + 10, cy + 5);
+    } else if (game->icon == game_icon_flappy) {
+        draw_flappy_icon(cx + 10, cy + 5);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }
