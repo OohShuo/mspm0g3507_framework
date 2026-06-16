@@ -7,6 +7,7 @@
 #include "dino_runner.h"
 #include "flappy_bird.h"
 #include "maze.h"
+#include "needle.h"
 #include "game_2048.h"
 #include "gomoku.h"
 #include "pacman.h"
@@ -133,6 +134,15 @@ static const Game_descriptor g_games[] = {
         .update = Maze_Update,
         .get_score = Maze_Get_Score,
         .is_finished = Maze_Is_Finished,
+    },
+    {
+        .name = "NEEDLE",
+        .icon = game_icon_needle,
+        .id = game_id_needle,
+        .init = Needle_Init,
+        .update = Needle_Update,
+        .get_score = Needle_Get_Score,
+        .is_finished = Needle_Is_Finished,
     },
 };
 
