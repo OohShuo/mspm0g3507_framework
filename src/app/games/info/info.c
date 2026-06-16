@@ -61,7 +61,8 @@ static void render_page1(void) {
     Game_Graphics_Draw_Text(g_lcd, 78, 116, "Polaris", 2, COLOR_WHITE);
 
     /* 100x100 HITSZ logo — centered */
-    Game_Graphics_Draw_Bitmap(g_lcd, 70, 148, INFO_IMAGE_HITSZ_W, INFO_IMAGE_HITSZ_H, info_image_hitsz_data);
+    Game_Graphics_Draw_Gray4_Bitmap(
+        g_lcd, 70, 148, INFO_IMAGE_HITSZ_W, INFO_IMAGE_HITSZ_H, info_image_hitsz_data);
 
     /* Page indicator */
     draw_page_indicator();
