@@ -287,6 +287,21 @@ static void draw_maze_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, grid_left + s * 3 + 2, grid_top + s * 2 + 2, 3, 3, COLOR_YELLOW);
 }
 
+static void draw_needle_icon(int32_t x, int32_t y) {
+    /* 圆盘（三层方形） */
+    const int32_t cx = x + 22;
+    const int32_t cy = y + 14;
+    Game_Graphics_Fill_Rect(g_lcd, cx - 16, cy - 16, 32, 32, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, cx - 10, cy - 10, 20, 20, COLOR_GRAY);
+    Game_Graphics_Fill_Rect(g_lcd, cx - 4, cy - 4, 8, 8, COLOR_WHITE);
+    /* 针尖 */
+    Game_Graphics_Fill_Rect(g_lcd, cx + 12, cy + 12, 4, 4, COLOR_RED);
+    Game_Graphics_Fill_Rect(g_lcd, cx - 16, cy - 4, 4, 4, COLOR_YELLOW);
+    Game_Graphics_Fill_Rect(g_lcd, cx + 2, cy - 18, 4, 4, COLOR_GREEN);
+    /* 下方待发射针 */
+    Game_Graphics_Fill_Rect(g_lcd, cx - 1, cy + 22, 2, 10, COLOR_WHITE);
+}
+
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
 static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
 
@@ -338,6 +353,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_flappy_icon(cx + 10, cy + 5);
     } else if (game->icon == game_icon_maze) {
         draw_maze_icon(cx + 12, cy + 6);
+    } else if (game->icon == game_icon_needle) {
+        draw_needle_icon(cx + 10, cy + 2);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }
