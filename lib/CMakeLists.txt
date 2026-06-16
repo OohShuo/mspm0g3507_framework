@@ -1,7 +1,7 @@
 add_library(lib INTERFACE)
 
 add_subdirectory(local_lib)
-if(FRAMEWORK_VIRTUAL_DEVICE)
+if(BUILD_PLATFORM STREQUAL "VM")
     # VM provides its own freertos stubs in src/vm/freertos/
     target_include_directories(lib INTERFACE "${CMAKE_SOURCE_DIR}/src/vm/freertos")
     set(_framework_lib_deps local_lib)
