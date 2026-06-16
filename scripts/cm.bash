@@ -1,3 +1,3 @@
 #!/bin/bash
-
-python3 "./scripts/cm.py" "$@"
+cd "$(dirname "$0")/.." || exit 1
+python3 ./scripts/cm.py "$@"

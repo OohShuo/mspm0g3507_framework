@@ -1,2 +1,4 @@
 #pragma once
-typedef struct { int dummy; } UART_Regs;
+typedef struct {
+    int dummy;
+} UART_Regs;
