@@ -174,21 +174,18 @@ static void draw_fly_tip(uint16_t color) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, color);
 }
 
-/* ── 瞄准线（灰色竖线 + 水平参考线，在圆盘下方间隙） ── */
+/* ── 瞄准线（竖线指示发射位置） ── */
 
 static int16_t g_old_launch_x;
 
 static void draw_aim_guide(void) {
-    const int16_t ref_y = DISK_CY + TIP_R + 6;  /* 圆盘下方参考线 y */
+    const int16_t ref_y = DISK_CY + TIP_R + 6;  /* 圆盘下方起点 */
 
     /* 擦旧发射指示线 */
     if (g_old_launch_x != 0) {
         bar_fill(g_old_launch_x - 1, ref_y + 2, 2, LAUNCH_Y - ref_y - 4, COLOR_BLACK);
     }
     g_old_launch_x = g_launch_x;
-
-    /* 水平参考线（浅灰） */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, DISK_CX - 20, ref_y, 40, 1, COLOR_GRAY);
 
     /* 发射位竖线 */
     Game_Graphics_Fill_Rect(g_hardware.lcd, g_launch_x - 1, ref_y + 2, 2, LAUNCH_Y - ref_y - 4, COLOR_GRAY);
@@ -305,7 +302,7 @@ Game_result Needle_Update(const Game_input* input) {
 
     /* ── Flying ── */
     if (g_state == needle_state_flying) {
-        draw_fly_tip(COLOR_BLACK);
+        draw_fly_tip(COLOR_LIGHT);
 
         g_fly_x += g_fly_dx;
         g_fly_y += g_fly_dy;
