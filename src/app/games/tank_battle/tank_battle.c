@@ -315,10 +315,7 @@ static uint8_t active_enemy_count(void) {
 static void end_game(Tank_state state) {
     if (g_state != tank_state_playing) { return; }
     g_state = state;
-    if (g_hardware.buzzer != NULL) {
-        Buzzer_Play_Music(
-            g_hardware.buzzer, state == tank_state_win ? music_idx_victory : music_idx_defeat, 0);
-    }
+    Buzzer_Play_Sfx(g_hardware.buzzer, state == tank_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
     render_hud();
 }
 
@@ -339,7 +336,6 @@ static void restart_game(void) {
     g_last_bullet_move = now;
     g_last_spawn = now - ENEMY_SPAWN_MS;
     render_full();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_tank_theme, 1);
 }
 
 static uint8_t spawn_enemy(void) {
@@ -544,7 +540,6 @@ Game_result Tank_Battle_Update(const Game_input* input) {
 
     if (g_state != tank_state_playing) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;

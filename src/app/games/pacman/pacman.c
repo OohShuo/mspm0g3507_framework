@@ -333,7 +333,6 @@ static void restart_game(void) {
     g_level = 1;
     load_level();
     render_full_map();
-    if (g_buzzer != NULL) { Buzzer_Play_Music(g_buzzer, music_idx_pacman_theme, 1); }
 }
 
 static void collect_pellet(void) {
@@ -353,7 +352,7 @@ static void collect_pellet(void) {
 
     if (g_pellets_left == 0) {
         g_game_state = game_state_level_clear;
-        if (g_buzzer != NULL) { Buzzer_Play_Music(g_buzzer, music_idx_victory, 0); }
+        if (g_buzzer != NULL) { Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_victory); }
         render_hud();
     }
 }
@@ -363,7 +362,7 @@ static void lose_life(void) {
 
     if (g_lives == 0) {
         g_game_state = game_state_over;
-        if (g_buzzer != NULL) { Buzzer_Play_Music(g_buzzer, music_idx_defeat, 0); }
+        if (g_buzzer != NULL) { Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_defeat); }
         render_hud();
         return;
     }
@@ -404,6 +403,7 @@ static void move_player(void) {
     g_player.y += g_dir_y[g_player_direction];
 
     collect_pellet();
+    Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_pacman_waka);
     render_cell(old.x, old.y);
     render_cell(g_player.x, g_player.y);
     if (g_game_state != game_state_playing) { return; }
@@ -508,7 +508,6 @@ Game_result Pacman_Update(const Game_input* input) {
                 g_level++;
                 load_level();
                 render_full_map();
-                Buzzer_Play_Music(g_buzzer, music_idx_pacman_theme, 1);
             } else {
                 restart_game();
             }

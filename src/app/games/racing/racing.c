@@ -153,7 +153,6 @@ static void restart_game(void) {
 
     g_last_frame = Bsp_Get_Tick_Ms();
     g_last_spawn = g_last_frame;
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_racing_theme, 1);
 }
 
 static uint8_t obstacle_hits_player(const Racing_obstacle* obstacle) {
@@ -163,7 +162,7 @@ static uint8_t obstacle_hits_player(const Racing_obstacle* obstacle) {
 
 static void end_game(void) {
     g_state = racing_state_over;
-    if (g_hardware.buzzer != NULL) { Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0); }
+    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_racing_crash);
     render_hud();
 }
 
@@ -236,7 +235,6 @@ Game_result Racing_Update(const Game_input* input) {
 
     if (g_state == racing_state_over) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;

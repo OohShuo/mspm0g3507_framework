@@ -194,7 +194,7 @@ static void ai_move(void) {
             g_winner = 2;
             g_state = gomoku_state_over;
             g_score = 0;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
         }
     }
 }
@@ -294,7 +294,6 @@ static void restart_game(void) {
     render_board_bg();
     draw_cursor_at(g_cursor_x, g_cursor_y);
     render_status();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_snake_theme, 1);
 }
 
 void Gomoku_Init(const Game_hardware* hardware) {
@@ -313,7 +312,6 @@ Game_result Gomoku_Update(const Game_input* input) {
             render_status();
         }
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -393,10 +391,10 @@ Game_result Gomoku_Update(const Game_input* input) {
                         g_score = 1;
                     }
                 }
-                Buzzer_Play_Music(g_hardware.buzzer, music_idx_victory, 0);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
             } else {
                 g_state = gomoku_state_ai;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_select);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_gomoku_place);
             }
             g_old_state = (uint8_t)g_state;
             render_status();
