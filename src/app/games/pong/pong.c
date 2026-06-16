@@ -145,7 +145,6 @@ static void restart_game(void) {
     g_serve_at = g_last_move + 800u;
     serve_ball(0);
     render_full();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_racing_theme, 1);
 }
 
 void Pong_Init(const Game_hardware* hardware) {
@@ -160,7 +159,6 @@ Game_result Pong_Update(const Game_input* input) {
 
     if (g_state == pong_state_over) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -225,7 +223,7 @@ Game_result Pong_Update(const Game_input* input) {
         /* Add spin based on hit position */
         const int16_t hit_pos = (int16_t)(g_ball_y + BALL_SIZE / 2 - g_player_y - PADDLE_HEIGHT / 2);
         g_ball_dy = (int8_t)(hit_pos / 6);
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_pong_paddle);
     }
 
     /* Right paddle (AI) collision */
@@ -241,10 +239,10 @@ Game_result Pong_Update(const Game_input* input) {
     if (g_ball_x + BALL_SIZE < 0) {
         /* AI scores */
         g_ai_score++;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_explosion);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_pong_score);
         if (g_ai_score >= WIN_SCORE) {
             g_state = pong_state_over;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
         } else {
             g_state = pong_state_serving;
             g_serve_at = now2 + 1000u;
@@ -257,10 +255,10 @@ Game_result Pong_Update(const Game_input* input) {
     if (g_ball_x > SCREEN_WIDTH) {
         /* Player scores */
         g_player_score++;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_air_pickup);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_pong_score);
         if (g_player_score >= WIN_SCORE) {
             g_state = pong_state_over;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_victory, 0);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
         } else {
             g_state = pong_state_serving;
             g_serve_at = now2 + 1000u;

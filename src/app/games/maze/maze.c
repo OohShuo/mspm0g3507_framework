@@ -478,7 +478,6 @@ Game_result Maze_Update(const Game_input* input) {
     /* ── Game Over ── */
     if (g_state == maze_state_over) {
         if (input->direction_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -491,7 +490,6 @@ Game_result Maze_Update(const Game_input* input) {
             /* 清除间隙中的提示，恢复底栏 */
             bar_fill(0, GAP_Y, SCREEN_WIDTH, BAR_BOT - GAP_Y, COLOR_BLACK);
             Game_Graphics_Draw_Text(lcd, 56, BAR_BOT + 3, "HOLD TO BACK", 1, COLOR_GRAY);
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_racing_theme, 1);
         }
         return game_result_running;
     }
@@ -517,6 +515,7 @@ Game_result Maze_Update(const Game_input* input) {
 
         if (moved) {
             move_player(dir_enum);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_maze_move);
 
             /* 擦除旧玩家位置：重绘该格 */
             redraw_cell(g_old_player.col, g_old_player.row);
@@ -542,8 +541,8 @@ Game_result Maze_Update(const Game_input* input) {
             if (g_player.col == g_exit.col && g_player.row == g_exit.row) {
                 g_state = maze_state_over;
                 g_score = g_gems_collected * 100u + 500u;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-                Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_maze_goal);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
 
                 /* 画 GAME OVER 在间隙中 */
                 bar_fill(0, GAP_Y, SCREEN_WIDTH, BAR_BOT - GAP_Y, COLOR_BLACK);

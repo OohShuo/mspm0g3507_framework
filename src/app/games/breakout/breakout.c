@@ -179,7 +179,6 @@ static void restart_game(void) {
     serve_ball();
     g_last_move = Bsp_Get_Tick_Ms();
     render_full();
-    Buzzer_Play_Music(g_hardware.buzzer, music_idx_snake_theme, 1);
 }
 
 void Breakout_Init(const Game_hardware* hardware) {
@@ -194,7 +193,6 @@ Game_result Breakout_Update(const Game_input* input) {
 
     if (g_state == breakout_state_over || g_state == breakout_state_win) {
         if (input->confirm_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -251,11 +249,11 @@ Game_result Breakout_Update(const Game_input* input) {
     if (ball_hits_brick(g_ball_x, g_ball_y) || ball_hits_brick(g_ball_x, old_ball_y) ||
         ball_hits_brick(old_ball_x, g_ball_y)) {
         g_ball_dy = (int8_t)-g_ball_dy;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_snake_eat);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_breakout_bounce);
         if (g_bricks_remaining == 0) {
             g_state = breakout_state_win;
             g_score += 1000u;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_victory, 0);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
             render_hud();
         }
     }
@@ -283,7 +281,7 @@ Game_result Breakout_Update(const Game_input* input) {
         } else {
             g_lives = 0;
             g_state = breakout_state_over;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
             render_hud();
         }
         return game_result_running;

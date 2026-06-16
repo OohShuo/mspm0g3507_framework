@@ -223,7 +223,6 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
 
     if (g_state == flappy_state_over) {
         if (input->direction_pressed) {
-            Buzzer_Stop(g_hardware.buzzer);
             restart_game();
         }
         return game_result_running;
@@ -241,7 +240,6 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
             g_state = flappy_state_playing;
             g_bird_vy = FLAP_VELOCITY;
             g_gravity_acc = 0;
-            Buzzer_Play_Music(g_hardware.buzzer, music_idx_racing_theme, 1);
             play_fill(20, 130, SCREEN_WIDTH - 40, 20, COLOR_BLACK);
             update_score();
         }
@@ -256,7 +254,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         if (up && !g_up_prev) {
             g_bird_vy = FLAP_VELOCITY;
             g_gravity_acc = 0;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_select);
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_flappy_flap);
         }
         g_up_prev = up;
     }
@@ -283,7 +281,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
             if (!g_pipes[i].scored && g_pipes[i].x + PIPE_W < BIRD_X) {
                 g_pipes[i].scored = 1;
                 g_score++;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
+                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_flappy_score);
             }
         }
     }
@@ -316,7 +314,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
     if (check_collision()) {
         g_state = flappy_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-        Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
         play_fill(BIRD_X - 1, g_bird_y - 1, BIRD_W + 3, BIRD_H + 2, COLOR_RED);
         update_score();
         play_fill(50, 148, 140, 9, COLOR_BLACK);
