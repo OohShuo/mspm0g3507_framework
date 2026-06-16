@@ -4,6 +4,8 @@
 
 #include "air_battle.h"
 #include "breakout.h"
+#include "dino_runner.h"
+#include "flappy_bird.h"
 #include "game_2048.h"
 #include "gomoku.h"
 #include "pacman.h"
@@ -103,6 +105,24 @@ static const Game_descriptor g_games[] = {
         .update = Game_2048_Update,
         .get_score = Game_2048_Get_Score,
         .is_finished = Game_2048_Is_Finished,
+    },
+    {
+        .name = "DINO",
+        .icon = game_icon_dino,
+        .id = game_id_dino,
+        .init = Dino_Runner_Init,
+        .update = Dino_Runner_Update,
+        .get_score = Dino_Runner_Get_Score,
+        .is_finished = Dino_Runner_Is_Finished,
+    },
+    {
+        .name = "FLAPPY",
+        .icon = game_icon_flappy,
+        .id = game_id_flappy,
+        .init = Flappy_Bird_Init,
+        .update = Flappy_Bird_Update,
+        .get_score = Flappy_Bird_Get_Score,
+        .is_finished = Flappy_Bird_Is_Finished,
     },
 };
 
