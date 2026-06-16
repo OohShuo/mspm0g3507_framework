@@ -19,13 +19,13 @@
 #define TIP_SIZE      4
 #define FLY_SPEED     5
 #define MAX_NEEDLES   80
-#define COLLIDE_ANGLE 7     /* 碰撞角度阈值，越小越宽松 */
+#define COLLIDE_ANGLE 7 /* 碰撞角度阈值，越小越宽松 */
 #define LAUNCH_Y      298
 
 /* 转速参数：定点 1/256 单位/帧，线性从 4 针到 20 针 */
-#define ANG_VEL_INIT  341   /* 341/256 ≈ 1.33（原 2 的 2/3） */
-#define ANG_VEL_MAX   512   /* 512/256 = 2 */
-#define NEEDLE_FULL   20    /* 到达最大转速的针数 */
+#define ANG_VEL_INIT  341 /* 341/256 ≈ 1.33（原 2 的 2/3） */
+#define ANG_VEL_MAX   512 /* 512/256 = 2 */
+#define NEEDLE_FULL   20  /* 到达最大转速的针数 */
 
 /* ── 颜色 ── */
 #define COLOR_BLACK   0x0000u
@@ -38,19 +38,81 @@
 
 /* ── sin 表 64 等分 0-90°，缩放 128 ── */
 static const uint8_t g_sin_table[65] = {
-    0,   3,   6,   9,  13,  16,  19,  22,
-   25,  28,  31,  34,  37,  40,  43,  46,
-   49,  52,  55,  58,  60,  63,  66,  68,
-   71,  74,  76,  79,  81,  84,  86,  88,
-   91,  93,  95,  97,  99, 101, 103, 105,
-  106, 108, 110, 111, 113, 114, 116, 117,
-  118, 119, 121, 122, 122, 123, 124, 125,
-  126, 126, 127, 127, 127, 128, 128, 128,
-  128,
+    0,
+    3,
+    6,
+    9,
+    13,
+    16,
+    19,
+    22,
+    25,
+    28,
+    31,
+    34,
+    37,
+    40,
+    43,
+    46,
+    49,
+    52,
+    55,
+    58,
+    60,
+    63,
+    66,
+    68,
+    71,
+    74,
+    76,
+    79,
+    81,
+    84,
+    86,
+    88,
+    91,
+    93,
+    95,
+    97,
+    99,
+    101,
+    103,
+    105,
+    106,
+    108,
+    110,
+    111,
+    113,
+    114,
+    116,
+    117,
+    118,
+    119,
+    121,
+    122,
+    122,
+    123,
+    124,
+    125,
+    126,
+    126,
+    127,
+    127,
+    127,
+    128,
+    128,
+    128,
+    128,
 };
 
 static const uint16_t g_needle_colors[] = {
-    0xf800u, 0xfc00u, 0xffe0u, 0x07e0u, 0x07ffu, 0x001fu, 0x8010u,
+    0xf800u,
+    0xfc00u,
+    0xffe0u,
+    0x07e0u,
+    0x07ffu,
+    0x001fu,
+    0x8010u,
 };
 
 /* ── 类型 ── */
@@ -59,8 +121,8 @@ typedef enum { needle_state_ready, needle_state_flying, needle_state_over } Need
 /* ── 静态变量 ── */
 static Game_hardware g_hardware;
 static Needle_state g_state;
-static uint8_t g_needle_angles[MAX_NEEDLES];  /* 针在圆盘上的固定角度 (0-255) */
-static uint8_t g_prev_angles[MAX_NEEDLES];    /* 上一帧针的屏幕绝对角度 */
+static uint8_t g_needle_angles[MAX_NEEDLES]; /* 针在圆盘上的固定角度 (0-255) */
+static uint8_t g_prev_angles[MAX_NEEDLES];   /* 上一帧针的屏幕绝对角度 */
 static uint8_t g_needle_count;
 static uint8_t g_disk_angle;
 static uint16_t g_ang_vel;
@@ -85,8 +147,14 @@ static int16_t needle_cos(uint8_t angle) { return needle_sin((uint8_t)(angle + 6
 /* ── 填充裁剪 ── */
 
 static void bar_fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c) {
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
+    if (x < 0) {
+        w += x;
+        x = 0;
+    }
+    if (y < 0) {
+        h += y;
+        y = 0;
+    }
     if (x + w > SCREEN_WIDTH) { w = SCREEN_WIDTH - x; }
     if (y + h > SCREEN_HEIGHT) { h = SCREEN_HEIGHT - y; }
     if (w <= 0 || h <= 0) { return; }
@@ -119,17 +187,31 @@ static uint8_t atan2_approx(int32_t dx, int32_t dy) {
     if (adx > ady) {
         raw = ady * 32 / adx;
         if (raw > 31) { raw = 31; }
-        if (dx >= 0 && dy >= 0)       { base = 0; }
-        else if (dx < 0 && dy >= 0)   { base = 96; raw = 31 - raw; }
-        else if (dx < 0 && dy < 0)    { base = 128; }
-        else                           { base = 224; raw = 31 - raw; }
+        if (dx >= 0 && dy >= 0) {
+            base = 0;
+        } else if (dx < 0 && dy >= 0) {
+            base = 96;
+            raw = 31 - raw;
+        } else if (dx < 0 && dy < 0) {
+            base = 128;
+        } else {
+            base = 224;
+            raw = 31 - raw;
+        }
     } else {
         raw = adx * 32 / ady;
         if (raw > 31) { raw = 31; }
-        if (dx >= 0 && dy >= 0)       { base = 32; raw = 31 - raw; }
-        else if (dx < 0 && dy >= 0)   { base = 64; }
-        else if (dx < 0 && dy < 0)    { base = 160; raw = 31 - raw; }
-        else                           { base = 192; }
+        if (dx >= 0 && dy >= 0) {
+            base = 32;
+            raw = 31 - raw;
+        } else if (dx < 0 && dy >= 0) {
+            base = 64;
+        } else if (dx < 0 && dy < 0) {
+            base = 160;
+            raw = 31 - raw;
+        } else {
+            base = 192;
+        }
     }
     return (uint8_t)(base + raw);
 }
@@ -148,8 +230,7 @@ static void draw_disk(void) {
 static void draw_tip_at_angle(uint8_t angle, uint16_t color) {
     int16_t tx, ty;
     pos_from_angle(angle, &tx, &ty);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, tx - TIP_SIZE / 2, ty - TIP_SIZE / 2,
-        TIP_SIZE, TIP_SIZE, color);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, tx - TIP_SIZE / 2, ty - TIP_SIZE / 2, TIP_SIZE, TIP_SIZE, color);
 }
 
 /* ── 旋转刷新：逐针原子擦旧绘新，避免批量擦绘的顺序污染 ── */
@@ -183,9 +264,7 @@ static void draw_aim_guide(void) {
     const int16_t line_h = LAUNCH_Y - ref_y - 4;
 
     /* 先刷一块背景色方块，再画细线 */
-    if (g_old_launch_x != 0) {
-        bar_fill(g_old_launch_x - 4, ref_y + 2, 8, line_h, COLOR_BLACK);
-    }
+    if (g_old_launch_x != 0) { bar_fill(g_old_launch_x - 4, ref_y + 2, 8, line_h, COLOR_BLACK); }
     g_old_launch_x = g_launch_x;
 
     bar_fill(g_launch_x - 4, ref_y + 2, 8, line_h, COLOR_BLACK);
@@ -234,17 +313,13 @@ static void restart_game(void) {
     g_needle_angles[2] = 128;
     g_needle_angles[3] = 192;
     g_needle_count = 4;
-    for (i = 0; i < g_needle_count; i++) {
-        g_prev_angles[i] = g_needle_angles[i];
-    }
+    for (i = 0; i < g_needle_count; i++) { g_prev_angles[i] = g_needle_angles[i]; }
 
     Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
     draw_bars();
     draw_disk();
     /* 初态直接画针，不做擦除 */
-    for (i = 0; i < g_needle_count; i++) {
-        draw_tip_at_angle(g_prev_angles[i], g_needle_colors[i % 7]);
-    }
+    for (i = 0; i < g_needle_count; i++) { draw_tip_at_angle(g_prev_angles[i], g_needle_colors[i % 7]); }
     draw_score();
     draw_aim_guide();
     draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
@@ -326,7 +401,10 @@ Game_result Needle_Update(const Game_input* input) {
                 int16_t diff = (int16_t)fly_angle - (int16_t)needle_abs;
                 if (diff < 0) { diff = (int16_t)(-diff); }
                 if (diff > 128) { diff = (int16_t)(256 - diff); }
-                if (diff < COLLIDE_ANGLE) { collision = 1; break; }
+                if (diff < COLLIDE_ANGLE) {
+                    collision = 1;
+                    break;
+                }
             }
 
             if (collision || g_needle_count >= MAX_NEEDLES) {
@@ -353,10 +431,8 @@ Game_result Needle_Update(const Game_input* input) {
                 if (g_needle_count >= NEEDLE_FULL) {
                     g_ang_vel = ANG_VEL_MAX;
                 } else {
-                    g_ang_vel = ANG_VEL_INIT
-                              + (uint16_t)((g_needle_count - 4)
-                                           * (ANG_VEL_MAX - ANG_VEL_INIT)
-                                           / (NEEDLE_FULL - 4));
+                    g_ang_vel = ANG_VEL_INIT + (uint16_t)((g_needle_count - 4) *
+                                                          (ANG_VEL_MAX - ANG_VEL_INIT) / (NEEDLE_FULL - 4));
                 }
 
                 g_state = needle_state_ready;

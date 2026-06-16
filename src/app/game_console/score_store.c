@@ -113,7 +113,7 @@ static uint8_t load_scores(uint8_t game_count) {
         return 0;
     }
 
-    for (uint8_t game = 0; game < g_scores.game_count; game++) {
+    for (int game = 0; game < g_scores.game_count; game++) {
         if (g_scores.entry_count[game] > SCORE_STORE_TOP_COUNT) { return 0; }
         for (uint8_t rank = 0; rank < g_scores.entry_count[game]; rank++) {
             g_scores.entries[game][rank].name[SCORE_STORE_NAME_LENGTH] = '\0';
