@@ -303,7 +303,9 @@ Game_result Needle_Update(const Game_input* input) {
 
     /* ── Flying ── */
     if (g_state == needle_state_flying) {
-        draw_fly_tip(COLOR_LIGHT);
+        /* 旧位置：先填黑擦干净，再画浅灰细线修复 */
+        Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
+        Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
 
         g_fly_x += g_fly_dx;
         g_fly_y += g_fly_dy;
@@ -328,17 +330,17 @@ Game_result Needle_Update(const Game_input* input) {
             }
 
             if (collision || g_needle_count >= MAX_NEEDLES) {
-                /* 擦除飞行针残留 + 修复圆盘黑孔 */
-                draw_fly_tip(COLOR_BLACK);
-                draw_disk();
+                /* 擦除最后一帧的白色方块，修复残留 */
+                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
+                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
                 g_state = needle_state_over;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
                 Buzzer_Play_Music(g_hardware.buzzer, music_idx_defeat, 0);
                 draw_bottom_text("GAME OVER  PUSH RESTART", COLOR_RED);
             } else {
-                /* 擦除飞行针残留 + 修复圆盘黑孔 */
-                draw_fly_tip(COLOR_BLACK);
-                draw_disk();
+                /* 擦除最后一帧的白色方块，修复残留 */
+                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
+                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
                 /* ── 插入新针，立即绘制到实际位置 ── */
                 g_needle_angles[g_needle_count] = (uint8_t)((fly_angle - g_disk_angle) & 0xFFu);
                 g_prev_angles[g_needle_count] = fly_angle;
