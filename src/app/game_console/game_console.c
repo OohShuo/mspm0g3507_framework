@@ -261,6 +261,32 @@ static void draw_flappy_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 32, y + 20, 14, 3, COLOR_GREEN);
 }
 
+static void draw_maze_icon(int32_t x, int32_t y) {
+    /* 迷你迷宫：5x4 网格，外框 + 一条蜿蜒路径 */
+    const int32_t grid_left = x;
+    const int32_t grid_top = y;
+    const int32_t s = 9; /* 格大小 */
+
+    /* 外框 */
+    Game_Graphics_Fill_Rect(g_lcd, grid_left, grid_top, s * 5, 1, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, grid_left, grid_top, 1, s * 4, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, grid_left, grid_top + s * 4 - 1, s * 5, 1, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + s * 5 - 1, grid_top, 1, s * 4, COLOR_DARK);
+
+    /* 内部迷宫路径 */
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + 1, grid_top + s, s * 2, 1, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + s, grid_top + s * 3 - 1, s * 3, 1, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + s * 3 - 1, grid_top + 1, 1, s, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + s * 2 - 1, grid_top + s, 1, s * 2, COLOR_DARK);
+
+    /* 起点（青色小方块） */
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + 2, grid_top + 2, 4, 4, COLOR_CYAN);
+    /* 终点（红色小方块） */
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + s * 4 + 2, grid_top + s * 3 + 2, 4, 4, COLOR_RED);
+    /* 宝石（黄色小点） */
+    Game_Graphics_Fill_Rect(g_lcd, grid_left + s * 3 + 2, grid_top + s * 2 + 2, 3, 3, COLOR_YELLOW);
+}
+
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
 static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
 
@@ -310,6 +336,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_dino_icon(cx + 10, cy + 5);
     } else if (game->icon == game_icon_flappy) {
         draw_flappy_icon(cx + 10, cy + 5);
+    } else if (game->icon == game_icon_maze) {
+        draw_maze_icon(cx + 12, cy + 6);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }
