@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "game_graphics.h"
+#include "info_image.h"
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -14,36 +15,118 @@
 #define COLOR_GRAY    0x8410u
 #define COLOR_DARK    0x4208u
 
+#define TOTAL_PAGES   2
+
 static St7789* g_lcd = NULL;
+static uint8_t g_current_page = 0;
 
-static void render_info_screen(void) {
-    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+/* ── Page indicator bar at bottom ── */
+static void draw_page_indicator(void) {
+    const int32_t bar_y = 268;
+    const int32_t text_y = bar_y + 4;
 
-    /* ── Top status bar ── */
+    /* Separator */
+    Game_Graphics_Fill_Rect(g_lcd, 10, bar_y, SCREEN_WIDTH - 20, 1, COLOR_DARK);
+
+    /* < */
+    const uint16_t left_color = g_current_page > 0 ? COLOR_CYAN : COLOR_DARK;
+    Game_Graphics_Draw_Text(g_lcd, 40, text_y, "<", 2, left_color);
+
+    /* Page number */
+    char page_text[4];
+    page_text[0] = (char)('1' + g_current_page);
+    page_text[1] = '/';
+    page_text[2] = (char)('1' + TOTAL_PAGES - 1);
+    page_text[3] = '\0';
+    Game_Graphics_Draw_Text(g_lcd, 106, text_y, page_text, 1, COLOR_WHITE);
+
+    /* > */
+    const uint16_t right_color = g_current_page < TOTAL_PAGES - 1 ? COLOR_CYAN : COLOR_DARK;
+    Game_Graphics_Draw_Text(g_lcd, 178, text_y, ">", 2, right_color);
+
+    /* Separator */
+    Game_Graphics_Fill_Rect(g_lcd, 10, bar_y + 18, SCREEN_WIDTH - 20, 1, COLOR_DARK);
+}
+
+/* ── Page 1: development info + HITSZ logo ── */
+static void render_page1(void) {
+    /* Top status bar */
     Game_Graphics_Draw_Text(g_lcd, 10, 5, "INFO", 1, COLOR_CYAN);
     Game_Graphics_Fill_Rect(g_lcd, 10, 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 
-    /* ── Credits (scale=2 white text) ── */
-    Game_Graphics_Draw_Text(g_lcd, 48, 48, "DESIGNED BY:", 2, COLOR_WHITE);
+    /* Credits */
+    Game_Graphics_Draw_Text(g_lcd, 48, 48, "Designed by:", 2, COLOR_WHITE);
 
-    Game_Graphics_Draw_Text(g_lcd, 96, 78, "SHUO", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 60, 108, "MORROWHOME", 2, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 78, 138, "POLARIS", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 96, 78, "Shuo", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 108, "MorrowHome", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 78, 138, "Polaris", 2, COLOR_WHITE);
 
-    /* HITSZ — blue, centered, scale=4 */
-    Game_Graphics_Draw_Text(g_lcd, 60, 195, "HITSZ", 4, COLOR_BLUE);
+    /* HITSZ — blue, scale=3, left side */
+    Game_Graphics_Draw_Text(g_lcd, 24, 210, "HITSZ", 3, COLOR_WHITE);
 
-    /* ── Bottom hint ── */
-    Game_Graphics_Draw_Text(g_lcd, 64, 290, "HOLD TO BACK", 1, COLOR_GRAY);
+    /* 50x50 logo image — right side */
+    Game_Graphics_Draw_Bitmap(g_lcd, 156, 200, INFO_IMAGE_W, INFO_IMAGE_H, info_image_data);
+
+    /* Page indicator */
+    draw_page_indicator();
+
+    /* Bottom hint */
+    Game_Graphics_Draw_Text(g_lcd, 64, 300, "HOLD TO BACK", 1, COLOR_GRAY);
+}
+
+/* ── Page 2: GitHub link ── */
+static void render_page2(void) {
+    /* Top status bar */
+    Game_Graphics_Draw_Text(g_lcd, 10, 5, "INFO", 1, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, 10, 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
+
+    /* Intro text */
+    Game_Graphics_Draw_Text(g_lcd, 78, 40, "For more", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 60, "information,", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 78, 80, "refer to:", 2, COLOR_WHITE);
+
+    /* URL lines — scale=1, centered */
+    Game_Graphics_Draw_Text(g_lcd, 22, 172 - 40, "github.com/OohShu", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 199 - 40, "o/mspm0g3507_fram", 2, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 22, 220 - 40, "ework.git", 2, COLOR_WHITE);
+
+    /* Page indicator */
+    draw_page_indicator();
+
+    /* Bottom hint */
+    Game_Graphics_Draw_Text(g_lcd, 64, 300, "HOLD TO BACK", 1, COLOR_GRAY);
+}
+
+/* ── Full screen render ── */
+static void render_info_screen(void) {
+    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+
+    if (g_current_page == 0) {
+        render_page1();
+    } else {
+        render_page2();
+    }
 }
 
 void Info_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
+    g_current_page = 0;
     render_info_screen();
 }
 
 Game_result Info_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
+
+    if (input->direction_pressed) {
+        if (input->direction == game_direction_left) {
+            g_current_page = (g_current_page + TOTAL_PAGES - 1) % TOTAL_PAGES;
+            render_info_screen();
+        } else if (input->direction == game_direction_right) {
+            g_current_page = (g_current_page + 1) % TOTAL_PAGES;
+            render_info_screen();
+        }
+    }
+
     return game_result_running;
 }
 
