@@ -19,6 +19,7 @@
 #include "snake.h"
 #include "tank_battle.h"
 #include "tetris.h"
+#include "volume_control.h"
 
 static const Game_descriptor g_games[] = {
     {
@@ -164,6 +165,15 @@ static const Game_descriptor g_games[] = {
         .update = Fps_Test_Update,
         .get_score = Fps_Test_Get_Score,
         .is_finished = Fps_Test_Is_Finished,
+    },
+    {
+        .name = "VOLUME",
+        .icon = game_icon_volume_control,
+        .id = game_id_volume_control,
+        .init = Volume_Control_Init,
+        .update = Volume_Control_Update,
+        .get_score = Volume_Control_Get_Score,
+        .is_finished = Volume_Control_Is_Finished,
     },
     {
         .name = "INFO",

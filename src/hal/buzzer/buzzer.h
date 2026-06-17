@@ -111,3 +111,5 @@ void Buzzer_Play_Sfx(Buzzer* obj, Buzzer_sfx_idx sfx);
 void Buzzer_Play(Buzzer* obj, const Music* music);
 void Buzzer_Stop(Buzzer* obj);
 void Buzzer_Update_All(void);
+void Buzzer_Set_Volume(Buzzer* obj, uint8_t volume_percent);
+uint8_t Buzzer_Get_Volume(Buzzer* obj);

@@ -24,3 +24,13 @@ void Buzzer_Play(Buzzer* o, const Music* m) {
 }
 void Buzzer_Stop(Buzzer* o) { (void)o; }
 void Buzzer_Update_All(void) {}
+
+void Buzzer_Set_Volume(Buzzer* o, uint8_t v) {
+    (void)o;
+    (void)v;
+}
+
+uint8_t Buzzer_Get_Volume(Buzzer* o) {
+    (void)o;
+    return 50;
+}
