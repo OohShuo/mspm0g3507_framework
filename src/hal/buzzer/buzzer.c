@@ -93,7 +93,13 @@ static void output_frequency(Buzzer* obj, uint16_t frequency_hz, uint8_t volume_
 
     Bsp_Pwm_Stop(obj->config.pwm_idx);
     Bsp_Pwm_Set_Freq(obj->config.pwm_idx, frequency_hz);
-    Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0.15f + 0.006f * effective_vol);
+    /* duty 0% = silent; 50% = minimum; 90% = maximum.
+       map effective_vol [10, 100] → duty [50%, 90%] */
+    float duty = 0.50f;
+    if (effective_vol > 10u) {
+        duty = 0.50f + 0.40f * (float)(effective_vol - 10u) / 90.0f;
+    }
+    Bsp_Pwm_Set_Duty(obj->config.pwm_idx, duty);
     Bsp_Pwm_Start(obj->config.pwm_idx);
     obj->output_active = 1;
     obj->output_frequency = frequency_hz;
