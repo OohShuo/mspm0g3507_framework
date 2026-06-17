@@ -44,6 +44,8 @@
 static St7789* g_lcd = NULL;
 static Buzzer* g_buzzer = NULL;
 static uint8_t g_volume = 50;
+static uint8_t g_muted = 0;
+static uint8_t g_pre_mute_volume = 50;
 
 /* ── Draw bar outline and background (once, never redrawn) ── */
 static void draw_bar_frame(void) { Game_Graphics_Fill_Rect(g_lcd, BAR_X, BAR_Y, BAR_W, BAR_H, COLOR_DARK); }
@@ -130,12 +132,13 @@ static void render_screen(void) {
             g_lcd, (SCREEN_WIDTH - text_w) / 2 + (int32_t)digits * 6 * 3, TEXT_Y, "%", 3, COLOR_WHITE);
     }
 
-    /* Arrows */
+    /* Arrows: up = can increase, down = can decrease */
     if (g_volume < 100) { draw_up_arrow(); }
     if (g_volume > 0) { draw_down_arrow(); }
 
-    /* Hint at bottom */
-    Game_Graphics_Draw_Text(g_lcd, 25, 280, "< > ^ v to adjust", 1, COLOR_GRAY);
+    /* Hints at bottom */
+    Game_Graphics_Draw_Text(g_lcd, 20, 276, "< > ^ v to adjust", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 130, 276, "press to mute", 1, COLOR_GRAY);
     Game_Graphics_Draw_Text(g_lcd, 68, 300, "hold to back", 1, COLOR_GRAY);
 }
 
@@ -150,9 +153,26 @@ void Volume_Control_Init(const Game_hardware* hardware) {
 Game_result Volume_Control_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
+    /* mute toggle on button press */
+    if (input->confirm_pressed) {
+        if (g_muted) {
+            g_muted = 0;
+            g_volume = g_pre_mute_volume;
+        } else {
+            g_muted = 1;
+            g_pre_mute_volume = g_volume;
+            g_volume = 0;
+        }
+        Buzzer_Set_Volume(g_buzzer, g_volume);
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
+        render_screen();
+        return game_result_running;
+    }
+
     if (input->direction_pressed) {
         const uint8_t old_volume = g_volume;
 
+        /* up / right → increase, down / left → decrease */
         if ((input->direction == game_direction_up || input->direction == game_direction_right) &&
             g_volume < 100) {
             g_volume += 10;
@@ -162,6 +182,7 @@ Game_result Volume_Control_Update(const Game_input* input) {
         }
 
         if (g_volume != old_volume) {
+            g_muted = 0;
             Buzzer_Set_Volume(g_buzzer, g_volume);
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
             update_bar_fill(old_volume, g_volume);

@@ -485,6 +485,7 @@ static void spawn_pickup(int16_t x, int16_t y) {
 
 static void finish_game(Air_state state) {
     if (g_state != air_state_playing) { return; }
+    g_state = state;
     Buzzer_Play_Sfx(g_hardware.buzzer, state == air_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
     Game_Graphics_Fill_Rect(g_hardware.lcd, 31, 133, 178, 70, COLOR_BLUE_DARK);
     Game_Graphics_Fill_Rect(g_hardware.lcd, 35, 137, 170, 62, COLOR_BLACK);
