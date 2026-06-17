@@ -303,6 +303,23 @@ static void draw_needle_icon(int32_t x, int32_t y) {
 }
 
 static void draw_sfx_lib_icon(int32_t x, int32_t y) {
+    /* Note head */
+    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 20, 12, 4, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 6, y + 22, 16, 5, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 27, 12, 4, COLOR_WHITE);
+    /* Stem */
+    Game_Graphics_Fill_Rect(g_lcd, x + 18, y + 0, 4, 24, COLOR_WHITE);
+    /* Flag */
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 0, 10, 3, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 3, 7, 3, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 6, 4, 3, COLOR_CYAN);
+    /* Sound lines from the note */
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 18, 4, 2, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 0, y + 22, 4, 2, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 26, 4, 2, COLOR_CYAN);
+}
+
+static void draw_volume_control_icon(int32_t x, int32_t y) {
     /* Speaker body */
     Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 10, 8, 16, COLOR_WHITE);
     Game_Graphics_Fill_Rect(g_lcd, x + 12, y + 6, 4, 24, COLOR_WHITE);
@@ -313,7 +330,7 @@ static void draw_sfx_lib_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 12, 4, 12, COLOR_CYAN);
     Game_Graphics_Fill_Rect(g_lcd, x + 28, y + 8, 4, 20, COLOR_CYAN);
     Game_Graphics_Fill_Rect(g_lcd, x + 36, y + 4, 4, 28, COLOR_CYAN);
-    /* Wave gaps (using black to cut notches) */
+    /* Wave gaps (black notches) */
     Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 16, 4, 1, COLOR_BLACK);
     Game_Graphics_Fill_Rect(g_lcd, x + 20, y + 18, 4, 1, COLOR_BLACK);
     Game_Graphics_Fill_Rect(g_lcd, x + 28, y + 12, 4, 1, COLOR_BLACK);
@@ -420,6 +437,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_fps_test_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_sfx_lib) {
         draw_sfx_lib_icon(cx + 12, cy + 4);
+    } else if (game->icon == game_icon_volume_control) {
+        draw_volume_control_icon(cx + 12, cy + 4);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }
