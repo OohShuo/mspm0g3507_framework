@@ -25,6 +25,7 @@ struct Buzzer_t {
     uint16_t output_frequency;
     uint8_t output_active;
     uint8_t sfx_priority;
+    uint8_t master_volume;
 };
 
 static Vector* buzzer_instances = NULL;
@@ -83,15 +84,16 @@ static void silence(Buzzer* obj) {
 }
 
 static void output_frequency(Buzzer* obj, uint16_t frequency_hz, uint8_t volume_percent) {
-    if (frequency_hz == 0 || volume_percent == 0) {
+    const uint8_t effective_vol = (uint8_t)((uint16_t)volume_percent * obj->master_volume / 100u);
+
+    if (frequency_hz == 0 || effective_vol == 0) {
         silence(obj);
         return;
     }
 
-    if (volume_percent > 100u) { volume_percent = 100u; }
     Bsp_Pwm_Stop(obj->config.pwm_idx);
     Bsp_Pwm_Set_Freq(obj->config.pwm_idx, frequency_hz);
-    Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0.15f + 0.0035f * volume_percent);
+    Bsp_Pwm_Set_Duty(obj->config.pwm_idx, 0.15f + 0.006f * effective_vol);
     Bsp_Pwm_Start(obj->config.pwm_idx);
     obj->output_active = 1;
     obj->output_frequency = frequency_hz;
@@ -175,6 +177,7 @@ Buzzer* Buzzer_Create(const Buzzer_config* config) {
 
     memset(obj, 0, sizeof(*obj));
     obj->config = *config;
+    obj->master_volume = 50;
     Vector_Push_Back(buzzer_instances, (void*)&obj);
     return obj;
 }
@@ -225,4 +228,15 @@ void Buzzer_Update_All(void) {
         silence(obj);
     }
     taskEXIT_CRITICAL();
+}
+
+void Buzzer_Set_Volume(Buzzer* obj, uint8_t volume_percent) {
+    if (obj == NULL) { return; }
+    if (volume_percent > 100u) { volume_percent = 100u; }
+    obj->master_volume = volume_percent;
+}
+
+uint8_t Buzzer_Get_Volume(Buzzer* obj) {
+    if (obj == NULL) { return 0; }
+    return obj->master_volume;
 }
