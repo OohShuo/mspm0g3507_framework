@@ -14,3 +14,6 @@ void Game_Graphics_Draw_U32(
 void Game_Graphics_Draw_Bitmap(St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data);
 void Game_Graphics_Draw_Gray4_Bitmap(
     St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t* data);
+void Game_Graphics_Draw_Pal4_Bitmap(
+    St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h,
+    const uint16_t* palette, const uint8_t* data);
