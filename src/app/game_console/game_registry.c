@@ -4,6 +4,7 @@
 
 #include "air_battle.h"
 #include "breakout.h"
+#include "calculator.h"
 #include "dino_runner.h"
 #include "flappy_bird.h"
 #include "fps_test.h"
@@ -156,6 +157,15 @@ static const Game_descriptor g_games[] = {
         .update = Sfx_Lib_Update,
         .get_score = Sfx_Lib_Get_Score,
         .is_finished = Sfx_Lib_Is_Finished,
+    },
+    {
+        .name = "CALC",
+        .icon = game_icon_calculator,
+        .id = game_id_calculator,
+        .init = Calc_Init,
+        .update = Calc_Update,
+        .get_score = Calc_Get_Score,
+        .is_finished = Calc_Is_Finished,
     },
     {
         .name = "FPS TEST",

@@ -15,10 +15,10 @@
 #define TURN_CHANCE   18
 #define MAX_LENGTH    250u
 
-#define GRID_W ((uint16_t)(SCREEN_WIDTH / SEGMENT_SIZE))  /* 80 */
-#define GRID_H ((uint16_t)(SCREEN_HEIGHT / SEGMENT_SIZE)) /* 106 */
+#define GRID_W        ((uint16_t)(SCREEN_WIDTH / SEGMENT_SIZE))  /* 80 */
+#define GRID_H        ((uint16_t)(SCREEN_HEIGHT / SEGMENT_SIZE)) /* 106 */
 
-#define COLOR_BLACK 0x0000u
+#define COLOR_BLACK   0x0000u
 
 /* ── pipe colour palette (desaturated) ── */
 static const uint16_t g_palette[] = {
@@ -30,8 +30,13 @@ static const uint16_t g_palette[] = {
     0x000cu, /* muted blue    */
     0x4228u, /* muted white   */
 
-    0x0000u, 0x0000u, 0x0000u, 0x0000u,
-    0x0000u, 0x0000u, 0x0000u, /* black (blends into background) */
+    0x0000u,
+    0x0000u,
+    0x0000u,
+    0x0000u,
+    0x0000u,
+    0x0000u,
+    0x0000u, /* black (blends into background) */
 };
 #define PALETTE_SIZE (sizeof(g_palette) / sizeof(g_palette[0]))
 
@@ -62,8 +67,7 @@ static uint32_t xorshift32(void) {
 
 /* ── helpers ── */
 static bool in_bounds(int16_t x, int16_t y) {
-    return x >= 0 && y >= 0 && x <= SCREEN_WIDTH - SEGMENT_SIZE &&
-           y <= SCREEN_HEIGHT - SEGMENT_SIZE;
+    return x >= 0 && y >= 0 && x <= SCREEN_WIDTH - SEGMENT_SIZE && y <= SCREEN_HEIGHT - SEGMENT_SIZE;
 }
 
 static void draw_segment(int16_t x, int16_t y, uint16_t color) {
