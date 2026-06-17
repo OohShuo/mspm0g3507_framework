@@ -360,6 +360,25 @@ static void draw_info_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, cx - 2, cy + 1, 4, 10, COLOR_WHITE);
 }
 
+static void draw_calculator_icon(int32_t x, int32_t y) {
+    /* Calculator body */
+    Game_Graphics_Fill_Rect(g_lcd, x + 6, y + 4, 36, 30, COLOR_DARK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 6, 32, 26, COLOR_BLACK);
+
+    /* Display bar */
+    Game_Graphics_Fill_Rect(g_lcd, x + 10, y + 8, 28, 6, 0x2104u);
+
+    /* Button grid: 4 cols × 3 rows */
+    for (int32_t r = 0; r < 3; r++) {
+        for (int32_t c = 0; c < 4; c++) {
+            Game_Graphics_Fill_Rect(g_lcd, x + 10 + c * 7, y + 16 + r * 5, 5, 3, 0x3186u);
+        }
+    }
+
+    /* Highlighted "=" button area */
+    Game_Graphics_Fill_Rect(g_lcd, x + 24, y + 26, 5, 3, COLOR_CYAN);
+}
+
 static void draw_fps_test_icon(int32_t x, int32_t y) {
     /* Screen outline */
     Game_Graphics_Fill_Rect(g_lcd, x + 6, y + 2, 36, 30, COLOR_DARK);
@@ -435,6 +454,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_needle_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_info) {
         draw_info_icon(cx + 10, cy + 2);
+    } else if (game->icon == game_icon_calculator) {
+        draw_calculator_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_fps_test) {
         draw_fps_test_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_sfx_lib) {
@@ -756,8 +777,7 @@ static void console_task(void* arg) {
 
         /* ── screensaver activation ── */
         if (!Screensaver_Is_Active()) {
-            if (g_console_state != console_state_game &&
-                Bsp_Get_Tick_Ms() - g_last_input_tick > 15000u) {
+            if (g_console_state != console_state_game && Bsp_Get_Tick_Ms() - g_last_input_tick > 15000u) {
                 Screensaver_Init(g_lcd);
             }
         }
