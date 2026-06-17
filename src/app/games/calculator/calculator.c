@@ -46,7 +46,7 @@ static uint8_t g_expr_len = 0;
 static uint8_t g_cursor_row = 2;
 static uint8_t g_cursor_col = 1;
 static uint8_t g_just_evaluated = 0;
-static double g_last_result = 0.0;
+static float g_last_result = 0.0f;
 static uint8_t g_error = 0;
 
 /* ── Button labels ── */
@@ -99,14 +99,12 @@ static void draw_button(uint8_t row, uint8_t col, uint8_t selected) {
     const uint16_t border = selected ? COLOR_WHITE : COLOR_DARK;
 
     Game_Graphics_Fill_Rect(g_lcd, x, y, BTN_W, BTN_H, bg);
-    /* border */
     Game_Graphics_Fill_Rect(g_lcd, x, y, BTN_W, 1, border);
     Game_Graphics_Fill_Rect(g_lcd, x, y + BTN_H - 1, BTN_W, 1, border);
     Game_Graphics_Fill_Rect(g_lcd, x, y, 1, BTN_H, border);
     Game_Graphics_Fill_Rect(g_lcd, x + BTN_W - 1, y, 1, BTN_H, border);
 
-    /* label centered */
-    const int32_t label_w = (int32_t)strlen(label) * 12; /* scale 2 → 12 px / char */
+    const int32_t label_w = (int32_t)strlen(label) * 12;
     const int32_t text_x = x + (BTN_W - label_w) / 2;
     const int32_t text_y = y + (BTN_H - 16) / 2;
     const uint16_t text_color = (bt == btn_op && selected) ? COLOR_BLACK : COLOR_WHITE;
@@ -116,75 +114,65 @@ static void draw_button(uint8_t row, uint8_t col, uint8_t selected) {
 /* ── Redraw only two buttons ── */
 static void redraw_button(uint8_t row, uint8_t col, uint8_t selected) { draw_button(row, col, selected); }
 
-/* ── Full render ── */
-static void render_display(void) {
-    /* Clear top area */
-    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, GRID_Y0 - 2, COLOR_BLACK);
+/* ── float → string helper (manual, avoids printf bloat) ── */
+static uint8_t float_to_str(float val, char* buf, uint8_t max_len) {
+    uint8_t pos = 0;
+    if (val < 0.0f) {
+        buf[pos++] = '-';
+        val = -val;
+    }
 
-    /* Title */
+    int32_t int_part = (int32_t)val;
+    float frac = val - (float)int_part;
+
+    char rev[16];
+    uint8_t ri = 0;
+    if (int_part == 0) {
+        rev[ri++] = '0';
+    } else {
+        while (int_part > 0 && ri < sizeof(rev)) {
+            rev[ri++] = '0' + (char)(int_part % 10);
+            int_part /= 10;
+        }
+    }
+    while (ri > 0 && pos < max_len) buf[pos++] = rev[--ri];
+
+    if (frac > 1e-6f && pos < max_len - 1) {
+        buf[pos++] = '.';
+        for (uint8_t i = 0; i < 6 && pos < max_len - 1; i++) {
+            frac *= 10.0f;
+            int d = (int)frac;
+            buf[pos++] = '0' + (char)d;
+            frac -= (float)d;
+        }
+        while (pos > 0 && buf[pos - 1] == '0') pos--;
+        if (pos > 0 && buf[pos - 1] == '.') pos--;
+    }
+    buf[pos] = '\0';
+    return pos;
+}
+
+/* ── Full display render ── */
+static void render_display(void) {
+    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, GRID_Y0 - 2, COLOR_BLACK);
     Game_Graphics_Draw_Text(g_lcd, 78, 5, "CALCULATOR", 1, COLOR_CYAN);
 
-    /* Expression */
     if (g_error) {
         Game_Graphics_Draw_Text(g_lcd, 10, 32, "Error", 2, COLOR_RED);
     } else if (g_expr_len > 0) {
-        /* Scale-1 fits ~36 chars; if longer, show the tail */
         const char* show = g_expr;
         if (g_expr_len > 36) { show = g_expr + g_expr_len - 36; }
         Game_Graphics_Draw_Text(g_lcd, 10, 22, show, 1, COLOR_CYAN);
     }
 
-    /* Result */
     if (!g_error && g_just_evaluated) {
         Game_Graphics_Fill_Rect(g_lcd, 10, 40, SCREEN_WIDTH - 20, 18, COLOR_BLACK);
         char result_str[32];
-        /* Manual double → string to avoid printf %f dependency */
-        int pos = 0;
-        double val = g_last_result;
-        if (val < 0) {
-            result_str[pos++] = '-';
-            val = -val;
-        }
-
-        /* integer part */
-        int64_t int_part = (int64_t)val;
-        double frac = val - (double)int_part;
-        char int_buf[24];
-        int int_len = 0;
-        if (int_part == 0) {
-            int_buf[int_len++] = '0';
-        } else {
-            while (int_part > 0 && int_len < (int)sizeof(int_buf)) {
-                int_buf[int_len++] = '0' + (char)(int_part % 10);
-                int_part /= 10;
-            }
-            for (int i = 0; i < int_len / 2; i++) {
-                char t = int_buf[i];
-                int_buf[i] = int_buf[int_len - 1 - i];
-                int_buf[int_len - 1 - i] = t;
-            }
-        }
-        for (int i = 0; i < int_len && pos < 30; i++) result_str[pos++] = int_buf[i];
-
-        /* fractional part */
-        if (frac > 1e-12 && pos < 29) {
-            result_str[pos++] = '.';
-            for (int i = 0; i < 6 && pos < 30; i++) {
-                frac *= 10.0;
-                int d = (int)frac;
-                result_str[pos++] = '0' + (char)d;
-                frac -= (double)d;
-            }
-            while (pos > 0 && result_str[pos - 1] == '0') pos--;
-            if (pos > 0 && result_str[pos - 1] == '.') pos--;
-        }
-        result_str[pos] = '\0';
-
+        float_to_str(g_last_result, result_str, sizeof(result_str));
         Game_Graphics_Draw_Text(g_lcd, 10, 42, "= ", 2, COLOR_GREEN);
         Game_Graphics_Draw_Text(g_lcd, 34, 42, result_str, 2, COLOR_WHITE);
     }
 
-    /* Separator */
     Game_Graphics_Fill_Rect(g_lcd, 10, 62, SCREEN_WIDTH - 20, 1, COLOR_DARK);
     Game_Graphics_Fill_Rect(g_lcd, 10, GRID_Y0 - 2, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 }
@@ -202,40 +190,40 @@ static void render_all(void) {
     Game_Graphics_Draw_Text(g_lcd, 64, 300, "HOLD TO BACK", 1, COLOR_GRAY);
 }
 
-/* ── Recursive-descent expression evaluator ── */
+/* ── Recursive-descent expression evaluator (all float) ── */
 static uint8_t eval_error;
 
-static double parse_expr(const char** p);
-static double parse_term(const char** p);
-static double parse_factor(const char** p);
+static float parse_expr(const char** p);
+static float parse_term(const char** p);
+static float parse_factor(const char** p);
 
 static void skip_spaces(const char** p) {
     while (**p == ' ') (*p)++;
 }
 
-static double parse_number(const char** p) {
-    double result = 0.0;
+static float parse_number(const char** p) {
+    float result = 0.0f;
     while (**p >= '0' && **p <= '9') {
-        result = result * 10.0 + (double)(**p - '0');
+        result = result * 10.0f + (float)(**p - '0');
         (*p)++;
     }
     if (**p == '.') {
         (*p)++;
-        double frac = 0.1;
+        float frac = 0.1f;
         while (**p >= '0' && **p <= '9') {
-            result += (double)(**p - '0') * frac;
-            frac *= 0.1;
+            result += (float)(**p - '0') * frac;
+            frac *= 0.1f;
             (*p)++;
         }
     }
     return result;
 }
 
-static double parse_factor(const char** p) {
+static float parse_factor(const char** p) {
     skip_spaces(p);
     if (**p == '(') {
         (*p)++;
-        double val = parse_expr(p);
+        float val = parse_expr(p);
         skip_spaces(p);
         if (**p == ')') {
             (*p)++;
@@ -251,20 +239,20 @@ static double parse_factor(const char** p) {
     return parse_number(p);
 }
 
-static double parse_term(const char** p) {
-    double lhs = parse_factor(p);
+static float parse_term(const char** p) {
+    float lhs = parse_factor(p);
     skip_spaces(p);
     while (**p == '*' || **p == '/') {
         char op = **p;
         (*p)++;
-        double rhs = parse_factor(p);
-        if (eval_error) return 0.0;
+        float rhs = parse_factor(p);
+        if (eval_error) return 0.0f;
         if (op == '*') {
             lhs *= rhs;
         } else {
-            if (rhs == 0.0) {
+            if (rhs == 0.0f) {
                 eval_error = 1;
-                return 0.0;
+                return 0.0f;
             }
             lhs /= rhs;
         }
@@ -273,14 +261,14 @@ static double parse_term(const char** p) {
     return lhs;
 }
 
-static double parse_expr(const char** p) {
-    double lhs = parse_term(p);
+static float parse_expr(const char** p) {
+    float lhs = parse_term(p);
     skip_spaces(p);
     while (**p == '+' || **p == '-') {
         char op = **p;
         (*p)++;
-        double rhs = parse_term(p);
-        if (eval_error) return 0.0;
+        float rhs = parse_term(p);
+        if (eval_error) return 0.0f;
         if (op == '+')
             lhs += rhs;
         else
@@ -290,12 +278,12 @@ static double parse_expr(const char** p) {
     return lhs;
 }
 
-static int evaluate(const char* s, double* out) {
+static int evaluate(const char* s, float* out) {
     eval_error = 0;
     const char* p = s;
-    double result = parse_expr(&p);
+    float result = parse_expr(&p);
     skip_spaces(&p);
-    if (*p != '\0') eval_error = 1; /* trailing garbage */
+    if (*p != '\0') eval_error = 1;
     if (eval_error) return 0;
     *out = result;
     return 1;
@@ -306,7 +294,6 @@ static void press_button(uint8_t row, uint8_t col) {
     const char* label = g_buttons[row][col];
     g_error = 0;
 
-    /* AC */
     if (label[0] == 'A' && label[1] == 'C') {
         g_expr_len = 0;
         g_expr[0] = '\0';
@@ -315,7 +302,6 @@ static void press_button(uint8_t row, uint8_t col) {
         return;
     }
 
-    /* DEL */
     if (label[0] == 'D' && label[1] == 'E') {
         if (g_just_evaluated) {
             g_expr_len = 0;
@@ -328,7 +314,6 @@ static void press_button(uint8_t row, uint8_t col) {
         return;
     }
 
-    /* = */
     if (label[0] == '=') {
         if (g_expr_len == 0) return;
         if (evaluate(g_expr, &g_last_result)) {
@@ -341,55 +326,24 @@ static void press_button(uint8_t row, uint8_t col) {
         return;
     }
 
-    /* Digit / operator / . / ( / ) */
     if (g_just_evaluated) {
         if ((label[0] >= '0' && label[0] <= '9') || label[0] == '.' || label[0] == '(') {
-            /* Start fresh */
             g_expr_len = 0;
             g_expr[0] = '\0';
         } else {
-            /* Operator — continue from result */
             g_expr_len = 0;
-            /* Append last result as string */
-            int pos = 0;
-            double val = g_last_result;
-            if (val < 0) {
-                g_expr[pos++] = '-';
-                val = -val;
+            char buf[32];
+            uint8_t len = float_to_str(g_last_result, buf, sizeof(buf));
+            for (uint8_t i = 0; i < len && g_expr_len < MAX_EXPR - 1; i++) {
+                g_expr[g_expr_len++] = buf[i];
             }
-            int64_t int_part = (int64_t)val;
-            double frac = val - (double)int_part;
-            if (int_part == 0) {
-                g_expr[pos++] = '0';
-            } else {
-                char rev[24];
-                int ri = 0;
-                while (int_part > 0) {
-                    rev[ri++] = '0' + (char)(int_part % 10);
-                    int_part /= 10;
-                }
-                while (ri > 0) g_expr[pos++] = rev[--ri];
-            }
-            if (frac > 1e-12 && pos < MAX_EXPR - 1) {
-                g_expr[pos++] = '.';
-                for (int i = 0; i < 6 && pos < MAX_EXPR - 1; i++) {
-                    frac *= 10.0;
-                    int d = (int)frac;
-                    g_expr[pos++] = '0' + (char)d;
-                    frac -= (double)d;
-                }
-                while (pos > 0 && g_expr[pos - 1] == '0') pos--;
-                if (pos > 0 && g_expr[pos - 1] == '.') pos--;
-            }
-            g_expr[pos] = '\0';
-            g_expr_len = (uint8_t)pos;
+            g_expr[g_expr_len] = '\0';
         }
         g_just_evaluated = 0;
     }
 
-    /* Append label to expression */
     uint8_t label_len = (uint8_t)strlen(label);
-    if (g_expr_len + label_len >= MAX_EXPR) return; /* overflow */
+    if (g_expr_len + label_len >= MAX_EXPR) return;
     for (uint8_t i = 0; i < label_len; i++) { g_expr[g_expr_len++] = label[i]; }
     g_expr[g_expr_len] = '\0';
     render_display();
@@ -403,7 +357,7 @@ void Calc_Init(const Game_hardware* hardware) {
     g_cursor_row = 2;
     g_cursor_col = 1;
     g_just_evaluated = 0;
-    g_last_result = 0.0;
+    g_last_result = 0.0f;
     g_error = 0;
     render_all();
 }
