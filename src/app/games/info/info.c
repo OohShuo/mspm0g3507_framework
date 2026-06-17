@@ -92,12 +92,15 @@ static void render_page2(void) {
     Game_Graphics_Draw_Text(g_lcd, 22, 219, "o/mspm0g3507_fram", 2, COLOR_WHITE);
     Game_Graphics_Draw_Text(g_lcd, 22, 240, "ework.git", 2, COLOR_WHITE);
 
-    Game_Graphics_Draw_Gray4_Bitmap(
-        g_lcd, 35, 135, INFO_IMAGE_OOOSHUO_50_W, INFO_IMAGE_OOOSHUO_50_H, info_image_oooshuo_50_data);
-    Game_Graphics_Draw_Gray4_Bitmap(
-        g_lcd, 95, 135, INFO_IMAGE_MORROW_50_W, INFO_IMAGE_MORROW_50_H, info_image_morrow_50_data);
-    Game_Graphics_Draw_Gray4_Bitmap(
-        g_lcd, 155, 135, INFO_IMAGE_POLARIS_50_W, INFO_IMAGE_POLARIS_50_H, info_image_polaris_50_data);
+    Game_Graphics_Draw_Pal4_Bitmap(
+        g_lcd, 35, 135, INFO_IMAGE_OOOSHUO_50_W, INFO_IMAGE_OOOSHUO_50_H,
+        info_image_oooshuo_50_palette, info_image_oooshuo_50_data);
+    Game_Graphics_Draw_Pal4_Bitmap(
+        g_lcd, 95, 135, INFO_IMAGE_MORROW_50_W, INFO_IMAGE_MORROW_50_H,
+        info_image_morrow_50_palette, info_image_morrow_50_data);
+    Game_Graphics_Draw_Pal4_Bitmap(
+        g_lcd, 155, 135, INFO_IMAGE_POLARIS_50_W, INFO_IMAGE_POLARIS_50_H,
+        info_image_polaris_50_palette, info_image_polaris_50_data);
 
     /* Page indicator */
     draw_page_indicator();
