@@ -19,6 +19,7 @@ typedef enum {
     game_icon_flappy,
     game_icon_maze,
     game_icon_needle,
+    game_icon_calculator,
     game_icon_fps_test,
     game_icon_info,
 } Game_icon;
@@ -38,6 +39,7 @@ typedef enum {
     game_id_flappy,
     game_id_maze,
     game_id_needle,
+    game_id_calculator,
     game_id_fps_test,
     game_id_info,
     game_id_count,
