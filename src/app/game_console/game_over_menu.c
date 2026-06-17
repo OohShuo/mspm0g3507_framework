@@ -327,3 +327,14 @@ Game_over_action Game_Over_Menu_Update(const Game_input* input) {
     if (g_stage == end_stage_keyboard) { return update_keyboard(input); }
     return update_leaderboard(input);
 }
+
+void Game_Over_Menu_Redraw(void) {
+    if (g_lcd == NULL) { return; }
+    if (g_stage == end_stage_prompt) {
+        render_prompt();
+    } else if (g_stage == end_stage_keyboard) {
+        render_keyboard();
+    } else {
+        render_leaderboard();
+    }
+}

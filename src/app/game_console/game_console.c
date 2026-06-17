@@ -17,6 +17,7 @@
 #include "joystick.h"
 #include "rtt_log.h"
 #include "score_store.h"
+#include "screensaver.h"
 #include "st7789.h"
 #include "task.h"
 
@@ -65,6 +66,7 @@ static uint8_t g_back_sent = 0;
 static uint8_t g_menu_selection = 0;
 static uint8_t g_current_page = 0;
 static uint32_t g_last_monitor_time = 0;
+static uint32_t g_last_input_tick = 0;
 
 static Game_direction read_direction(void) {
     if (g_joystick == NULL) { return game_direction_none; }
@@ -735,6 +737,7 @@ static void console_init(void) {
 static void console_task(void* arg) {
     (void)arg;
     console_init();
+    g_last_input_tick = Bsp_Get_Tick_Ms();
 
     const Game_hardware hardware = {
         .lcd = g_lcd,
@@ -746,6 +749,38 @@ static void console_task(void* arg) {
         const Game_input input = poll_input();
         Game_result result = game_result_running;
 
+        /* ── idle tracking ── */
+        if (input.direction_pressed || input.confirm_pressed || input.back_requested) {
+            g_last_input_tick = Bsp_Get_Tick_Ms();
+        }
+
+        /* ── screensaver activation ── */
+        if (!Screensaver_Is_Active()) {
+            if (g_console_state != console_state_game &&
+                Bsp_Get_Tick_Ms() - g_last_input_tick > 15000u) {
+                Screensaver_Init(g_lcd);
+            }
+        }
+
+        /* ── screensaver loop ── */
+        if (Screensaver_Is_Active()) {
+            if (input.direction_pressed || input.confirm_pressed || input.back_requested) {
+                Screensaver_Exit();
+                g_last_input_tick = Bsp_Get_Tick_Ms();
+                /* redraw the screen that was underneath */
+                if (g_console_state == console_state_menu) {
+                    render_menu();
+                } else if (g_console_state == console_state_game_over) {
+                    Game_Over_Menu_Redraw();
+                }
+            } else {
+                Screensaver_Run_Frame();
+            }
+            vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
+            continue;
+        }
+
+        /* ── normal dispatch ── */
         if (g_console_state == console_state_menu) {
             update_menu(&input, &hardware);
         } else if (g_console_state == console_state_game) {
