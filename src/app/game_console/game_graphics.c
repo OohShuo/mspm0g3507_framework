@@ -64,15 +64,20 @@ static const uint8_t g_font_lower[][5] = {
     {0x44, 0x64, 0x54, 0x4c, 0x44}, /* z */
 };
 
-static const uint8_t g_glyph_lt[5] = {0x00, 0x08, 0x14, 0x22, 0x41};         /* < */
-static const uint8_t g_glyph_gt[5] = {0x41, 0x22, 0x14, 0x08, 0x00};         /* > */
-static const uint8_t g_glyph_slash[5] = {0x10, 0x08, 0x04, 0x02, 0x01};      /* / */
-static const uint8_t g_glyph_dot[5] = {0x00, 0x00, 0x40, 0x00, 0x00};        /* . */
-static const uint8_t g_glyph_colon[5] = {0x00, 0x00, 0x44, 0x00, 0x00};      /* : */
-static const uint8_t g_glyph_comma[5] = {0x00, 0x40, 0x30, 0x00, 0x00};      /* , */
-static const uint8_t g_glyph_underscore[5] = {0x40, 0x40, 0x40, 0x40, 0x40}; /* _ */
-static const uint8_t g_glyph_caret[5] = {0x04, 0x02, 0x01, 0x02, 0x04};      /* ^ */
-static const uint8_t g_glyph_percent[5] = {0x23, 0x18, 0x04, 0x02, 0x31};    /* % */
+static const uint8_t g_glyph_lt[5] = {0x00, 0x08, 0x14, 0x22, 0x41};          /* < */
+static const uint8_t g_glyph_gt[5] = {0x41, 0x22, 0x14, 0x08, 0x00};          /* > */
+static const uint8_t g_glyph_slash[5] = {0x10, 0x08, 0x04, 0x02, 0x01};       /* / */
+static const uint8_t g_glyph_dot[5] = {0x00, 0x00, 0x40, 0x00, 0x00};         /* . */
+static const uint8_t g_glyph_colon[5] = {0x00, 0x00, 0x44, 0x00, 0x00};       /* : */
+static const uint8_t g_glyph_comma[5] = {0x00, 0x40, 0x30, 0x00, 0x00};       /* , */
+static const uint8_t g_glyph_underscore[5] = {0x40, 0x40, 0x40, 0x40, 0x40};  /* _ */
+static const uint8_t g_glyph_caret[5] = {0x04, 0x02, 0x01, 0x02, 0x04};       /* ^ */
+static const uint8_t g_glyph_percent[5] = {0x23, 0x18, 0x04, 0x02, 0x31};     /* % */
+static const uint8_t g_glyph_plus[5] = {0x08, 0x08, 0x3e, 0x08, 0x08};        /* + */
+static const uint8_t g_glyph_paren_left[5] = {0x00, 0x1c, 0x22, 0x41, 0x00};  /* ( */
+static const uint8_t g_glyph_paren_right[5] = {0x00, 0x41, 0x22, 0x1c, 0x00}; /* ) */
+static const uint8_t g_glyph_equal[5] = {0x14, 0x14, 0x14, 0x14, 0x14};       /* = */
+static const uint8_t g_glyph_asterisk[5] = {0x14, 0x08, 0x3e, 0x08, 0x14};    /* * */
 
 static const uint8_t g_digits[][5] = {
     {0x3e, 0x51, 0x49, 0x45, 0x3e},
@@ -110,6 +115,16 @@ static const uint8_t* glyph_for(char character) {
             return g_glyph_caret;
         case '%':
             return g_glyph_percent;
+        case '+':
+            return g_glyph_plus;
+        case '(':
+            return g_glyph_paren_left;
+        case ')':
+            return g_glyph_paren_right;
+        case '=':
+            return g_glyph_equal;
+        case '*':
+            return g_glyph_asterisk;
         default:
             return NULL;
     }
