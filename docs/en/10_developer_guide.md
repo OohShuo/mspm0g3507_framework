@@ -44,7 +44,7 @@
 2. `game_registry.h` — add `game_icon_my_game` to `Game_icon`, `game_id_my_game` to `Game_id`
 3. `game_registry.c` — add `Game_descriptor` entry
 4. `game_console.c` — add icon draw function + case in `draw_grid_cell()`
-5. Test on VM: `BUILD_PLATFORM=VM ninja && ./framework_vm`
+5. Test on VM: `python3 scripts/cc.py --target vm && ./build/vm/framework_vm`（`--target` 匹配 config.yaml 中的 `name:`）
 
 ### Add a HAL Module
 

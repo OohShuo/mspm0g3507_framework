@@ -48,9 +48,12 @@ ESC → Quit
 ## Build & Run
 
 ```bash
-cmake -G Ninja .. -DBUILD_PLATFORM=VM && ninja && ./framework_vm
+# 1. 在 config/config.yaml 的 build: 列表中确认有 name: vm 的 target
+# 2. 构建（--target 匹配 name 字段，非 platform）并运行
+python3 scripts/cc.py --target vm
+./build/vm/framework_vm
 ```
 
 ## ADR
 
-详见 [adr/architecture_decisions.md §5](adr/architecture_decisions.md#5-vm-simulator).
+详见 [adr/architecture_decisions.md §5](adr/architecture_decisions.md#5-sdl2-vm-simulator).
