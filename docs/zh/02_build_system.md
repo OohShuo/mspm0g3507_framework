@@ -16,16 +16,22 @@ graph TD
     VM --> BIN_VM["framework_vm"]
 ```
 
-## 命令
+## 工作流
+
+构建分两步：先在 `config/config.yaml` 中为每个 target（`name:` 唯一标识）配置 `platform` 和 feature flags，然后通过 `cc.py` 驱动构建。`cc.py` 读取 YAML 并将所有开关作为 `-D` 传递给 CMake——**直接运行 cmake 会跳过配置，模块开关不生效**。
 
 ```bash
-# ARM
-mkdir -p build && cd build
-cmake -G Ninja .. -DBUILD_PLATFORM=ARM && ninja
+# 1. 编辑 config/config.yaml（为每个 name 配置 platform 和模块开关）
+# 2. 构建
+python3 scripts/cc.py                  # 构建所有 target（build: 列表）
+python3 scripts/cc.py --target arm     # 仅构建 name=arm 的 target（--target 匹配 name，非 platform）
+python3 scripts/cc.py --target vm      # 仅构建 name=vm 的 target
 
-# VM
-cmake -G Ninja .. -DBUILD_PLATFORM=VM && ninja && ./framework_vm
+# 或使用 bash 快捷方式
+bash scripts/cm.bash --target vm
 ```
+
+产物输出到 `build/<name>/`（与 config 中 `name:` 对应，如 `build/arm/framework.elf`、`build/vm/framework_vm`）。
 
 ## 编译选项（ARM）
 

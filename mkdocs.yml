@@ -1,0 +1,151 @@
+# MSPM0G3507 Framework — MkDocs Material Configuration
+# 嵌入式系统框架文档 | Embedded Framework Documentation
+# Run: mkdocs serve
+
+# ── Site ──────────────────────────────────────────────
+site_name: MSPM0G3507 Framework
+site_description: TI MSPM0G3507 Embedded Framework — BSP / HAL / APP / RTOS / VM Simulator
+site_author: MSPM0G3507 Framework Team
+
+# ── Docs Root ─────────────────────────────────────────
+docs_dir: docs
+
+# ── Repository ────────────────────────────────────────
+repo_url: https://github.com/northyears/ti-framework
+repo_name: northyears/ti-framework
+
+# ── Theme ─────────────────────────────────────────────
+theme:
+  name: material
+  language: en
+  palette:
+    # Dark mode (default)
+    - scheme: slate
+      primary: deep blue
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    # Light mode
+    - scheme: default
+      primary: deep blue
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+# ── Plugins ───────────────────────────────────────────
+plugins:
+  - search:
+      lang:
+        - en
+        - zh
+  - mermaid2:
+      arguments:
+        theme: dark
+
+# ── Markdown Extensions ───────────────────────────────
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+
+# ── Navigation ─────────────────────────────────────────
+# Architecture-first organization: 架构优先，按功能分组
+nav:
+  - Home: index.md
+  # ═══ 中文文档 ═══
+  - 中文文档:
+      - 简介: zh/00_introduction.md
+      - 架构设计:
+          - 架构总览: zh/01_architecture.md
+          - 设计原则: zh/11_design_principles.md
+          - 内存布局: zh/12_memory_layout.md
+      - 核心层:
+          - BSP / HAL / APP 分层: zh/03_bsp_hal_app.md
+      - 中间件:
+          - FreeRTOS / LVGL / LittleFS / RTT: zh/04_middleware.md
+      - 存储系统:
+          - Flash 存储: zh/05_storage.md
+      - 游戏控制台:
+          - 游戏框架: zh/06_game_console.md
+      - VM 仿真器:
+          - SDL2 虚拟机: zh/07_vm_simulator.md
+      - 构建系统:
+          - CMake 构建: zh/02_build_system.md
+      - 配置系统:
+          - 配置与模块: zh/08_configuration.md
+      - 移植与开发:
+          - 移植指南: zh/09_porting.md
+          - 开发者指南: zh/10_developer_guide.md
+
+  # ═══ English Docs ═══
+  - English Docs:
+      - Introduction: en/00_introduction.md
+      - Architecture:
+          - Overview: en/01_architecture.md
+          - Design Principles: en/11_design_principles.md
+          - Memory Layout: en/12_memory_layout.md
+      - Core Layers:
+          - BSP / HAL / APP: en/03_bsp_hal_app.md
+      - Middleware:
+          - FreeRTOS / LVGL / LittleFS / RTT: en/04_middleware.md
+      - Storage:
+          - Flash Storage: en/05_storage.md
+      - Game Console:
+          - Game Framework: en/06_game_console.md
+      - VM Simulator:
+          - SDL2 VM: en/07_vm_simulator.md
+      - Build System:
+          - CMake Build: en/02_build_system.md
+      - Configuration:
+          - Config & Modules: en/08_configuration.md
+      - Porting & Development:
+          - Porting Guide: en/09_porting.md
+          - Developer Guide: en/10_developer_guide.md
+
+  # ═══ ADR ═══
+  - ADR:
+      - Architecture Decision Records: en/adr/architecture_decisions.md
+
+# ── Extra ─────────────────────────────────────────────
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/northyears/ti-framework
+  generator: false
+
+copyright: MSPM0G3507 Framework Team
