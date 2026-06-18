@@ -26,51 +26,13 @@
 #define COLOR_HILITE   0xc618u
 
 /* ── SFX 名称，顺序必须与 Buzzer_sfx_idx 一致 ── */
-static const char* const g_sfx_names[] = {
-    "menu move",
-    "menu select",
-    "pellet",
-    "power",
-    "ghost",
-    "pacman waka",
-    "snake eat",
-    "snake turn",
-    "snake grow",
-    "lane change",
-    "overtake",
-    "racing crash",
-    "tank fire",
-    "tank hit",
-    "air fire",
-    "air hit",
-    "air pickup",
-    "boss alert",
-    "tetris move",
-    "tetris rotate",
-    "tetris lock",
-    "tetris line clear",
-    "tetris tetris",
-    "breakout bounce",
-    "breakout brick",
-    "pong paddle",
-    "pong wall",
-    "pong score",
-    "gomoku place",
-    "slide",
-    "merge",
-    "dino jump",
-    "dino duck",
-    "flappy flap",
-    "flappy score",
-    "maze move",
-    "maze goal",
-    "needle launch",
-    "needle stick",
-    "explosion",
-    "life lost",
-    "victory",
-    "defeat",
-};
+static const char* const g_sfx_names[] = {"menu move", "menu select", "pellet", "power", "ghost",
+    "pacman waka", "snake eat", "snake turn", "snake grow", "lane change", "overtake", "racing crash",
+    "tank fire", "tank hit", "air fire", "air hit", "air pickup", "boss alert", "tetris move",
+    "tetris rotate", "tetris lock", "tetris line clear", "tetris tetris", "breakout bounce", "breakout brick",
+    "pong paddle", "pong wall", "pong score", "gomoku place", "slide", "merge", "dino jump", "dino duck",
+    "flappy flap", "flappy score", "maze move", "maze goal", "needle launch", "needle stick", "explosion",
+    "life lost", "victory", "defeat"};
 
 static Game_hardware g_hardware;
 static uint8_t g_cursor; /* 当前页内选中位置 (0 起始) */
@@ -125,10 +87,8 @@ static void draw_bottom_hint(void) {
 
     Game_Graphics_Draw_Text(g_hardware.lcd, 58, BOTTOM_HINT_Y + 5, "^ v", 1, COLOR_WHITE);
     Game_Graphics_Draw_Text(g_hardware.lcd, 82, BOTTOM_HINT_Y + 5, "nav", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 110, BOTTOM_HINT_Y + 5, "PRESS", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 146, BOTTOM_HINT_Y + 5, "play", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 176, BOTTOM_HINT_Y + 5, "< >", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 200, BOTTOM_HINT_Y + 5, "page", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 110, BOTTOM_HINT_Y + 5, "< >", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 146, BOTTOM_HINT_Y + 5, "page", 1, COLOR_GRAY);
 }
 
 static int32_t row_y(uint8_t pos) { return LIST_TOP + (int32_t)pos * ROW_H; }

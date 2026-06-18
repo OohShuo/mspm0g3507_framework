@@ -47,9 +47,11 @@ static int16_t g_bird_y, g_bird_vy, g_old_bird_y;
 static uint8_t g_gravity_acc, g_up_prev, g_ground_offset;
 static Pipe g_pipes[MAX_PIPES];
 static uint32_t g_score, g_old_score, g_pipe_timer;
-static uint16_t g_speed_acc, g_frame_count;
+static uint16_t g_speed_acc;
 static uint8_t g_bars_drawn;
 static uint32_t g_rand_state;
+static uint32_t g_start_ms;
+static uint32_t g_last_tick;
 
 static uint32_t fast_rand(void) {
     g_rand_state = g_rand_state * 1103515245 + 12345;
@@ -88,10 +90,14 @@ static void play_fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, x, y, w, h, c);
 }
 
-/* Linear speed 2→5 over 1200 frames, fixed-point ×256 */
-static uint16_t speed_scaled(void) {
-    if (g_frame_count >= 1200u) { return 1280u; }
-    return 512u + (uint16_t)((g_frame_count * 768u) / 1200u);
+#define BASE_TICK_MS     20u
+#define SPEED_MAX_FRAMES 1200u
+#define SPEED_MAX_MS     (SPEED_MAX_FRAMES * BASE_TICK_MS)
+
+/* Linear speed 2→5 over 24 s, fixed-point ×256 */
+static uint16_t speed_scaled(uint32_t elapsed_ms) {
+    if (elapsed_ms >= SPEED_MAX_MS) { return 1280u; }
+    return 512u + (uint16_t)((elapsed_ms * 768u) / SPEED_MAX_MS);
 }
 
 /* ── Status bars (drawn once, full screen) ── */
@@ -196,7 +202,7 @@ static void restart_game(void) {
     g_old_score = 0;
     g_pipe_timer = 0;
     g_speed_acc = 0;
-    g_frame_count = 0;
+    g_last_tick = 0;
     g_rand_state = Bsp_Get_Tick_Ms();
     g_bars_drawn = 0;
     for (uint8_t i = 0; i < MAX_PIPES; i++) { g_pipes[i].active = 0; }
@@ -236,6 +242,8 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         uint8_t up = (input->direction == game_direction_up);
         if (up && !g_up_prev) {
             g_state = flappy_state_playing;
+            g_start_ms = Bsp_Get_Tick_Ms();
+            g_last_tick = 0;
             g_bird_vy = FLAP_VELOCITY;
             g_gravity_acc = 0;
             play_fill(20, 130, SCREEN_WIDTH - 40, 20, COLOR_BLACK);
@@ -247,6 +255,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
 
     /* ═══ Playing ═══ */
 
+    /* ── Input (once per real call, applied to upcoming tick) ── */
     {
         uint8_t up = (input->direction == game_direction_up);
         if (up && !g_up_prev) {
@@ -257,49 +266,69 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         g_up_prev = up;
     }
 
-    g_old_bird_y = g_bird_y;
-    g_gravity_acc += 1u;
-    if (g_gravity_acc >= 2u) {
-        g_gravity_acc -= 2u;
-        g_bird_vy++;
-    }
-    g_bird_y += g_bird_vy;
-    if (g_bird_y < PLAY_TOP) { g_bird_y = PLAY_TOP; }
+    /* ── Tick-accumulator: run one logic tick per 20 ms of elapsed time ── */
+    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t elapsed = now - g_start_ms;
+    uint32_t effective_ticks = elapsed / BASE_TICK_MS;
+    /* Cap catch-up to prevent spiral on stall */
+    if (effective_ticks - g_last_tick > 5u) { effective_ticks = g_last_tick + 5u; }
 
-    /* Pipe movement */
-    g_speed_acc += speed_scaled();
-    uint8_t sp = (uint8_t)(g_speed_acc >> 8);
-    g_speed_acc &= 0xFFu;
-    if (sp > 0) {
-        for (uint8_t i = 0; i < MAX_PIPES; i++) {
-            if (!g_pipes[i].active) { continue; }
-            pipe_delta(&g_pipes[i], (int16_t)sp);
-            g_pipes[i].x -= sp;
-            if (g_pipes[i].x + PIPE_W < -10) { g_pipes[i].active = 0; }
-            if (!g_pipes[i].scored && g_pipes[i].x + PIPE_W < BIRD_X) {
-                g_pipes[i].scored = 1;
-                g_score++;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_flappy_score);
+    const int16_t bird_before = g_bird_y;
+
+    while (g_last_tick < effective_ticks) {
+        g_last_tick++;
+        const uint32_t tick_ms = g_last_tick * BASE_TICK_MS;
+
+        /* Gravity */
+        g_gravity_acc += 1u;
+        if (g_gravity_acc >= 2u) {
+            g_gravity_acc -= 2u;
+            g_bird_vy++;
+        }
+        g_bird_y += g_bird_vy;
+        if (g_bird_y < PLAY_TOP) { g_bird_y = PLAY_TOP; }
+
+        /* Pipe movement */
+        {
+            const uint16_t speed = speed_scaled(tick_ms);
+            g_speed_acc += speed;
+            uint8_t sp = (uint8_t)(g_speed_acc >> 8);
+            g_speed_acc &= 0xFFu;
+            if (sp > 0) {
+                for (uint8_t i = 0; i < MAX_PIPES; i++) {
+                    if (!g_pipes[i].active) { continue; }
+                    pipe_delta(&g_pipes[i], (int16_t)sp);
+                    g_pipes[i].x -= sp;
+                    if (g_pipes[i].x + PIPE_W < -10) { g_pipes[i].active = 0; }
+                    if (!g_pipes[i].scored && g_pipes[i].x + PIPE_W < BIRD_X) {
+                        g_pipes[i].scored = 1;
+                        g_score++;
+                        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_flappy_score);
+                    }
+                }
             }
+        }
+
+        /* Pipe spawn */
+        if (g_pipe_timer == 0) {
+            spawn_pipe();
+            g_pipe_timer = PIPE_SPACING / (speed_scaled(tick_ms) >> 8) + (fast_rand() % 30);
+        } else {
+            g_pipe_timer--;
+        }
+
+        /* Ground scroll */
+        {
+            uint8_t s = speed_scaled(tick_ms) >> 8;
+            if (s < 2) { s = 2; }
+            g_ground_offset = (uint8_t)((g_ground_offset + s) % 16);
         }
     }
 
-    if (g_pipe_timer == 0) {
-        spawn_pipe();
-        g_pipe_timer = PIPE_SPACING / (speed_scaled() >> 8) + (fast_rand() % 30);
-    } else {
-        g_pipe_timer--;
-    }
-
-    if (g_bird_y != g_old_bird_y) {
-        play_fill(BIRD_X - 1, g_old_bird_y - 1, BIRD_W + 3, BIRD_H + 2, COLOR_BLACK);
+    /* ── Rendering (once per real call) ── */
+    if (g_bird_y != bird_before) {
+        play_fill(BIRD_X - 1, bird_before - 1, BIRD_W + 3, BIRD_H + 2, COLOR_BLACK);
         draw_bird(g_bird_y);
-    }
-
-    {
-        uint8_t s = speed_scaled() >> 8;
-        if (s < 2) { s = 2; }
-        g_ground_offset = (uint8_t)((g_ground_offset + s) % 16);
     }
     draw_ground();
 
@@ -307,7 +336,6 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         g_old_score = g_score;
         update_score();
     }
-    g_frame_count++;
 
     if (check_collision()) {
         g_state = flappy_state_over;

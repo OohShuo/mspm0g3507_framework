@@ -47,25 +47,26 @@ static uint16_t light_color(uint16_t c) {
     return (uint16_t)((r << 11) | (g << 5) | b);
 }
 
-#define MAX_DT_MS        50u
-#define BULLET_MAX_COUNT 24u
-#define BULLET_DIR_SCALE 256l
+#define MAX_DT_MS            50u
+#define BULLET_MAX_COUNT     24u
+#define BULLET_DIR_SCALE     256l
+#define BULLET_DIR_UPDATE_MS 20u
 
-#define ATTACK_COUNT     ((uint8_t)(sizeof(g_level) / sizeof(g_level[0])))
+#define ATTACK_COUNT         ((uint8_t)(sizeof(g_level) / sizeof(g_level[0])))
 
-#define COLOR_BLACK      0x0000u
-#define COLOR_WHITE      0xffffu
-#define COLOR_RED        0xf800u
-#define COLOR_GREEN      0x07e0u
-#define COLOR_BLUE       0x001fu
-#define COLOR_CYAN       0x07ffu
-#define COLOR_YELLOW     0xffe0u
-#define COLOR_MAGENTA    0xf81fu
-#define COLOR_GRAY       0x8410u
-#define COLOR_DARK       0x2104u
-#define COLOR_DIM_RED    0x6000u
-#define COLOR_DIM_CYAN   0x0339u
-#define COLOR_DIM_YELLOW 0x6300u
+#define COLOR_BLACK          0x0000u
+#define COLOR_WHITE          0xffffu
+#define COLOR_RED            0xf800u
+#define COLOR_GREEN          0x07e0u
+#define COLOR_BLUE           0x001fu
+#define COLOR_CYAN           0x07ffu
+#define COLOR_YELLOW         0xffe0u
+#define COLOR_MAGENTA        0xf81fu
+#define COLOR_GRAY           0x8410u
+#define COLOR_DARK           0x2104u
+#define COLOR_DIM_RED        0x6000u
+#define COLOR_DIM_CYAN       0x0339u
+#define COLOR_DIM_YELLOW     0x6300u
 
 typedef enum {
     attack_laser_h,
@@ -177,6 +178,7 @@ static int32_t g_player_y256 = 0;
 static int16_t g_prev_player_x = 0;
 static int16_t g_prev_player_y = 0;
 static Bullet_runtime g_bullets[BULLET_MAX_COUNT];
+static uint32_t g_bullet_dir_accum = 0;
 
 static Rect_cache g_final_dirty_cache;
 static uint8_t g_clip_enabled = 0;
@@ -1255,19 +1257,26 @@ static void update_bullet_runtime(uint8_t index, const Attack* a, uint32_t dt_ms
     b->prev_x256 = b->x256;
     b->prev_y256 = b->y256;
 
-    const int32_t player_cx = g_player_x256 + (PLAYER_SIZE << 7);
-    const int32_t player_cy = g_player_y256 + (PLAYER_SIZE << 7);
-    const int32_t bullet_cx = b->x256 + (size << 7);
-    const int32_t bullet_cy = b->y256 + (size << 7);
-    int16_t target_x;
-    int16_t target_y;
-    normalize_to_q8((player_cx - bullet_cx) >> 8, (player_cy - bullet_cy) >> 8, &target_x, &target_y);
+    /* Direction update — fixed 50 Hz, independent of task frequency */
+    g_bullet_dir_accum += dt_ms;
+    if (g_bullet_dir_accum >= BULLET_DIR_UPDATE_MS) {
+        g_bullet_dir_accum -= BULLET_DIR_UPDATE_MS;
 
-    const uint16_t alpha = a->u.bullet.alpha;
-    int32_t new_x = ((int32_t)alpha * b->dir_x + (int32_t)(255u - alpha) * target_x) / 255;
-    int32_t new_y = ((int32_t)alpha * b->dir_y + (int32_t)(255u - alpha) * target_y) / 255;
-    normalize_to_q8(new_x, new_y, &b->dir_x, &b->dir_y);
+        const int32_t player_cx = g_player_x256 + (PLAYER_SIZE << 7);
+        const int32_t player_cy = g_player_y256 + (PLAYER_SIZE << 7);
+        const int32_t bullet_cx = b->x256 + (size << 7);
+        const int32_t bullet_cy = b->y256 + (size << 7);
+        int16_t target_x;
+        int16_t target_y;
+        normalize_to_q8((player_cx - bullet_cx) >> 8, (player_cy - bullet_cy) >> 8, &target_x, &target_y);
 
+        const uint16_t alpha = a->u.bullet.alpha;
+        int32_t new_x = ((int32_t)alpha * b->dir_x + (int32_t)(255u - alpha) * target_x) / 255;
+        int32_t new_y = ((int32_t)alpha * b->dir_y + (int32_t)(255u - alpha) * target_y) / 255;
+        normalize_to_q8(new_x, new_y, &b->dir_x, &b->dir_y);
+    }
+
+    /* Position update — always dt-scaled */
     const int32_t step256 = (int32_t)a->u.bullet.speed_px_s * 256 * (int32_t)dt_ms / 1000;
     b->x256 += step256 * b->dir_x / BULLET_DIR_SCALE;
     b->y256 += step256 * b->dir_y / BULLET_DIR_SCALE;
@@ -1500,6 +1509,7 @@ static void reset_game(void) {
     g_prev_player_x = (int16_t)(g_player_x256 >> 8);
     g_prev_player_y = (int16_t)(g_player_y256 >> 8);
     memset(g_bullets, 0, sizeof(g_bullets));
+    g_bullet_dir_accum = 0;
     memset(g_laser_track_pos, 0, sizeof(g_laser_track_pos));
     memset(g_laser_track_pos_valid, 0, sizeof(g_laser_track_pos_valid));
     dirty_all_layers_clear();

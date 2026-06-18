@@ -52,6 +52,11 @@ static uint8_t g_player_score = 0;
 static uint8_t g_ai_score = 0;
 static uint32_t g_last_move = 0;
 static uint32_t g_serve_at = 0;
+static uint32_t g_last_paddle_ms = 0;
+static int32_t g_player_y256 = 0;
+static int32_t g_ai_y256 = 0;
+
+#define BASE_TICK_MS 20u
 
 static void serve_ball(uint8_t toward_player) {
     g_ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
@@ -141,7 +146,10 @@ static void restart_game(void) {
     g_ai_y = g_player_y;
     g_old_player_y = g_player_y;
     g_old_ai_y = g_ai_y;
+    g_player_y256 = (int32_t)g_player_y * 256;
+    g_ai_y256 = (int32_t)g_ai_y * 256;
     g_last_move = Bsp_Get_Tick_Ms();
+    g_last_paddle_ms = g_last_move;
     g_serve_at = g_last_move + 800u;
     serve_ball(0);
     render_full();
@@ -162,15 +170,31 @@ Game_result Pong_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    /* Player paddle */
+    /* ── Paddle dt (shared by player + AI) ── */
+    const uint32_t now = Bsp_Get_Tick_Ms();
+    uint32_t dt = now - g_last_paddle_ms;
+    if (dt > 100u) { dt = 100u; }
+    g_last_paddle_ms = now;
+    const int32_t dt_step256 = (int32_t)PADDLE_STEP * 256 * (int32_t)dt / (int32_t)BASE_TICK_MS;
+
+    /* Player paddle — dt-scaled */
     g_old_player_y = g_player_y;
-    if (input->direction == game_direction_up) {
-        g_player_y = clamp_paddle((int16_t)(g_player_y - PADDLE_STEP));
-    } else if (input->direction == game_direction_down) {
-        g_player_y = clamp_paddle((int16_t)(g_player_y + PADDLE_STEP));
-    }
-    if (g_player_y != g_old_player_y) {
-        render_paddle(PADDLE_LEFT_X, g_old_player_y, g_player_y, COLOR_GREEN);
+    {
+        int32_t new_y256 = g_player_y256;
+        if (input->direction == game_direction_up) {
+            new_y256 -= dt_step256;
+        } else if (input->direction == game_direction_down) {
+            new_y256 += dt_step256;
+        }
+
+        const int16_t new_y = clamp_paddle((int16_t)(new_y256 / 256));
+        if (new_y != g_player_y) {
+            render_paddle(PADDLE_LEFT_X, g_old_player_y, new_y, COLOR_GREEN);
+            g_player_y = new_y;
+            g_player_y256 = (int32_t)new_y * 256;
+        } else {
+            g_player_y256 = new_y256;
+        }
     }
 
     /* Serve */
@@ -183,16 +207,29 @@ Game_result Pong_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    /* AI paddle - follows ball with lag and error */
+    /* AI paddle — follows ball with lag and error, dt-scaled */
     g_old_ai_y = g_ai_y;
-    const int16_t ai_center = (int16_t)(g_ai_y + PADDLE_HEIGHT / 2);
-    const int16_t ball_center = (int16_t)(g_ball_y + BALL_SIZE / 2);
-    if (ball_center < ai_center - 6) {
-        g_ai_y = clamp_paddle((int16_t)(g_ai_y - PADDLE_STEP + 1));
-    } else if (ball_center > ai_center + 6) {
-        g_ai_y = clamp_paddle((int16_t)(g_ai_y + PADDLE_STEP - 1));
+    {
+        const int16_t ai_center = (int16_t)(g_ai_y + PADDLE_HEIGHT / 2);
+        const int16_t ball_center = (int16_t)(g_ball_y + BALL_SIZE / 2);
+        const int32_t ai_step256 = dt_step256 * (PADDLE_STEP - 1) / PADDLE_STEP;
+
+        int32_t new_y256 = g_ai_y256;
+        if (ball_center < ai_center - 6) {
+            new_y256 -= ai_step256;
+        } else if (ball_center > ai_center + 6) {
+            new_y256 += ai_step256;
+        }
+
+        const int16_t new_y = clamp_paddle((int16_t)(new_y256 / 256));
+        if (new_y != g_ai_y) {
+            render_paddle(PADDLE_RIGHT_X, g_old_ai_y, new_y, COLOR_RED);
+            g_ai_y = new_y;
+            g_ai_y256 = (int32_t)new_y * 256;
+        } else {
+            g_ai_y256 = new_y256;
+        }
     }
-    if (g_ai_y != g_old_ai_y) { render_paddle(PADDLE_RIGHT_X, g_old_ai_y, g_ai_y, COLOR_RED); }
 
     /* Move ball */
     const uint32_t now2 = Bsp_Get_Tick_Ms();

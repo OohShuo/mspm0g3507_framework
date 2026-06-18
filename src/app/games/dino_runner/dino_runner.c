@@ -52,6 +52,10 @@ static Obstacle g_obstacles[MAX_OBSTACLES];
 static uint16_t g_move_acc;
 static uint32_t g_score, g_old_score, g_spawn_countdown, g_rand_state;
 static uint8_t g_ptero_wing, g_bars_drawn;
+static uint32_t g_start_ms;
+static uint32_t g_last_tick;
+
+#define BASE_TICK_MS 20u
 
 static uint32_t fast_rand(void) {
     g_rand_state = g_rand_state * 1103515245 + 12345;
@@ -90,9 +94,11 @@ static void play_fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, x, y, w, h, c);
 }
 
-static uint16_t speed_scaled(void) {
-    if (g_score >= 2000u) { return 2048u; }
-    return 768u + (uint16_t)((g_score * 1280u) / 2000u);
+static uint16_t speed_scaled(uint32_t elapsed_ms) {
+    /* Score is now elapsed_ms / 20 (effective tick count) */
+    const uint32_t tick_count = elapsed_ms / BASE_TICK_MS;
+    if (tick_count >= 2000u) { return 2048u; }
+    return 768u + (uint16_t)((tick_count * 1280u) / 2000u);
 }
 
 /* ── Status bars ── */
@@ -163,7 +169,7 @@ static void draw_ground(void) { play_fill(0, GROUND_Y, SCREEN_WIDTH, 2, COLOR_DA
 
 static uint8_t obs_visible(int16_t x, uint8_t w) { return x < SCREEN_WIDTH && (x + w) > 0; }
 
-static void move_obstacles(void) {
+static void move_obstacles(uint32_t elapsed_ms) {
     for (uint8_t i = 0; i < MAX_OBSTACLES; i++) {
         if (!g_obstacles[i].active || !obs_visible(g_obstacles[i].x, g_obstacles[i].w)) { continue; }
         play_fill(
@@ -171,7 +177,7 @@ static void move_obstacles(void) {
     }
 
     g_ptero_wing = (uint8_t)((g_score / 8u) & 1u);
-    g_move_acc += speed_scaled();
+    g_move_acc += speed_scaled(elapsed_ms);
     uint8_t px = (uint8_t)(g_move_acc >> 8);
     g_move_acc &= 0xFFu;
 
@@ -296,6 +302,7 @@ static void restart_game(void) {
     g_old_score = 0;
     g_spawn_countdown = 60;
     g_rand_state = Bsp_Get_Tick_Ms();
+    g_last_tick = 0;
     g_ptero_wing = 0;
     g_bars_drawn = 0;
     for (uint8_t i = 0; i < MAX_OBSTACLES; i++) { g_obstacles[i].active = 0; }
@@ -328,6 +335,8 @@ Game_result Dino_Runner_Update(const Game_input* input) {
     if (g_state == dino_state_ready) {
         if (input->direction == game_direction_up) {
             g_state = dino_state_running;
+            g_start_ms = Bsp_Get_Tick_Ms();
+            g_last_tick = 0;
             play_fill(20, 130, SCREEN_WIDTH - 40, 20, COLOR_BLACK);
             update_score();
         }
@@ -335,6 +344,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
         return game_result_running;
     }
 
+    /* ── Input (once per real call, applied to upcoming tick) ── */
     {
         uint8_t up = (input->direction == game_direction_up);
         if (!g_dino_in_air && up && !g_up_prev) {
@@ -348,35 +358,49 @@ Game_result Dino_Runner_Update(const Game_input* input) {
         g_up_prev = up;
     }
 
-    g_old_dino_y = g_dino_y;
-    if (g_dino_in_air) {
-        g_gravity_acc += g_jump_held ? 1u : 2u;
-        if (g_gravity_acc >= 2u) {
-            g_gravity_acc -= 2u;
-            g_dino_vy += GRAVITY;
+    /* ── Tick-accumulator: run one logic tick per 20 ms of elapsed time ── */
+    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t elapsed = now - g_start_ms;
+    uint32_t effective_ticks = elapsed / BASE_TICK_MS;
+    if (effective_ticks - g_last_tick > 5u) { effective_ticks = g_last_tick + 5u; }
+
+    while (g_last_tick < effective_ticks) {
+        g_last_tick++;
+
+        /* Dino physics */
+        g_old_dino_y = g_dino_y;
+        if (g_dino_in_air) {
+            g_gravity_acc += g_jump_held ? 1u : 2u;
+            if (g_gravity_acc >= 2u) {
+                g_gravity_acc -= 2u;
+                g_dino_vy += GRAVITY;
+            }
+            g_dino_y += g_dino_vy;
+            if (g_dino_y >= GROUND_Y - DINO_H) {
+                g_dino_y = GROUND_Y - DINO_H;
+                g_dino_vy = 0;
+                g_dino_in_air = 0;
+                g_jump_held = 0;
+            }
         }
-        g_dino_y += g_dino_vy;
-        if (g_dino_y >= GROUND_Y - DINO_H) {
-            g_dino_y = GROUND_Y - DINO_H;
-            g_dino_vy = 0;
-            g_dino_in_air = 0;
-            g_jump_held = 0;
+
+        if (g_dino_y != g_old_dino_y) { draw_dino(g_old_dino_y, COLOR_BLACK); }
+        move_obstacles(g_last_tick * BASE_TICK_MS);
+        draw_dino(g_dino_y, COLOR_GREEN);
+
+        /* Spawn */
+        if (g_spawn_countdown == 0) {
+            spawn_obstacle();
+            g_spawn_countdown =
+                50u + (fast_rand() % 80u) - (speed_scaled(g_last_tick * BASE_TICK_MS) >> 8) * 4u;
+            if (g_spawn_countdown < 15u) { g_spawn_countdown = 15u; }
+        } else {
+            g_spawn_countdown--;
         }
+
+        g_score++;
     }
 
-    if (g_dino_y != g_old_dino_y) { draw_dino(g_old_dino_y, COLOR_BLACK); }
-    move_obstacles();
-    draw_dino(g_dino_y, COLOR_GREEN);
-
-    if (g_spawn_countdown == 0) {
-        spawn_obstacle();
-        g_spawn_countdown = 50u + (fast_rand() % 80u) - (speed_scaled() >> 8) * 4u;
-        if (g_spawn_countdown < 15u) { g_spawn_countdown = 15u; }
-    } else {
-        g_spawn_countdown--;
-    }
-
-    g_score++;
     update_score();
 
     if (check_collision()) {
