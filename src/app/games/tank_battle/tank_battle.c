@@ -39,6 +39,10 @@
 #define COLOR_GAME_OVER   0xf81fu
 #define COLOR_WIN         0x07e0u
 
+/* Tile types fit in 2 bits: 4 tiles per byte.
+   Total: 20×20 / 4 = 100 bytes (was 1600 with 4-byte enum). */
+#define TILE_BYTES ((GRID_WIDTH * GRID_HEIGHT + 3) / 4)
+
 typedef enum {
     tile_empty,
     tile_brick,
@@ -52,10 +56,12 @@ typedef enum {
     tank_state_win,
 } Tank_state;
 
+/* Packed struct: direction stored as uint8_t instead of Game_direction enum
+   saves 3 bytes per field due to alignment (12→8 bytes total). */
 typedef struct {
     int8_t x;
     int8_t y;
-    Game_direction direction;
+    uint8_t direction; /* cast to/from Game_direction */
     uint8_t alive;
     uint8_t variant;
 } Tank_actor;
@@ -63,36 +69,40 @@ typedef struct {
 typedef struct {
     int8_t x;
     int8_t y;
-    Game_direction direction;
+    uint8_t direction; /* cast to/from Game_direction */
     uint8_t active;
     uint8_t from_player;
 } Tank_bullet;
 
-static const char* const g_level_template[GRID_HEIGHT] = {
-    "....................",
-    "..##....####....##..",
-    "..##............##..",
-    "......SS....SS......",
-    ".####..........####.",
-    "........####........",
-    "..SS............SS..",
-    "....##..####..##....",
-    "....##........##....",
-    ".##....SS..SS....##.",
-    ".##..............##.",
-    "....####....####....",
-    "..SS............SS..",
-    "......##....##......",
-    ".####..........####.",
-    "........####........",
-    "..##............##..",
-    "..##....####....##..",
-    "........#..#........",
-    "........#B.#........",
+/* ── Packed level template (2 bits per tile, 4 tiles per byte) ──
+   '.'=0(tile_empty)  '#'=1(tile_brick)  'S'=2(tile_steel)  'B'=3(tile_base)
+   Each byte packs 4 cells: bits[1:0]=cell0, bits[3:2]=cell1, ... */
+static const uint8_t g_level_template[TILE_BYTES] = {
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+    0x50u, 0x00u, 0x55u, 0x00u, 0x05u,
+    0x50u, 0x00u, 0x00u, 0x00u, 0x05u,
+    0x00u, 0xa0u, 0x00u, 0x0au, 0x00u,
+    0x54u, 0x01u, 0x00u, 0x40u, 0x15u,
+    0x00u, 0x00u, 0x55u, 0x00u, 0x00u,
+    0xa0u, 0x00u, 0x00u, 0x00u, 0x0au,
+    0x00u, 0x05u, 0x55u, 0x50u, 0x00u,
+    0x00u, 0x05u, 0x00u, 0x50u, 0x00u,
+    0x14u, 0x80u, 0x82u, 0x02u, 0x14u,
+    0x14u, 0x00u, 0x00u, 0x00u, 0x14u,
+    0x00u, 0x55u, 0x00u, 0x55u, 0x00u,
+    0xa0u, 0x00u, 0x00u, 0x00u, 0x0au,
+    0x00u, 0x50u, 0x00u, 0x05u, 0x00u,
+    0x54u, 0x01u, 0x00u, 0x40u, 0x15u,
+    0x00u, 0x00u, 0x55u, 0x00u, 0x00u,
+    0x50u, 0x00u, 0x00u, 0x00u, 0x05u,
+    0x50u, 0x00u, 0x55u, 0x00u, 0x05u,
+    0x00u, 0x00u, 0x41u, 0x00u, 0x00u,
+    0x00u, 0x00u, 0x4du, 0x00u, 0x00u,
 };
 
+/* ── 2-bit packed tile grid ── */
 static Game_hardware g_hardware;
-static Tile_type g_tiles[GRID_HEIGHT][GRID_WIDTH];
+static uint8_t g_tiles[TILE_BYTES];
 static Tank_actor g_player;
 static Tank_actor g_enemies[ENEMY_COUNT];
 static Tank_bullet g_bullets[BULLET_COUNT];
@@ -107,6 +117,18 @@ static uint32_t g_last_bullet_move = 0;
 static uint32_t g_last_spawn = 0;
 static uint32_t g_random_state = 0x74a91c3du;
 static uint16_t g_cell_buffer[CELL_SIZE * CELL_SIZE];
+
+/* ── 2-bit tile accessors ── */
+static inline uint8_t tile_get(const uint8_t* tiles, int8_t x, int8_t y) {
+    const uint8_t idx = (uint8_t)(y * GRID_WIDTH + x);
+    return (tiles[idx >> 2] >> ((idx & 3u) << 1)) & 0x03u;
+}
+
+static inline void tile_set(uint8_t* tiles, int8_t x, int8_t y, uint8_t val) {
+    const uint8_t idx = (uint8_t)(y * GRID_WIDTH + x);
+    const uint8_t shift = (idx & 3u) << 1;
+    tiles[idx >> 2] = (tiles[idx >> 2] & (uint8_t)(~(0x03u << shift))) | (uint8_t)((val & 0x03u) << shift);
+}
 
 static void update_bullet(Tank_bullet* bullet);
 
@@ -147,7 +169,7 @@ static uint8_t bullet_at(int8_t x, int8_t y) {
 }
 
 static uint8_t can_enter(int8_t x, int8_t y) {
-    if (!position_in_bounds(x, y) || g_tiles[y][x] != tile_empty) { return 0; }
+    if (!position_in_bounds(x, y) || tile_get(g_tiles, x, y) != tile_empty) { return 0; }
     return actor_at(x, y) == NULL;
 }
 
@@ -219,13 +241,13 @@ static void render_cell(int8_t x, int8_t y) {
     if (!position_in_bounds(x, y)) { return; }
     for (uint32_t i = 0; i < CELL_SIZE * CELL_SIZE; i++) { g_cell_buffer[i] = COLOR_BLACK; }
 
-    draw_tile(g_tiles[y][x]);
+    draw_tile((Tile_type)tile_get(g_tiles, x, y));
 
     Tank_actor* actor = actor_at(x, y);
     if (actor != NULL) {
         const uint16_t color =
             actor == &g_player ? COLOR_PLAYER : (actor->variant ? COLOR_ENEMY_ALT : COLOR_ENEMY);
-        draw_tank_sprite(actor->direction, color);
+        draw_tank_sprite((Game_direction)actor->direction, color);
     }
 
     if (bullet_at(x, y)) {
@@ -270,9 +292,7 @@ static void render_full(void) {
 static void load_level(void) {
     for (int8_t y = 0; y < GRID_HEIGHT; y++) {
         for (int8_t x = 0; x < GRID_WIDTH; x++) {
-            const char cell = g_level_template[y][x];
-            g_tiles[y][x] = cell == '#' ? tile_brick
-                                        : (cell == 'S' ? tile_steel : (cell == 'B' ? tile_base : tile_empty));
+            tile_set(g_tiles, x, y, tile_get(g_level_template, x, y));
         }
     }
 }
@@ -294,7 +314,7 @@ static uint8_t reset_player_position(void) {
         g_player = (Tank_actor){
             .x = x,
             .y = y,
-            .direction = game_direction_up,
+            .direction = (uint8_t)game_direction_up,
             .alive = 1,
             .variant = 0,
         };
@@ -350,7 +370,7 @@ static uint8_t spawn_enemy(void) {
             g_enemies[slot] = (Tank_actor){
                 .x = x,
                 .y = 0,
-                .direction = game_direction_down,
+                .direction = (uint8_t)game_direction_down,
                 .alive = 1,
                 .variant = g_spawned & 1u,
             };
@@ -368,7 +388,7 @@ static void move_actor(Tank_actor* actor, Game_direction direction) {
     if (actor == NULL || !actor->alive || direction == game_direction_none) { return; }
     const int8_t old_x = actor->x;
     const int8_t old_y = actor->y;
-    actor->direction = direction;
+    actor->direction = (uint8_t)direction;
 
     const int8_t next_x = actor->x + direction_x(direction);
     const int8_t next_y = actor->y + direction_y(direction);
@@ -440,18 +460,19 @@ static void deactivate_bullet(Tank_bullet* bullet) {
 static void update_bullet(Tank_bullet* bullet) {
     const int8_t old_x = bullet->x;
     const int8_t old_y = bullet->y;
-    const int8_t next_x = old_x + direction_x(bullet->direction);
-    const int8_t next_y = old_y + direction_y(bullet->direction);
+    const Game_direction dir = (Game_direction)bullet->direction;
+    const int8_t next_x = old_x + direction_x(dir);
+    const int8_t next_y = old_y + direction_y(dir);
 
     if (!position_in_bounds(next_x, next_y)) {
         deactivate_bullet(bullet);
         return;
     }
 
-    const Tile_type tile = g_tiles[next_y][next_x];
+    const Tile_type tile = (Tile_type)tile_get(g_tiles, next_x, next_y);
     if (tile == tile_brick) {
         bullet->active = 0;
-        g_tiles[next_y][next_x] = tile_empty;
+        tile_set(g_tiles, next_x, next_y, tile_empty);
         if (bullet->from_player) { Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tank_hit); }
         render_cell(old_x, old_y);
         render_cell(next_x, next_y);
@@ -464,7 +485,7 @@ static void update_bullet(Tank_bullet* bullet) {
     }
     if (tile == tile_base) {
         bullet->active = 0;
-        g_tiles[next_y][next_x] = tile_empty;
+        tile_set(g_tiles, next_x, next_y, tile_empty);
         render_cell(old_x, old_y);
         render_cell(next_x, next_y);
         end_game(tank_state_over);
@@ -516,7 +537,7 @@ static void update_enemies(void) {
         Tank_actor* enemy = &g_enemies[i];
         if (!enemy->alive) { continue; }
 
-        Game_direction direction = enemy->direction;
+        Game_direction direction = (Game_direction)enemy->direction;
         const int8_t next_x = enemy->x + direction_x(direction);
         const int8_t next_y = enemy->y + direction_y(direction);
         if (!can_enter(next_x, next_y) || (random_next() % 5u) == 0u) {
@@ -543,7 +564,7 @@ Game_result Tank_Battle_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    if (input->direction != game_direction_none) { g_player.direction = input->direction; }
+    if (input->direction != game_direction_none) { g_player.direction = (uint8_t)input->direction; }
     if (input->confirm_pressed) { fire_bullet(&g_player, 1); }
 
     const uint32_t now = Bsp_Get_Tick_Ms();
