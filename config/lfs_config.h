@@ -3,12 +3,9 @@
 #include <stddef.h>
 
 #define LFS_LOG_ENABLE 0
-#define LFS_NO_DEBUG
-#define LFS_NO_WARN
-#define LFS_NO_ERROR
 
 #if FRAMEWORK_USE_RTT
-#include "SEGGER_RTT.h"
+    #include "SEGGER_RTT.h"
 #endif
 
 // NOLINTBEGIN(readability-identifier-naming)
@@ -38,4 +35,8 @@ extern void vPortFree(void* pv);
 
     #define LFS_ERROR(fmt, ...) \
         SEGGER_RTT_printf(0, "%s:%d:error: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+    #define LFS_NO_DEBUG
+    #define LFS_NO_WARN
+    #define LFS_NO_ERROR
 #endif
