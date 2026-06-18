@@ -11,7 +11,7 @@
 #include "rtt_log.h"
 
 #define SCORE_STORE_MAGIC     0x53434f52u
-#define SCORE_STORE_VERSION   2u
+#define SCORE_STORE_VERSION   3u
 #define SCORE_STORE_MAX_GAMES 24u
 #define SCORE_STORE_PATH      "/scores.bin"
 

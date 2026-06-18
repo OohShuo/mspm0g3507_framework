@@ -13,6 +13,8 @@ set(LINKER_LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/gcc-arm-none-eabi/arm-no
 set(CMAKE_C_COMPILER   "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc${EXEC_SUFFIX}")
 set(CMAKE_ASM_COMPILER "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc${EXEC_SUFFIX}")
 set(CMAKE_CXX_COMPILER "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-g++${EXEC_SUFFIX}")
+set(CMAKE_AR           "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc-ar${EXEC_SUFFIX}" CACHE FILEPATH "" FORCE)
+set(CMAKE_RANLIB       "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc-ranlib${EXEC_SUFFIX}" CACHE FILEPATH "" FORCE)
 set(CMAKE_OBJCOPY      "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-objcopy${EXEC_SUFFIX}")
 set(CMAKE_SIZE         "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-size${EXEC_SUFFIX}")
 

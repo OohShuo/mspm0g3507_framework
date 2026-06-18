@@ -114,6 +114,8 @@ else()
         -Wall
         -ffunction-sections
         -fdata-sections
+        -fno-unwind-tables
+        -fno-asynchronous-unwind-tables
         -mno-unaligned-access
     )
 
