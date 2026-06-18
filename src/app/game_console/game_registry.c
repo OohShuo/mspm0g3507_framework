@@ -6,6 +6,7 @@
 #include "breakout.h"
 #include "calculator.h"
 #include "dino_runner.h"
+#include "dodge_box.h"
 #include "flappy_bird.h"
 #include "fps_test.h"
 #include "game_2048.h"
@@ -175,6 +176,16 @@ static const Game_descriptor g_games[] = {
         .update = Fps_Test_Update,
         .get_score = Fps_Test_Get_Score,
         .is_finished = Fps_Test_Is_Finished,
+    },
+
+    {
+        .name = "DODGE",
+        .icon = game_icon_dodge_box,
+        .id = game_id_dodge_box,
+        .init = Dodge_Box_Init,
+        .update = Dodge_Box_Update,
+        .get_score = Dodge_Box_Get_Score,
+        .is_finished = Dodge_Box_Is_Finished,
     },
     {
         .name = "VOLUME",
