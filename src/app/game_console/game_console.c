@@ -399,6 +399,24 @@ static void draw_fps_test_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 32, y + 9, 8, 16, COLOR_YELLOW);
 }
 
+static void draw_dodge_box_icon(int32_t x, int32_t y) {
+    /* Arena border — the "box" */
+    Game_Graphics_Fill_Rect(g_lcd, x - 14, y - 11, 28, 22, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 15, y - 12, 30, 1, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x - 15, y + 11, 30, 1, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x - 15, y - 12, 1, 24, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 14, y - 12, 1, 24, COLOR_WHITE);
+
+    /* Player square in center */
+    Game_Graphics_Fill_Rect(g_lcd, x - 2, y - 2, 5, 5, COLOR_WHITE);
+
+    /* Incoming laser warning — horizontal line above player */
+    Game_Graphics_Fill_Rect(g_lcd, x - 12, y - 7, 24, 1, COLOR_RED);
+
+    /* Incoming rect attack — small block on the right */
+    Game_Graphics_Fill_Rect(g_lcd, x + 7, y + 3, 5, 5, COLOR_RED);
+}
+
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
 static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
 
@@ -462,6 +480,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_sfx_lib_icon(cx + 12, cy + 4);
     } else if (game->icon == game_icon_volume_control) {
         draw_volume_control_icon(cx + 12, cy + 4);
+    } else if (game->icon == game_icon_dodge_box) {
+        draw_dodge_box_icon(icon_cx, icon_cy);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }
@@ -777,7 +797,7 @@ static void console_task(void* arg) {
 
         /* ── screensaver activation ── */
         if (!Screensaver_Is_Active()) {
-            if (g_console_state != console_state_game && Bsp_Get_Tick_Ms() - g_last_input_tick > 15000u) {
+            if (g_console_state != console_state_game && Bsp_Get_Tick_Ms() - g_last_input_tick > 30000u) {
                 Screensaver_Init(g_lcd);
             }
         }

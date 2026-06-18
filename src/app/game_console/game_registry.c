@@ -151,6 +151,15 @@ static const Game_descriptor g_games[] = {
         .is_finished = Needle_Is_Finished,
     },
     {
+        .name = "DODGE",
+        .icon = game_icon_dodge_box,
+        .id = game_id_dodge_box,
+        .init = Dodge_Box_Init,
+        .update = Dodge_Box_Update,
+        .get_score = Dodge_Box_Get_Score,
+        .is_finished = Dodge_Box_Is_Finished,
+    },
+    {
         .name = "SFX",
         .icon = game_icon_sfx_lib,
         .id = game_id_sfx_lib,
@@ -178,15 +187,6 @@ static const Game_descriptor g_games[] = {
         .is_finished = Fps_Test_Is_Finished,
     },
 
-    {
-        .name = "DODGE",
-        .icon = game_icon_dodge_box,
-        .id = game_id_dodge_box,
-        .init = Dodge_Box_Init,
-        .update = Dodge_Box_Update,
-        .get_score = Dodge_Box_Get_Score,
-        .is_finished = Dodge_Box_Is_Finished,
-    },
     {
         .name = "VOLUME",
         .icon = game_icon_volume_control,
