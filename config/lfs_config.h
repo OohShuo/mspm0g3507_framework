@@ -3,6 +3,9 @@
 #include <stddef.h>
 
 #define LFS_LOG_ENABLE 0
+#define LFS_NO_DEBUG
+#define LFS_NO_WARN
+#define LFS_NO_ERROR
 
 #if FRAMEWORK_USE_RTT
 #include "SEGGER_RTT.h"

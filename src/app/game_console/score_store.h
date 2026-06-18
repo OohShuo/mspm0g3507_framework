@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #define SCORE_STORE_NAME_LENGTH 6u
-#define SCORE_STORE_TOP_COUNT   10u
+#define SCORE_STORE_TOP_COUNT   5u
 
 typedef struct {
     char name[SCORE_STORE_NAME_LENGTH + 1u];

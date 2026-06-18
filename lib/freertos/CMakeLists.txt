@@ -12,6 +12,9 @@ file(GLOB_RECURSE FREERTOS_SOURCES
 )
 list(REMOVE_ITEM FREERTOS_SOURCES
     "${FREERTOS_DIR}/croutine.c"
+    "${FREERTOS_DIR}/event_groups.c"
+    "${FREERTOS_DIR}/stream_buffer.c"
+    "${FREERTOS_DIR}/timers.c"
 )
 
 set(FREERTOS_INCLUDES
@@ -23,6 +26,6 @@ set(FREERTOS_INCLUDES
 
 add_library(freertos STATIC)
 target_include_directories(freertos PUBLIC "${FREERTOS_INCLUDES}")
-target_sources(freertos PUBLIC "${FREERTOS_SOURCES}")
+target_sources(freertos PRIVATE "${FREERTOS_SOURCES}")
 
 print_item("FreeRTOS" "library ${ColorBold}freertos${ColorReset} built")
