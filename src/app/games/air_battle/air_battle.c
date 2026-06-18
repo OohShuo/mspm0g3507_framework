@@ -225,13 +225,17 @@ static void draw_sprite_line(const Air_sprite* sprite, int16_t sprite_x, int16_t
     const int16_t source_y = screen_y - sprite_y;
     if (source_y < 0 || source_y >= sprite->height) { return; }
 
-    int16_t start_x = sprite_x > region_x ? sprite_x : region_x;
-    int16_t end_x = sprite_x + sprite->width < region_x + region_width ? sprite_x + sprite->width
-                                                                       : region_x + region_width;
-    for (int16_t screen_x = start_x; screen_x < end_x; screen_x++) {
-        const uint16_t index = (uint16_t)(source_y * sprite->width + (screen_x - sprite_x));
-        if ((sprite->mask[index >> 3] & (1u << (index & 7u))) != 0) {
-            g_line_buffer[screen_x - region_x] = sprite->pixels[index];
+    uint16_t start_x = (uint16_t)(sprite_x > region_x ? sprite_x : region_x);
+    uint16_t end_x = (uint16_t)(sprite_x + sprite->width < region_x + region_width ? sprite_x + sprite->width
+                                                                                   : region_x + region_width);
+
+    for (uint16_t screen_x = start_x; screen_x < end_x; screen_x++) {
+        const uint16_t pixel_index = (uint16_t)(source_y * sprite->width + (screen_x - sprite_x));
+        const uint16_t byte_index = (uint16_t)(pixel_index >> 1);
+        const uint8_t byte = sprite->data[byte_index];
+        const uint8_t nibble = (pixel_index & 1u) ? (uint8_t)(byte & 0x0Fu) : (uint8_t)(byte >> 4);
+        if (nibble != 0) {
+            g_line_buffer[screen_x - region_x] = sprite->palette[nibble];
         }
     }
 }
