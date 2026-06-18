@@ -7,22 +7,24 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH        240
-#define SCREEN_HEIGHT       320
+#define SCREEN_WIDTH           240
+#define SCREEN_HEIGHT          320
 
 /* 你要求的实际战斗地图：120 x 180。这里放在 240 x 320 屏幕中间偏下。 */
-#define ARENA_W             120
-#define ARENA_H             180
-#define ARENA_X             ((SCREEN_WIDTH - ARENA_W) / 2)
-#define ARENA_Y             66
+#define ARENA_W                120
+#define ARENA_H                180
+#define ARENA_X                ((SCREEN_WIDTH - ARENA_W) / 2)
+#define ARENA_Y                66
 
-#define PLAYER_SIZE         5
-#define PLAYER_SPEED_PX_S   50u
-#define DEFAULT_WARNING_MS  500u
-#define DEFAULT_EXIST_MS    500u
-#define LASER_SWEEP_DRAW_MS 500u
+#define PLAYER_SIZE            5
+#define PLAYER_SPEED_PX_S      50u
+#define DEFAULT_WARNING_MS     500u
+#define DEFAULT_EXIST_MS       500u
+#define LASER_SWEEP_DRAW_MS    500u
 #define LASER_POS_TRACK_PLAYER 255u
-#define LASER_TRACK_JITTER_PX 5
+#define LASER_TRACK_JITTER_PX  5
+#define ATTACK_FADE_MS         100u
+// #define GOD_MODE
 
 static uint16_t dim_color(uint16_t c) {
     // simple RGB565 dimming
@@ -35,8 +37,18 @@ static uint16_t dim_color(uint16_t c) {
     return (r << 11) | (g << 5) | b;
 }
 
+static uint16_t light_color(uint16_t c) {
+    uint16_t r = (c >> 11) & 0x1F;
+    uint16_t g = (c >> 5) & 0x3F;
+    uint16_t b = c & 0x1F;
+    r = (uint16_t)(r + (31u - r) / 2u);
+    g = (uint16_t)(g + (63u - g) / 2u);
+    b = (uint16_t)(b + (31u - b) / 2u);
+    return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
 #define MAX_DT_MS        50u
-#define BULLET_MAX_COUNT 12u
+#define BULLET_MAX_COUNT 24u
 #define BULLET_DIR_SCALE 256l
 
 #define ATTACK_COUNT     ((uint8_t)(sizeof(g_level) / sizeof(g_level[0])))
@@ -166,124 +178,152 @@ static int16_t g_prev_player_x = 0;
 static int16_t g_prev_player_y = 0;
 static Bullet_runtime g_bullets[BULLET_MAX_COUNT];
 
-/* RAM 优化：
- * 1) 不再维护 120*180/8 的危险 bitmap，碰撞改为玩家矩形和当前实体攻击直接相交判断。
- * 2) dirty cache 合并为一个最终 cache；分层优先级仍在 render_dirty_scene() 中重放保证。
- * 3) 子弹运行态只保留实际关卡中会同时使用的 12 个槽，而不是按 ATTACK_COUNT 或 96 分配。
- */
 static Rect_cache g_final_dirty_cache;
 static uint8_t g_clip_enabled = 0;
 static Rect g_clip_rect = {0, 0, ARENA_W, ARENA_H};
 
-/* 一个完整单关卡。时间配置为：开始 ms、提示持续 ms、攻击存在持续 ms。
- * 原有关卡节奏等价迁移：旧提示均为 500ms，旧 end_ms 转为 exist_ms。
- * 子弹没有固定 end_ms，exist_ms 填 0，撞到边框后才完成。
- */
+// clang-format off
 static const Attack g_level[] = {
     // phase 1
     {500u, 1500u, 0u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 0u, 120u, 180u, rect_warn_block_flash}}},
 
-    {2500+200u, 1000u, 300u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {90u, 2u, laser_warn_dash_flash}}},
-    {2500+200u, 1000u, 300u, attack_laser_v, COLOR_DIM_CYAN, {.laser = {60u, 2u, laser_warn_dash_flash}}},
+    {2700u, 1000u, 300u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {90u, 2u, laser_warn_dash_flash}}},
+    {2700u, 1000u, 300u, attack_laser_v, COLOR_DIM_CYAN, {.laser = {60u, 2u, laser_warn_dash_flash}}},
 
-    {2500+2000u, 1000u, 300u, attack_rect, COLOR_DIM_CYAN, {.rect = {40u, 60u, 40u, 60u, rect_warn_center_expand}}},
+    {4500u, 1000u, 300u, attack_rect, COLOR_DIM_CYAN, {.rect = {40u, 60u, 40u, 60u, rect_warn_center_expand}}},
 
-    {2500+3500u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 0u, 120u, 60u, rect_warn_fill_from_top}}},
-    {2500+3500u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 0u, 30u, 180u, rect_warn_fill_from_left}}},
-    {2500+3500u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {90u, 0u, 30u, 180u, rect_warn_fill_from_right}}},
-    {2500+3500u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 120u, 120u, 60u, rect_warn_fill_from_bottom}}},
+    {6000u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 0u, 120u, 60u, rect_warn_fill_from_top}}},
+    {6000u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 0u, 30u, 180u, rect_warn_fill_from_left}}},
+    {6000u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {90u, 0u, 30u, 180u, rect_warn_fill_from_right}}},
+    {6000u, 700u, 6000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 120u, 120u, 60u, rect_warn_fill_from_bottom}}},
 
-    {2500+4200u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 30u, 4u, 50u, 250u}}},
-    {2500+4500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 40u, 4u, 50u, 250u}}},
-    {2500+4800u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 50u, 4u, 50u, 250u}}},
-    {2500+5100u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 60u, 4u, 50u, 250u}}},
+    {6700u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 30u, 4u, 50u, 250u}}},
+    {7000u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 40u, 4u, 50u, 250u}}},
+    {7300u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 50u, 4u, 50u, 250u}}},
+    {7600u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 60u, 4u, 50u, 250u}}},
 
-    {2500+6600u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 30u, 4u, 80u, 250u}}},
-    {2500+6900u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 40u, 4u, 80u, 250u}}},
-    {2500+7200u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 50u, 4u, 80u, 250u}}},
-    {2500+7500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 60u, 4u, 80u, 250u}}},
+    {9100u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 30u, 4u, 80u, 250u}}},
+    {9400u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 40u, 4u, 80u, 250u}}},
+    {9700u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 50u, 4u, 80u, 250u}}},
+    {10000u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 60u, 4u, 80u, 250u}}},
 
-    {2500+10000u, 500u, 4400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {90u, 3u, laser_warn_sweep_ltr}}},
-    {2500+10300u, 500u, 3900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {80u, 3u, laser_warn_sweep_rtl}}},
-    {2500+10300u, 500u, 3900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {100u, 3u, laser_warn_sweep_rtl}}},
-    {2500+10600u, 500u, 3400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {70u, 3u, laser_warn_sweep_ltr}}},
-    {2500+10600u, 500u, 3400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {110u, 3u, laser_warn_sweep_ltr}}},
-    {2500+10900u, 500u, 2900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {60u, 3u, laser_warn_sweep_rtl}}},
-    {2500+10900u, 500u, 2900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {120u, 3u, laser_warn_sweep_rtl}}},
-    {2500+11200u, 500u, 2400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {50u, 3u, laser_warn_sweep_ltr}}},
-    {2500+11200u, 500u, 2400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {130u, 3u, laser_warn_sweep_ltr}}},
-    {2500+11500u, 500u, 1900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {40u, 3u, laser_warn_sweep_rtl}}},
-    {2500+11500u, 500u, 1900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {140u, 3u, laser_warn_sweep_rtl}}},
-    {2500+11800u, 500u, 1400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {30u, 3u, laser_warn_sweep_ltr}}},
-    {2500+11800u, 500u, 1400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {150u, 3u, laser_warn_sweep_ltr}}},
-    {2500+12100u, 500u, 900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {20u, 3u, laser_warn_sweep_rtl}}},
-    {2500+12100u, 500u, 900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {160u, 3u, laser_warn_sweep_rtl}}},
+    {12500u, 500u, 4400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {90u, 3u, laser_warn_sweep_ltr}}},
+    {12800u, 500u, 3900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {80u, 3u, laser_warn_sweep_rtl}}},
+    {12800u, 500u, 3900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {100u, 3u, laser_warn_sweep_rtl}}},
+    {13100u, 500u, 3400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {70u, 3u, laser_warn_sweep_ltr}}},
+    {13100u, 500u, 3400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {110u, 3u, laser_warn_sweep_ltr}}},
+    {13400u, 500u, 2900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {60u, 3u, laser_warn_sweep_rtl}}},
+    {13400u, 500u, 2900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {120u, 3u, laser_warn_sweep_rtl}}},
+    {13700u, 500u, 2400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {50u, 3u, laser_warn_sweep_ltr}}},
+    {13700u, 500u, 2400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {130u, 3u, laser_warn_sweep_ltr}}},
+    {14000u, 500u, 1900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {40u, 3u, laser_warn_sweep_rtl}}},
+    {14000u, 500u, 1900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {140u, 3u, laser_warn_sweep_rtl}}},
+    {14300u, 500u, 1400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {30u, 3u, laser_warn_sweep_ltr}}},
+    {14300u, 500u, 1400u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {150u, 3u, laser_warn_sweep_ltr}}},
+    {14600u, 500u, 900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {20u, 3u, laser_warn_sweep_rtl}}},
+    {14600u, 500u, 900u, attack_laser_h, COLOR_DIM_CYAN, {.laser = {160u, 3u, laser_warn_sweep_rtl}}},
 
-    {2500+12500u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 0u, 50u, 15u, rect_warn_fill_from_left}}},
-    {2500+12500u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {70u, 0u, 50u, 15u, rect_warn_fill_from_right}}},
-    {2500+12500u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 165u, 50u, 15u, rect_warn_fill_from_left}}},
-    {2500+12500u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {70u, 165u, 50u, 15u, rect_warn_fill_from_right}}},
+    {15000u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 0u, 50u, 15u, rect_warn_fill_from_left}}},
+    {15000u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {70u, 0u, 50u, 15u, rect_warn_fill_from_right}}},
+    {15000u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 165u, 50u, 15u, rect_warn_fill_from_left}}},
+    {15000u, 1000u, 500u, attack_rect, COLOR_DIM_CYAN, {.rect = {70u, 165u, 50u, 15u, rect_warn_fill_from_right}}},
 
-    {3000+13000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {55u, 0u, 10u, 80u, rect_warn_fill_from_top}}},
-    {3000+13000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {55u, 100u, 10u, 80u, rect_warn_fill_from_bottom}}},
-    {3000+13000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 85u, 50u, 10u, rect_warn_fill_from_left}}},
-    {3000+13000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {70u, 85u, 50u, 10u, rect_warn_fill_from_right}}},
+    {16000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {55u, 0u, 10u, 80u, rect_warn_fill_from_top}}},
+    {16000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {55u, 100u, 10u, 80u, rect_warn_fill_from_bottom}}},
+    {16000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {0u, 85u, 50u, 10u, rect_warn_fill_from_left}}},
+    {16000u, 2500u, 1000u, attack_rect, COLOR_DIM_CYAN, {.rect = {70u, 85u, 50u, 10u, rect_warn_fill_from_right}}},
 
-    {3000+15500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 2u, 4u, 80u, 255u}}},
-    {3000+15500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 112u, 4u, 80u, 255u}}},
-    {3000+15500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 2u, 4u, 80u, 255u}}},
-    {3000+15500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 112u, 4u, 80u, 255u}}},
+    {18500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 2u, 4u, 80u, 255u}}},
+    {18500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_top, 112u, 4u, 80u, 255u}}},
+    {18500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 2u, 4u, 80u, 255u}}},
+    {18500u, 500u, 0u, attack_bullet, COLOR_DIM_CYAN, {.bullet = {bullet_side_bottom, 112u, 4u, 80u, 255u}}},
 
     // phase 2
-    {500+19500u, 1500u, 0u, attack_rect, COLOR_DIM_YELLOW, {.rect = {0u, 0u, 120u, 180u, rect_warn_block_flash}}},
+    {20000u, 1500u, 0u, attack_rect, COLOR_DIM_YELLOW, {.rect = {0u, 0u, 120u, 180u, rect_warn_block_flash}}},
 
-    {500+21500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+22000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+22500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+23000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+23500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+24000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+24500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+25000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+25500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+26000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+26500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+27000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+27500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+28000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+28500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+29000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+29500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+30000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+30500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+31000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+31500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+32000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+32500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+33000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+33500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+34000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+34500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+35000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+35500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+36000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+36500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+37000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+37500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+38000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+38500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+39000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
-    {500+39500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
-    {500+40000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
-    {500+40500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
-    {500+41000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {22000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {22500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {23000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {23500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {24000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {24500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {25000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {25500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {26000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {26500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {27000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {27500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {28000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {28500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {29000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {29500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {30000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {30500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {31000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {31500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {32000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {32500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {33000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {33500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {34000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {34500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {35000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {35500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {36000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {36500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {37000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {37500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {38000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {38500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {39000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {39500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
+    {40000u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ttb}}},
+    {40500u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_rtl}}},
+    {41000u, 500u, 1000u, attack_laser_h, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_ltr}}},
+    {41500u, 500u, 1000u, attack_laser_v, COLOR_DIM_YELLOW, {.laser = {LASER_POS_TRACK_PLAYER, 2u, laser_warn_sweep_btt}}},
 
+    // phase 3
+    {45000u, 1500u, 0u, attack_rect, COLOR_RED, {.rect = {0u, 0u, 120u, 180u, rect_warn_block_flash}}},
+
+    {46500u, 1000u, 300u, attack_laser_v, COLOR_RED, {.laser = {30u, 2u, laser_warn_dash_flash}}},
+    {46500u, 1000u, 300u, attack_laser_v, COLOR_RED, {.laser = {60u, 2u, laser_warn_dash_flash}}},
+    {46500u, 1000u, 300u, attack_laser_v, COLOR_RED, {.laser = {90u, 2u, laser_warn_dash_flash}}},
+    {46500u, 1000u, 300u, attack_laser_h, COLOR_RED, {.laser = {30u, 2u, laser_warn_dash_flash}}},
+    {46500u, 1000u, 300u, attack_laser_h, COLOR_RED, {.laser = {60u, 2u, laser_warn_dash_flash}}},
+    {46500u, 1000u, 300u, attack_laser_h, COLOR_RED, {.laser = {90u, 2u, laser_warn_dash_flash}}},
+    {46500u, 1000u, 300u, attack_laser_h, COLOR_RED, {.laser = {120u, 2u, laser_warn_dash_flash}}},
+    {46500u, 1000u, 300u, attack_laser_h, COLOR_RED, {.laser = {150u, 2u, laser_warn_dash_flash}}},
+    
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {0u, 0u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {48u, 0u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {96u, 0u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {24u, 40u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {72u, 40u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {0u, 80u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {48u, 80u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {96u, 80u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {24u, 120u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {72u, 120u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {0u, 160u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {48u, 160u, 24u, 20u, rect_warn_edge_grow}}},
+    {48000u, 1000u, 25000u, attack_rect, COLOR_RED, {.rect = {96u, 160u, 24u, 20u, rect_warn_edge_grow}}},
+
+    {49000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_left, 45u, 4u, 40u, 250u}}},
+    {50000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_top, 60u, 4u, 60u, 254u}}},
+    {51000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_right, 135u, 4u, 60u, 254u}}},
+    {52000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_top, 30u, 4u, 40u, 250u}}},
+    {53000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_bottom, 90u, 4u, 60u, 254u}}},
+    {54000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_top, 90u, 4u, 40u, 250u}}},
+    {55000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_left, 90u, 4u, 60u, 254u}}},
+    {56000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_bottom, 60u, 4u, 40u, 250u}}},
+    {57000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_right, 45u, 4u, 60u, 254u}}},
+    {58000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_left, 135u, 4u, 40u, 250u}}},
+    {59000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_right, 90u, 4u, 40u, 250u}}},
+    {60000u, 500u, 0u, attack_bullet, COLOR_RED, {.bullet = {bullet_side_bottom, 30u, 4u, 60u, 254u}}},
+    
 };
+// clang-format on
 
-/* 追身激光运行时位置缓存：
- * 配置 pos = LASER_POS_TRACK_PLAYER 时，攻击开始后只解析一次。
- * 这样 warning 和 active 使用同一个位置，不会每帧抖动。
- */
 static uint8_t g_laser_track_pos[ATTACK_COUNT];
 static uint8_t g_laser_track_pos_valid[ATTACK_COUNT];
 static uint32_t g_rng_state = 0x4d595df4u;
@@ -309,13 +349,13 @@ static int16_t clamp_i16(int16_t v, int16_t lo, int16_t hi) {
 }
 
 static uint32_t rng_next(void) {
-    /* 轻量 LCG，不依赖 rand()/stdlib，适合 MCU。 */
     g_rng_state = g_rng_state * 1664525u + 1013904223u;
     return g_rng_state;
 }
 
 static int16_t rng_jitter_pm5(void) {
-    return (int16_t)((int32_t)(rng_next() % (uint32_t)(LASER_TRACK_JITTER_PX * 2 + 1)) - LASER_TRACK_JITTER_PX);
+    return (
+        int16_t)((int32_t)(rng_next() % (uint32_t)(LASER_TRACK_JITTER_PX * 2 + 1)) - LASER_TRACK_JITTER_PX);
 }
 
 static uint8_t laser_pos_is_tracking(const Attack* a) {
@@ -332,11 +372,9 @@ static uint8_t resolve_laser_pos(uint8_t index, const Attack* a) {
         int16_t max_pos;
 
         if (a->type == attack_laser_h) {
-            /* 水平激光追玩家 y 轴中心，并让激光厚度居中覆盖该位置附近。 */
             base = (int16_t)((g_player_y256 >> 8) + PLAYER_SIZE / 2 - th / 2);
             max_pos = ARENA_H - th;
         } else {
-            /* 垂直激光追玩家 x 轴中心，并让激光厚度居中覆盖该位置附近。 */
             base = (int16_t)((g_player_x256 >> 8) + PLAYER_SIZE / 2 - th / 2);
             max_pos = ARENA_W - th;
         }
@@ -379,12 +417,7 @@ static void normalize_to_q8(int32_t dx, int32_t dy, int16_t* out_x, int16_t* out
     *out_y = (int16_t)(dy * BULLET_DIR_SCALE / (int32_t)mag);
 }
 
-static uint16_t warning_color(uint16_t color) {
-    /* 所有提示色：使用对应攻击颜色降亮度。
-     * 不再用固定灰色/固定暗红，避免不同攻击提示风格不一致。
-     */
-    return dim_color(color);
-}
+static uint16_t warning_color(uint16_t color) { return dim_color(color); }
 
 static uint8_t laser_is_sweep_style(Laser_warn_style style) {
     return (uint8_t)(style == laser_warn_sweep_ltr || style == laser_warn_sweep_rtl ||
@@ -400,12 +433,17 @@ static uint32_t attack_exist_ms(const Attack* a) {
     return (uint32_t)a->exist_ms;
 }
 
+static uint16_t active_attack_color(const Attack* a, uint32_t active_ms) {
+    const uint32_t exist_ms = attack_exist_ms(a);
+    if (exist_ms > ATTACK_FADE_MS && active_ms >= exist_ms - ATTACK_FADE_MS) { return light_color(a->color); }
+    return a->color;
+}
+
 static uint32_t attack_end_ms(const Attack* a) {
     return a->start_ms + attack_warn_ms(a) + attack_exist_ms(a);
 }
 
 static int16_t warning_thickness(int16_t active_thickness) {
-    /* 激光提示线必须比实体激光细，并尽量保持在实体激光中心。 */
     if (active_thickness <= 1) { return 1; }
     if (active_thickness <= 3) { return 1; }
     return (int16_t)(active_thickness - 2);
@@ -485,8 +523,8 @@ static int16_t rect_right(const Rect* r) { return (int16_t)(r->x + r->w); }
 static int16_t rect_bottom(const Rect* r) { return (int16_t)(r->y + r->h); }
 
 static uint8_t rect_intersects_or_touches(const Rect* a, const Rect* b) {
-    return (uint8_t)(a->x <= rect_right(b) && b->x <= rect_right(a) &&
-                     a->y <= rect_bottom(b) && b->y <= rect_bottom(a));
+    return (uint8_t)(a->x <= rect_right(b) && b->x <= rect_right(a) && a->y <= rect_bottom(b) &&
+                     b->y <= rect_bottom(a));
 }
 
 static Rect rect_union_make(const Rect* a, const Rect* b) {
@@ -506,9 +544,6 @@ static uint8_t rect_merge_is_worthwhile(const Rect* a, const Rect* b, const Rect
     const uint32_t area_a = (uint32_t)a->w * (uint32_t)a->h;
     const uint32_t area_b = (uint32_t)b->w * (uint32_t)b->h;
     const uint32_t area_u = (uint32_t)u->w * (uint32_t)u->h;
-    /* 只有 union 面积没有明显膨胀时才合并。
-     * 这样 top+left 这种 L 形脏区不会被错误合并成整个 arena。
-     */
     return (uint8_t)(area_u * 4u <= (area_a + area_b) * 5u);
 }
 
@@ -542,7 +577,6 @@ static void dirty_cache_add_rect(Rect_cache* cache, Rect r) {
             if (!rect_merge_is_worthwhile(&cache->rects[i], &r, &u)) { continue; }
             cache->rects[i] = u;
 
-            /* 合并后可能又与后面的矩形相交，再做一次压缩，控制矩形数量。 */
             uint8_t j = (uint8_t)(i + 1u);
             while (j < cache->count) {
                 if (rect_intersects_or_touches(&cache->rects[i], &cache->rects[j])) {
@@ -565,7 +599,6 @@ static void dirty_cache_add_rect(Rect_cache* cache, Rect r) {
     if (cache->count < DIRTY_RECT_MAX) {
         cache->rects[cache->count++] = r;
     } else {
-        /* 缓存满时退化为刷新整个 arena，避免丢脏区。 */
         cache->count = 1;
         cache->rects[0].x = 0;
         cache->rects[0].y = 0;
@@ -586,8 +619,7 @@ static void dirty_cache_add_xywh(Rect_cache* cache, int16_t x, int16_t y, int16_
 static void dirty_all_layers_clear(void) { dirty_cache_clear(&g_final_dirty_cache); }
 
 static uint8_t rect_overlaps_strict(const Rect* a, const Rect* b) {
-    return (uint8_t)(a->x < b->x + b->w && b->x < a->x + a->w &&
-                     a->y < b->y + b->h && b->y < a->y + a->h);
+    return (uint8_t)(a->x < b->x + b->w && b->x < a->x + a->w && a->y < b->y + b->h && b->y < a->y + a->h);
 }
 
 static void player_rect(Rect* out) {
@@ -675,7 +707,6 @@ static void render_attack_warning(uint8_t index, const Attack* a, uint32_t elaps
         const int16_t warn_pos = centered_warn_pos(active_pos, active_th, warn_th);
         const Laser_warn_style style = a->u.laser.style;
         if (style == laser_warn_dash_flash) {
-            /* 在配置的提示时间内闪两次：亮/灭/亮/灭。提示线比激光细。 */
             const uint32_t seg = phase_total_nonzero(total / 4u);
             if (((elapsed / seg) & 1u) == 0u) {
                 if (is_h) {
@@ -688,7 +719,6 @@ static void render_attack_warning(uint8_t index, const Attack* a, uint32_t elaps
             }
 
         } else {
-            /* 扫描速度由长度 / warn_ms 得出。active 后会重画完整提示线，再由实体激光覆盖。 */
             if (is_h) {
                 int16_t len = (int16_t)((uint32_t)ARENA_W * elapsed / total);
                 if (len > ARENA_W) { len = ARENA_W; }
@@ -751,15 +781,13 @@ static void render_laser_sweep_residue(uint8_t index, const Attack* a) {
 }
 
 static uint32_t laser_sweep_draw_total_ms(const Attack* a) {
-    /* sweep 激光的实体“划出”阶段固定 500ms；exist_ms 包含这 500ms。
-     * 因此：前 500ms 按路径逐步划出，之后保持完整激光，直到 exist_ms 结束。
-     * 若某条激光 exist_ms 配得小于 500ms，则退化为在 exist_ms 内尽量划出。
-     */
     const uint32_t exist_ms = phase_total_nonzero(attack_exist_ms(a));
     return (exist_ms < LASER_SWEEP_DRAW_MS) ? exist_ms : LASER_SWEEP_DRAW_MS;
 }
 
 static void render_attack_active(uint8_t index, const Attack* a, uint32_t active_ms) {
+    const uint16_t color = active_attack_color(a, active_ms);
+
     if (a->type == attack_laser_h) {
         int16_t len = ARENA_W;
         int16_t x = 0;
@@ -771,7 +799,7 @@ static void render_attack_active(uint8_t index, const Attack* a, uint32_t active
             if (a->u.laser.style == laser_warn_sweep_rtl) { x = ARENA_W - len; }
         }
         const int16_t pos = resolve_laser_pos(index, a);
-        arena_fill(x, pos, len, a->u.laser.thickness, a->color);
+        arena_fill(x, pos, len, a->u.laser.thickness, color);
     } else if (a->type == attack_laser_v) {
         int16_t len = ARENA_H;
         int16_t y = 0;
@@ -783,9 +811,9 @@ static void render_attack_active(uint8_t index, const Attack* a, uint32_t active
             if (a->u.laser.style == laser_warn_sweep_btt) { y = ARENA_H - len; }
         }
         const int16_t pos = resolve_laser_pos(index, a);
-        arena_fill(pos, y, a->u.laser.thickness, len, a->color);
+        arena_fill(pos, y, a->u.laser.thickness, len, color);
     } else if (a->type == attack_rect) {
-        arena_fill(a->u.rect.x, a->u.rect.y, a->u.rect.w, a->u.rect.h, a->color);
+        arena_fill(a->u.rect.x, a->u.rect.y, a->u.rect.w, a->u.rect.h, color);
     }
 }
 
@@ -872,9 +900,6 @@ static uint8_t attack_draw_bounds_at(uint8_t index, const Attack* a, uint32_t no
     }
 
     if (elapsed < warn_ms + exist_ms) {
-        /* sweep 进入 active 后还需要完整暗色提示线作为残留层，所以 bounds 用完整激光区域，
-         * 而不是当前实体划出长度。这样清旧位置时不会漏掉 warning 残留。
-         */
         if (a->type == attack_laser_h || a->type == attack_laser_v) {
             const int16_t active_pos = resolve_laser_pos(index, a);
             const int16_t active_th = a->u.laser.thickness;
@@ -910,8 +935,8 @@ static void dirty_cache_add_border(Rect_cache* cache, int16_t x, int16_t y, int1
 }
 
 static uint8_t rect_contains_rect(const Rect* outer, const Rect* inner) {
-    return (uint8_t)(inner->x >= outer->x && inner->y >= outer->y &&
-                     rect_right(inner) <= rect_right(outer) && rect_bottom(inner) <= rect_bottom(outer));
+    return (uint8_t)(inner->x >= outer->x && inner->y >= outer->y && rect_right(inner) <= rect_right(outer) &&
+                     rect_bottom(inner) <= rect_bottom(outer));
 }
 
 static void dirty_cache_add_rect_growth(Rect_cache* cache, const Rect* old_r, const Rect* new_r) {
@@ -930,13 +955,15 @@ static void dirty_cache_add_rect_growth(Rect_cache* cache, const Rect* old_r, co
     const int16_t ox1 = rect_right(old_r);
     const int16_t oy1 = rect_bottom(old_r);
 
-    /* top / bottom strips */
     if (oy0 > ny0) { dirty_cache_add_xywh(cache, nx0, ny0, new_r->w, (int16_t)(oy0 - ny0)); }
     if (ny1 > oy1) { dirty_cache_add_xywh(cache, nx0, oy1, new_r->w, (int16_t)(ny1 - oy1)); }
 
-    /* left / right strips, limited to the old vertical span to avoid duplicating corners. */
-    if (ox0 > nx0 && oy1 > oy0) { dirty_cache_add_xywh(cache, nx0, oy0, (int16_t)(ox0 - nx0), (int16_t)(oy1 - oy0)); }
-    if (nx1 > ox1 && oy1 > oy0) { dirty_cache_add_xywh(cache, ox1, oy0, (int16_t)(nx1 - ox1), (int16_t)(oy1 - oy0)); }
+    if (ox0 > nx0 && oy1 > oy0) {
+        dirty_cache_add_xywh(cache, nx0, oy0, (int16_t)(ox0 - nx0), (int16_t)(oy1 - oy0));
+    }
+    if (nx1 > ox1 && oy1 > oy0) {
+        dirty_cache_add_xywh(cache, ox1, oy0, (int16_t)(nx1 - ox1), (int16_t)(oy1 - oy0));
+    }
 }
 
 static void rect_warning_fill_rect_at(const Attack* a, uint32_t elapsed, Rect* out) {
@@ -1035,8 +1062,8 @@ static void laser_warning_sweep_rect_at(uint8_t index, const Attack* a, uint32_t
     }
 }
 
-static void add_laser_active_growth_dirty(Rect_cache* cache, uint8_t index, const Attack* a,
-                                          uint32_t prev_active_ms, uint32_t now_active_ms) {
+static void add_laser_active_growth_dirty(
+    Rect_cache* cache, uint8_t index, const Attack* a, uint32_t prev_active_ms, uint32_t now_active_ms) {
     const uint32_t draw_total = laser_sweep_draw_total_ms(a);
     if (prev_active_ms >= draw_total) { return; }
     if (now_active_ms > draw_total) { now_active_ms = draw_total; }
@@ -1049,18 +1076,31 @@ static void add_laser_active_growth_dirty(Rect_cache* cache, uint8_t index, cons
     dirty_cache_add_rect_growth(cache, &old_r, &new_r);
 }
 
-static void collect_rect_warning_dirty_transition(Rect_cache* cache, const Attack* a,
-                                                  uint32_t prev_elapsed, uint32_t now_elapsed,
-                                                  uint8_t entered_warning) {
+static void add_attack_fade_dirty_if_needed(
+    Rect_cache* cache, uint8_t index, const Attack* a, uint32_t prev_rel, uint32_t now_rel) {
+    const uint32_t exist_ms = attack_exist_ms(a);
+    if (exist_ms <= ATTACK_FADE_MS) { return; }
+
+    const uint32_t warn_end = a->start_ms + attack_warn_ms(a);
+    const uint32_t fade_rel = warn_end + exist_ms - ATTACK_FADE_MS;
+    const uint32_t end = warn_end + exist_ms;
+
+    if (!(prev_rel < fade_rel && now_rel >= fade_rel && now_rel < end)) { return; }
+
+    Rect r;
+    attack_active_rect(index, a, exist_ms - ATTACK_FADE_MS, &r);
+    dirty_cache_add_rect(cache, r);
+}
+
+static void collect_rect_warning_dirty_transition(Rect_cache* cache, const Attack* a, uint32_t prev_elapsed,
+    uint32_t now_elapsed, uint8_t entered_warning) {
     const int16_t x = a->u.rect.x;
     const int16_t y = a->u.rect.y;
     const int16_t w = a->u.rect.w;
     const int16_t h = a->u.rect.h;
     const Rect_warn_style style = a->u.rect.style;
 
-    if (entered_warning) {
-        dirty_cache_add_border(cache, x, y, w, h);
-    }
+    if (entered_warning) { dirty_cache_add_border(cache, x, y, w, h); }
 
     if (style == rect_warn_center_expand || style == rect_warn_fill_from_left ||
         style == rect_warn_fill_from_right || style == rect_warn_fill_from_top ||
@@ -1071,20 +1111,20 @@ static void collect_rect_warning_dirty_transition(Rect_cache* cache, const Attac
         rect_warning_fill_rect_at(a, now_elapsed, &new_fill);
         dirty_cache_add_rect_growth(cache, &old_fill, &new_fill);
     } else if (style == rect_warn_block_flash) {
-        if (entered_warning || rect_block_flash_on_at(a, prev_elapsed) != rect_block_flash_on_at(a, now_elapsed)) {
+        if (entered_warning ||
+            rect_block_flash_on_at(a, prev_elapsed) != rect_block_flash_on_at(a, now_elapsed)) {
             dirty_cache_add_xywh(cache, x, y, w, h);
         }
     } else {
-        /* edge_grow 只会改变边框，刷新四条边即可，不要刷新整个矩形。 */
         dirty_cache_add_border(cache, x, y, w, h);
     }
 }
 
 static void collect_laser_warning_dirty_transition(Rect_cache* cache, uint8_t index, const Attack* a,
-                                                   uint32_t prev_elapsed, uint32_t now_elapsed,
-                                                   uint8_t entered_warning) {
+    uint32_t prev_elapsed, uint32_t now_elapsed, uint8_t entered_warning) {
     if (a->u.laser.style == laser_warn_dash_flash) {
-        if (entered_warning || laser_dash_visible_at(a, prev_elapsed) != laser_dash_visible_at(a, now_elapsed) ||
+        if (entered_warning ||
+            laser_dash_visible_at(a, prev_elapsed) != laser_dash_visible_at(a, now_elapsed) ||
             laser_dash_phase_at(a, prev_elapsed) != laser_dash_phase_at(a, now_elapsed)) {
             Rect r;
             laser_warning_bounds(index, a, &r);
@@ -1135,12 +1175,15 @@ static void collect_attack_dirty_transition(Rect_cache* cache, uint32_t prev_rel
         }
 
         if (!entered_active && now_rel >= warn_end && prev_rel < end) {
-            if ((a->type == attack_laser_h || a->type == attack_laser_v) && laser_is_sweep_style(a->u.laser.style)) {
+            if ((a->type == attack_laser_h || a->type == attack_laser_v) &&
+                laser_is_sweep_style(a->u.laser.style)) {
                 uint32_t prev_active = (prev_rel > warn_end) ? (prev_rel - warn_end) : 0u;
                 uint32_t now_active = (now_rel < end) ? (now_rel - warn_end) : attack_exist_ms(a);
                 add_laser_active_growth_dirty(cache, i, a, prev_active, now_active);
             }
         }
+
+        add_attack_fade_dirty_if_needed(cache, i, a, prev_rel, now_rel);
 
         if (ended) {
             Rect r;
@@ -1159,9 +1202,6 @@ static uint8_t attack_is_finished(const Attack* a, uint8_t index, uint32_t now_r
 }
 
 static void draw_bullet_spawn_hint(const Attack* a, uint32_t elapsed) {
-    /* 子弹提示只在子弹出生的小方块处闪烁，不再闪整条边。
-     * 提示色使用子弹颜色的暗色版本。
-     */
     const uint32_t warn_ms = attack_warn_ms(a);
     const uint32_t seg = phase_total_nonzero(phase_total_nonzero(warn_ms) / 4u);
     if (((elapsed / seg) & 1u) != 0u) { return; }
@@ -1347,9 +1387,6 @@ static uint8_t player_hits_active_attacks(uint32_t now_rel) {
 static void collect_layer_dirty_and_update_state(uint32_t prev_rel, uint32_t now_rel, uint32_t dt_ms) {
     dirty_all_layers_clear();
 
-    /* 旧状态 + 新状态都加入脏区。旧位置清除后，会在 render_dirty_scene() 里按层重放当前元素，
-     * 所以旧位置下面若还有矩形/激光，不会被错误清成黑色。
-     */
     collect_attack_dirty_transition(&g_final_dirty_cache, prev_rel, now_rel);
     collect_bullet_dirty(prev_rel, now_rel, dt_ms);
     collect_player_dirty();
@@ -1408,7 +1445,6 @@ static void render_dirty_scene(uint32_t now_rel, uint16_t player_color) {
         g_clip_rect = g_final_dirty_cache.rects[i];
         g_clip_enabled = 1;
 
-        /* 只清 dirty rect；随后按优先级重放当前场景：矩形 < 激光 < 子弹 < 玩家。 */
         arena_fill(g_clip_rect.x, g_clip_rect.y, g_clip_rect.w, g_clip_rect.h, COLOR_BLACK);
         render_rect_layer(now_rel);
         render_laser_layer(now_rel);
@@ -1420,10 +1456,6 @@ static void render_dirty_scene(uint32_t now_rel, uint16_t player_color) {
 }
 
 static void update_attack_finish_scan(uint32_t now_rel) {
-    /*
-     * 只从当前扫描索引向后检查。
-     * 激光/区域以 start_ms + warn_ms + exist_ms 为完成点；子弹撞到边框消失后才算完成。
-     */
     while (g_attack_scan_index < ATTACK_COUNT) {
         const Attack* a = &g_level[g_attack_scan_index];
         if (!attack_is_finished(a, g_attack_scan_index, now_rel)) { break; }
@@ -1530,6 +1562,7 @@ Game_result Dodge_Box_Update(const Game_input* input) {
     collect_layer_dirty_and_update_state(prev_rel, now_rel, dt_ms);
     update_attack_finish_scan(now_rel);
 
+#ifndef GOD_MODE
     if (player_hits_active_attacks(now_rel)) {
         g_state = game_state_failed;
         g_finished = 1;
@@ -1538,6 +1571,7 @@ Game_result Dodge_Box_Update(const Game_input* input) {
         draw_text_centered(258, "FAILED - PRESS", 1, COLOR_RED);
         return game_result_running;
     }
+#endif
 
     render_dirty_scene(now_rel, COLOR_WHITE);
 
