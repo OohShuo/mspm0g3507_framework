@@ -7,6 +7,7 @@
 #include "retarget.h"
 #include "task.h"
 #include "test.h"
+#include "test_config.h"
 #include "ti_msp_dl_config.h"
 
 static void normalize_debug_reset(void) {
@@ -33,7 +34,9 @@ int main(void) {
     App_Init();
 
     Hal_Task_Def();
+#if TEST_ANY_ENABLE
     Test_Task_Def();
+#endif
     App_Task_Def();
 
     vTaskStartScheduler();

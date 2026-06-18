@@ -34,10 +34,12 @@
 extern "C" {
 #endif
 
-// NOLINTBEGIN(readability-identifier-naming)
-void lv_freertos_task_switch_in(const char* name);
-void lv_freertos_task_switch_out(void);
-// NOLINTEND(readability-identifier-naming)
+#if FRAMEWORK_USE_LVGL
+    // NOLINTBEGIN(readability-identifier-naming)
+    void lv_freertos_task_switch_in(const char* name);
+    void lv_freertos_task_switch_out(void);
+    // NOLINTEND(readability-identifier-naming)
+#endif
 #ifdef __cplusplus
 }
 #endif
@@ -76,7 +78,7 @@ void lv_freertos_task_switch_out(void);
 /* Software timer related definitions. ****************************************/
 /******************************************************************************/
 
-#define configUSE_TIMERS                             1
+#define configUSE_TIMERS                             0
 #define configTIMER_TASK_PRIORITY                    (configMAX_PRIORITIES - 1U)
 #define configTIMER_TASK_STACK_DEPTH                 configMINIMAL_STACK_SIZE
 #define configTIMER_QUEUE_LENGTH                     10U
@@ -87,7 +89,7 @@ void lv_freertos_task_switch_out(void);
 
 #define configSUPPORT_STATIC_ALLOCATION              0
 #define configSUPPORT_DYNAMIC_ALLOCATION             1
-#define configTOTAL_HEAP_SIZE                        ((size_t)(14 * 1024))
+#define configTOTAL_HEAP_SIZE                        ((size_t)(10 * 1024))
 #define configAPPLICATION_ALLOCATED_HEAP             0
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP    0
 #define configUSE_MINI_LIST_ITEM                     0
@@ -127,32 +129,37 @@ void lv_freertos_task_switch_out(void);
 
 #define configUSE_TASK_NOTIFICATIONS                 1
 #define configUSE_MUTEXES                            1
-#define configUSE_RECURSIVE_MUTEXES                  1
-#define configUSE_COUNTING_SEMAPHORES                1
-#define configUSE_QUEUE_SETS                         1
-#define configUSE_APPLICATION_TASK_TAG               1
-#define INCLUDE_vTaskPrioritySet                     1
-#define INCLUDE_uxTaskPriorityGet                    1
-#define INCLUDE_vTaskDelete                          1
+#define configUSE_RECURSIVE_MUTEXES                  0
+#define configUSE_COUNTING_SEMAPHORES                0
+#define configUSE_QUEUE_SETS                         0
+#define configUSE_APPLICATION_TASK_TAG               0
+#define INCLUDE_vTaskPrioritySet                     0
+#define INCLUDE_uxTaskPriorityGet                    0
+#define INCLUDE_vTaskDelete                          0
 #define INCLUDE_vTaskSuspend                         1
 #define INCLUDE_vTaskDelayUntil                      1
 #define INCLUDE_vTaskDelay                           1
-#define INCLUDE_xTaskGetSchedulerState               1
-#define INCLUDE_xTaskGetCurrentTaskHandle            1
-#define INCLUDE_uxTaskGetStackHighWaterMark          1
-#define INCLUDE_xTaskGetIdleTaskHandle               1
-#define INCLUDE_eTaskGetState                        1
-#define INCLUDE_xTimerPendFunctionCall               1
-#define INCLUDE_xTaskAbortDelay                      1
-#define INCLUDE_xTaskGetHandle                       1
-#define INCLUDE_xTaskResumeFromISR                   1
+#define INCLUDE_xTaskGetSchedulerState               0
+#define INCLUDE_xTaskGetCurrentTaskHandle            0
+#define INCLUDE_uxTaskGetStackHighWaterMark          0
+#define INCLUDE_xTaskGetIdleTaskHandle               0
+#define INCLUDE_eTaskGetState                        0
+#define INCLUDE_xTimerPendFunctionCall               0
+#define INCLUDE_xTaskAbortDelay                      0
+#define INCLUDE_xTaskGetHandle                       0
+#define INCLUDE_xTaskResumeFromISR                   0
 
 /******************************************************************************/
 /* Set for LVGL support. ******************************************************/
 /******************************************************************************/
 
-#define traceTASK_SWITCHED_IN()                      lv_freertos_task_switch_in(pxCurrentTCB->pcTaskName)
-#define traceTASK_SWITCHED_OUT()                     lv_freertos_task_switch_out()
+#if FRAMEWORK_USE_LVGL
+    #define traceTASK_SWITCHED_IN()                  lv_freertos_task_switch_in(pxCurrentTCB->pcTaskName)
+    #define traceTASK_SWITCHED_OUT()                 lv_freertos_task_switch_out()
+#else
+    #define traceTASK_SWITCHED_IN()
+    #define traceTASK_SWITCHED_OUT()
+#endif
 
 /******************************************************************************/
 /* Set assertion macro. *******************************************************/

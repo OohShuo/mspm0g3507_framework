@@ -1,7 +1,6 @@
 #include "game_console.h"
 
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
@@ -65,7 +64,9 @@ static uint32_t g_button_down_time = 0;
 static uint8_t g_back_sent = 0;
 static uint8_t g_menu_selection = 0;
 static uint8_t g_current_page = 0;
+#if GAME_RUNTIME_MONITOR_ENABLE
 static uint32_t g_last_monitor_time = 0;
+#endif
 static uint32_t g_last_input_tick = 0;
 
 static Game_direction read_direction(void) {
@@ -500,6 +501,16 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
     Game_Graphics_Draw_U32(g_lcd, cx + 26, cy + 70, Score_Store_Get(game->id), 5, 1, COLOR_WHITE);
 }
 
+static void format_page_text(char* text, uint8_t page, uint8_t total_pages) {
+    char* out = text;
+    if (page >= 10u) { *out++ = (char)('0' + page / 10u); }
+    *out++ = (char)('0' + page % 10u);
+    *out++ = '/';
+    if (total_pages >= 10u) { *out++ = (char)('0' + total_pages / 10u); }
+    *out++ = (char)('0' + total_pages % 10u);
+    *out = '\0';
+}
+
 static void draw_page_indicator(void) {
     const uint8_t game_count = Game_Registry_Count();
     const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
@@ -525,7 +536,7 @@ static void draw_page_indicator(void) {
 
     /* Page number */
     char page_text[8];
-    snprintf(page_text, sizeof(page_text), "%u/%u", g_current_page + 1, total_pages);
+    format_page_text(page_text, (uint8_t)(g_current_page + 1u), total_pages);
     Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 60, bar_y + 6, page_text, 1, COLOR_WHITE);
 
     /* Separator line */
