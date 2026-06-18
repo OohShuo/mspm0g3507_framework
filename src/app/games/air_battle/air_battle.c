@@ -234,9 +234,7 @@ static void draw_sprite_line(const Air_sprite* sprite, int16_t sprite_x, int16_t
         const uint16_t byte_index = (uint16_t)(pixel_index >> 1);
         const uint8_t byte = sprite->data[byte_index];
         const uint8_t nibble = (pixel_index & 1u) ? (uint8_t)(byte & 0x0Fu) : (uint8_t)(byte >> 4);
-        if (nibble != 0) {
-            g_line_buffer[screen_x - region_x] = sprite->palette[nibble];
-        }
+        if (nibble != 0) { g_line_buffer[screen_x - region_x] = sprite->palette[nibble]; }
     }
 }
 

@@ -31,7 +31,7 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *****************************************************************************/
-_Min_Heap_Size  = 0x80;   /* 128 B newlib heap  */
+_Min_Heap_Size  = 0x400;  /* 1 KiB newlib heap  */
 _Min_Stack_Size = 0x80;   /* required amount of stack */
 
 /* Specify the memory areas */

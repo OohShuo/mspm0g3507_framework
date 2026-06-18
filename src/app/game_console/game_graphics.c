@@ -247,8 +247,7 @@ void Game_Graphics_Draw_Gray4_Bitmap(
 }
 
 void Game_Graphics_Draw_Pal4_Bitmap(
-    St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h,
-    const uint16_t* palette, const uint8_t* data) {
+    St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* palette, const uint8_t* data) {
     if (lcd == NULL || palette == NULL || data == NULL || w <= 0 || h <= 0) { return; }
     if (w > SCREEN_WIDTH) { return; }
 

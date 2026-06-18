@@ -11,8 +11,8 @@
 typedef struct {
     uint8_t width;
     uint8_t height;
-    const uint16_t* palette;  /* 16-entry RGB565 palette */
-    const uint8_t* data;      /* 4-bit indices, 2 pixels per byte, row-major */
+    const uint16_t* palette; /* 16-entry RGB565 palette */
+    const uint8_t* data;     /* 4-bit indices, 2 pixels per byte, row-major */
 } Air_sprite;
 
 extern const uint16_t air_background[AIR_BACKGROUND_WIDTH * AIR_BACKGROUND_HEIGHT];
