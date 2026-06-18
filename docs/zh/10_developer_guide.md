@@ -44,7 +44,7 @@
 2. `game_registry.h` — 添加 `game_icon_my_game` 到 `Game_icon`，`game_id_my_game` 到 `Game_id`
 3. `game_registry.c` — 添加 `Game_descriptor` 条目
 4. `game_console.c` — 添加图标绘制函数 + 在 `draw_grid_cell()` 中添加分支
-5. 在 VM 上测试：`BUILD_PLATFORM=VM ninja && ./framework_vm`
+5. 在 VM 上测试：`python3 scripts/cc.py --target vm && ./build/vm/framework_vm`（`--target` 匹配 config.yaml 中的 `name:`）
 
 ### 添加 HAL 模块
 

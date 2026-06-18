@@ -48,9 +48,12 @@ ESC → 退出
 ## 构建与运行
 
 ```bash
-cmake -G Ninja .. -DBUILD_PLATFORM=VM && ninja && ./framework_vm
+# 1. 在 config/config.yaml 配置，platform: VM
+# 2. 构建并运行
+python3 scripts/cc.py
+./build/vm/framework_vm
 ```
 
 ## ADR
 
-详见 [../en/adr/architecture_decisions.md §5](../en/adr/architecture_decisions.md#5-vm-simulator)。
+详见 [../en/adr/architecture_decisions.md §5](../en/adr/architecture_decisions.md#5-sdl2-vm-simulator)。

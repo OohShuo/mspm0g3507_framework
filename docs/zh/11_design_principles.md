@@ -41,7 +41,7 @@ VM 对等 → 快速迭代，保证代码复用
 - SDL2 VM 只需为 HAL/BSP 写桩（每个 20-50 行）
 - 迭代数据：硬件 42s/周期 vs VM 19s/周期，约 3 倍迭代密度
 
-详见 [../en/adr/architecture_decisions.md §5](../en/adr/architecture_decisions.md#5-vm-simulator)。
+详见 [../en/adr/architecture_decisions.md §5](../en/adr/architecture_decisions.md#5-sdl2-vm-simulator)。
 
 ### 为何选择 FreeRTOS
 

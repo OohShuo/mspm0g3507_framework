@@ -30,14 +30,18 @@ graph TD
 ## Build
 
 ```bash
-# ARM
-cd framework && mkdir -p build && cd build
-cmake -G Ninja .. -DBUILD_PLATFORM=ARM && ninja
+# 1. 编辑 config/config.yaml——每个 target 有唯一 name，其下配置 platform 和功能开关
+# 2. 构建（--target 匹配 name 字段）
+python3 scripts/cc.py                  # 构建 build: 列表中所有 target
 
-# VM (x86)
-sudo apt install libsdl2-dev
-cmake -G Ninja .. -DBUILD_PLATFORM=VM && ninja && ./framework_vm
+python3 scripts/cc.py --target arm     # 仅构建 name=arm 的 target
+python3 scripts/cc.py --target vm      # 仅构建 name=vm 的 target
+
+# 或使用 bash 快捷方式
+bash scripts/cm.bash --target vm
 ```
+
+`cc.py` 读取 `config/config.yaml`，按 `name` 匹配 target，将 `platform`、`FRAMEWORK_USE_*` 等字段作为 `-D` 传递给 CMake。直接运行 cmake 会跳过配置，模块开关不生效。
 
 ## Documentation
 
