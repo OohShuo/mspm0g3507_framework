@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "bsp_time.h"
 #include "buzzer.h"
 #include "game_graphics.h"
 
@@ -59,6 +60,9 @@ static uint16_t g_disk_accum;
 static int16_t g_fly_x, g_fly_y, g_fly_dx, g_fly_dy;
 static int16_t g_launch_x;
 static uint32_t g_score;
+static uint32_t g_last_update_ms;
+
+#define BASE_TICK_MS 20u
 
 /* ── sin/cos 查找 ── */
 
@@ -236,6 +240,7 @@ static void restart_game(void) {
     g_launch_x = DISK_CX;
     g_old_launch_x = 0;
     g_score = 0;
+    g_last_update_ms = Bsp_Get_Tick_Ms();
 
     g_needle_angles[0] = 0;
     g_needle_angles[1] = 64;
@@ -287,8 +292,14 @@ Game_result Needle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    /* ══ 每帧：旋转圆盘（定点累加） ══ */
-    g_disk_accum += g_ang_vel;
+    /* ══ 时间驱动的 dt 计算（旋转 + 飞行共用） ══ */
+    const uint32_t now = Bsp_Get_Tick_Ms();
+    uint32_t dt = now - g_last_update_ms;
+    if (dt > 100u) { dt = 100u; }
+    g_last_update_ms = now;
+
+    /* ══ 旋转圆盘（定点累加，按 dt 缩放） ══ */
+    g_disk_accum += (uint32_t)g_ang_vel * dt / BASE_TICK_MS;
     g_disk_angle = (uint8_t)(g_disk_accum >> 8);
     rotate_needles();
 
@@ -307,8 +318,8 @@ Game_result Needle_Update(const Game_input* input) {
         Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
         Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
 
-        g_fly_x += g_fly_dx;
-        g_fly_y += g_fly_dy;
+        g_fly_x += (int16_t)((int32_t)g_fly_dx * (int32_t)dt / (int32_t)BASE_TICK_MS);
+        g_fly_y += (int16_t)((int32_t)g_fly_dy * (int32_t)dt / (int32_t)BASE_TICK_MS);
 
         draw_fly_tip(COLOR_WHITE);
 
