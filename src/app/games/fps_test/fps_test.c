@@ -85,13 +85,13 @@ static void draw_bottom_bar(void) {
     Game_Graphics_Fill_Rect(g_lcd, 10, BOTTOM_BAR_Y + 1, SCREEN_WIDTH - 20, BOTTOM_BAR_H, COLOR_BLACK);
 
     if (g_state == fps_state_idle) {
-        Game_Graphics_Draw_Text(g_lcd, 120, BOTTOM_BAR_Y + 10, "PRESS TO START", 1, COLOR_WHITE);
-        Game_Graphics_Draw_Text(g_lcd, 25, BOTTOM_BAR_Y + 10, "HOLD TO BACK", 1, COLOR_GRAY);
+        Game_Graphics_Draw_Text(g_lcd, 85, BOTTOM_BAR_Y + 10, "PRESS TO START", 1, COLOR_WHITE);
+        Game_Graphics_Draw_Text(g_lcd, 10, BOTTOM_BAR_Y + 10, "HOLD TO BACK", 1, COLOR_GRAY);
     } else if (g_state == fps_state_testing) {
         Game_Graphics_Draw_Text(g_lcd, 72, BOTTOM_BAR_Y + 10, "TESTING...", 1, COLOR_YELLOW);
     } else {
-        Game_Graphics_Draw_Text(g_lcd, 120, BOTTOM_BAR_Y + 10, "PRESS TO RETEST", 1, COLOR_WHITE);
-        Game_Graphics_Draw_Text(g_lcd, 25, BOTTOM_BAR_Y + 10, "HOLD TO BACK", 1, COLOR_GRAY);
+        Game_Graphics_Draw_Text(g_lcd, 85, BOTTOM_BAR_Y + 10, "PRESS TO RETEST", 1, COLOR_WHITE);
+        Game_Graphics_Draw_Text(g_lcd, 10, BOTTOM_BAR_Y + 10, "HOLD TO BACK", 1, COLOR_GRAY);
     }
 }
 

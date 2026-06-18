@@ -69,6 +69,12 @@ static uint32_t g_last_monitor_time = 0;
 #endif
 static uint32_t g_last_input_tick = 0;
 
+/* ── FPS tracking ── */
+static uint32_t g_fps_frame_count = 0;
+static uint32_t g_last_fps_time = 0;
+static uint32_t g_current_fps = 0;
+static uint32_t g_last_drawn_fps = 0;
+
 static Game_direction read_direction(void) {
     if (g_joystick == NULL) { return game_direction_none; }
 
@@ -543,6 +549,27 @@ static void draw_page_indicator(void) {
     Game_Graphics_Fill_Rect(g_lcd, 10, bar_y + 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 }
 
+static void fps_tick(void) {
+    g_fps_frame_count++;
+    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t elapsed = now - g_last_fps_time;
+    if (elapsed >= 300u) {
+        g_current_fps = elapsed > 0u ? g_fps_frame_count * 1000u / elapsed : 0u;
+        g_fps_frame_count = 0;
+        g_last_fps_time = now;
+    }
+}
+
+static void draw_fps(void) {
+    /* Only refresh once per second — when the value actually changes */
+    if (g_current_fps == g_last_drawn_fps) { return; }
+    g_last_drawn_fps = g_current_fps;
+
+    Game_Graphics_Fill_Rect(g_lcd, SCREEN_WIDTH - 62, SCREEN_HEIGHT - 20, 62, 12, COLOR_BLACK);
+    Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 62, SCREEN_HEIGHT - 20, "FPS:", 1, COLOR_GRAY);
+    Game_Graphics_Draw_U32(g_lcd, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 20, g_current_fps, 3, 1, COLOR_WHITE);
+}
+
 static void render_menu(void) {
     const uint8_t game_count = Game_Registry_Count();
     const uint8_t page_start = (uint8_t)(g_current_page * MENU_PER_PAGE);
@@ -798,6 +825,8 @@ static void console_task(void* arg) {
     uint32_t tick = xTaskGetTickCount();
 
     while (1) {
+        fps_tick();
+
         const Game_input input = poll_input();
         Game_result result = game_result_running;
 
@@ -827,6 +856,7 @@ static void console_task(void* arg) {
             } else {
                 Screensaver_Run_Frame();
             }
+            draw_fps();
             vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
             continue;
         }
@@ -842,7 +872,8 @@ static void console_task(void* arg) {
 
         if (result == game_result_exit) { enter_menu(); }
         monitor_resources();
-        vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
+        draw_fps();
+        vTaskDelayUntil(&tick, pdMS_TO_TICKS(5));
     }
 }
 

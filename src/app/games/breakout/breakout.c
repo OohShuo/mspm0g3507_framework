@@ -66,7 +66,10 @@ static uint32_t g_score = 0;
 static uint8_t g_lives = 0;
 static uint8_t g_bricks_remaining = 0;
 static uint32_t g_last_move = 0;
-static int16_t g_old_paddle_x = 0;
+static uint32_t g_last_paddle_ms = 0;
+static int32_t g_paddle_x256 = 0;
+
+#define BASE_TICK_MS 20u
 
 static void serve_ball(void) {
     g_ball_x = (int16_t)(g_paddle_x + PADDLE_WIDTH / 2 - BALL_SIZE / 2);
@@ -175,9 +178,10 @@ static void restart_game(void) {
     g_lives = 3;
     g_state = breakout_state_serving;
     g_paddle_x = (SCREEN_WIDTH - PADDLE_WIDTH) / 2;
-    g_old_paddle_x = g_paddle_x;
+    g_paddle_x256 = (int32_t)g_paddle_x * 256;
     serve_ball();
     g_last_move = Bsp_Get_Tick_Ms();
+    g_last_paddle_ms = g_last_move;
     render_full();
 }
 
@@ -196,17 +200,30 @@ Game_result Breakout_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    /* Paddle movement */
-    g_old_paddle_x = g_paddle_x;
-    if (input->direction == game_direction_left) {
-        g_paddle_x = clamp_paddle((int16_t)(g_paddle_x - PADDLE_STEP));
-    } else if (input->direction == game_direction_right) {
-        g_paddle_x = clamp_paddle((int16_t)(g_paddle_x + PADDLE_STEP));
-    }
-    if (g_paddle_x != g_old_paddle_x) {
-        render_paddle(g_old_paddle_x, g_paddle_x);
-        if (g_state == breakout_state_serving) {
-            g_ball_x = (int16_t)(g_paddle_x + PADDLE_WIDTH / 2 - BALL_SIZE / 2);
+    /* Paddle movement — dt-scaled, independent of task frequency */
+    {
+        const uint32_t now = Bsp_Get_Tick_Ms();
+        uint32_t dt = now - g_last_paddle_ms;
+        if (dt > 100u) { dt = 100u; }
+        g_last_paddle_ms = now;
+
+        int32_t new_x256 = g_paddle_x256;
+        if (input->direction == game_direction_left) {
+            new_x256 -= (int32_t)PADDLE_STEP * 256 * (int32_t)dt / (int32_t)BASE_TICK_MS;
+        } else if (input->direction == game_direction_right) {
+            new_x256 += (int32_t)PADDLE_STEP * 256 * (int32_t)dt / (int32_t)BASE_TICK_MS;
+        }
+
+        const int16_t new_x = clamp_paddle((int16_t)(new_x256 / 256));
+        if (new_x != g_paddle_x) {
+            render_paddle(g_paddle_x, new_x);
+            g_paddle_x = new_x;
+            g_paddle_x256 = (int32_t)new_x * 256; /* reset accum on clamp */
+            if (g_state == breakout_state_serving) {
+                g_ball_x = (int16_t)(g_paddle_x + PADDLE_WIDTH / 2 - BALL_SIZE / 2);
+            }
+        } else {
+            g_paddle_x256 = new_x256; /* preserve sub-pixel remainder */
         }
     }
 
@@ -272,8 +289,10 @@ Game_result Breakout_Update(const Game_input* input) {
         if (g_lives > 1) {
             g_lives--;
             g_state = breakout_state_serving;
+            const int16_t old_x = g_paddle_x;
             g_paddle_x = (SCREEN_WIDTH - PADDLE_WIDTH) / 2;
-            render_paddle(g_old_paddle_x, g_paddle_x);
+            g_paddle_x256 = (int32_t)g_paddle_x * 256;
+            render_paddle(old_x, g_paddle_x);
             serve_ball();
             render_hud();
         } else {
