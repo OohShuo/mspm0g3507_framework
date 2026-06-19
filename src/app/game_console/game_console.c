@@ -292,7 +292,7 @@ static void draw_maze_icon(int32_t x, int32_t y) {
 static void draw_needle_icon(int32_t x, int32_t y) {
     /* 圆盘（三层方形） */
     const int32_t cx = x + 22;
-    const int32_t cy = y + 14;
+    const int32_t cy = y + 18;
     Game_Graphics_Fill_Rect(g_lcd, cx - 16, cy - 16, 32, 32, COLOR_DARK);
     Game_Graphics_Fill_Rect(g_lcd, cx - 10, cy - 10, 20, 20, COLOR_GRAY);
     Game_Graphics_Fill_Rect(g_lcd, cx - 4, cy - 4, 8, 8, COLOR_WHITE);
@@ -419,13 +419,13 @@ static void draw_dodge_box_icon(int32_t x, int32_t y) {
 
 static void draw_rhythm_icon(int32_t x, int32_t y) {
     /* Music note stem */
-    Game_Graphics_Fill_Rect(g_lcd, x + 18, y, 3, 26, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 18, y - 5, 3, 26, COLOR_CYAN);
     /* Note head */
-    Game_Graphics_Fill_Rect(g_lcd, x + 3, y + 20, 18, 10, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, x + 5, y + 28, 4, 4, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 3, y + 15, 18, 10, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 5, y + 23, 4, 4, COLOR_CYAN);
     /* Beat bars */
-    Game_Graphics_Fill_Rect(g_lcd, x - 8, y + 26, 10, 3, COLOR_WHITE);
-    Game_Graphics_Fill_Rect(g_lcd, x - 2, y + 22, 10, 3, COLOR_YELLOW);
+    Game_Graphics_Fill_Rect(g_lcd, x - 8, y + 21, 10, 3, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x - 2, y + 17, 10, 3, COLOR_YELLOW);
 }
 
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
