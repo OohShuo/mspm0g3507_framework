@@ -16,6 +16,7 @@
 #define NOTE_SPAWN_Y  48
 #define FEEDBACK_Y    24
 #define NOTE_COUNT    5u
+#define LOOP_CHART_LEN 32u
 
 #define COLOR_BLACK   0x0000u
 #define COLOR_WHITE   0xffffu
@@ -31,6 +32,7 @@ typedef struct {
     int16_t y;
     uint8_t dir;
     uint8_t active;
+    uint8_t tone_index;
 } Note;
 
 static Game_hardware g_hardware;
@@ -49,10 +51,33 @@ static uint8_t g_need_center;
 static uint8_t g_flash_frames;
 static uint8_t g_feedback_frames;
 static uint8_t g_feedback_kind;
+static uint8_t g_song_mode;
+static uint8_t g_chart_index;
+static uint8_t g_spawn_count;
+static Buzzer_note g_beat_notes[2];
+static Music g_beat_music = {g_beat_notes, 0};
 static Buzzer_note g_tone_notes[3];
 static Music g_tone_music = {g_tone_notes, 0};
 static const int16_t g_lane_x[4] = {42, 94, 146, 198};
-static const uint16_t g_dir_tone[5] = {0, 784, 523, 659, 1047};
+static const uint16_t g_dir_tone[5] = {0, 659, 392, 523, 784};
+static const uint8_t g_loop_chart[LOOP_CHART_LEN] = {
+    game_direction_up, game_direction_right, game_direction_down, game_direction_left,
+    game_direction_up, game_direction_down, game_direction_right, game_direction_up,
+    game_direction_left, game_direction_down, game_direction_up, game_direction_right,
+    game_direction_down, game_direction_left, game_direction_right, game_direction_up,
+    game_direction_up, game_direction_left, game_direction_down, game_direction_right,
+    game_direction_left, game_direction_up, game_direction_right, game_direction_down,
+    game_direction_right, game_direction_down, game_direction_left, game_direction_up,
+    game_direction_down, game_direction_right, game_direction_up, game_direction_left,
+};
+static const uint16_t g_loop_tone[LOOP_CHART_LEN] = {
+    523, 587, 659, 587, 523, 392, 440, 523, 587, 659, 784, 659, 587, 523, 440, 392,
+    440, 523, 587, 659, 784, 659, 587, 523, 523, 587, 659, 784, 659, 587, 523, 440,
+};
+static const uint16_t g_loop_gap[LOOP_CHART_LEN] = {
+    480, 480, 720, 240, 480, 960, 480, 480, 720, 240, 480, 480, 960, 480, 240, 240,
+    480, 720, 240, 480, 960, 480, 480, 720, 240, 480, 480, 960, 720, 240, 480, 960,
+};
 
 static uint32_t fast_rand(void) {
     g_rand_state = g_rand_state * 1103515245u + 12345u;
@@ -131,18 +156,43 @@ static void draw_hud(void) {
     Game_Graphics_Draw_U32(g_hardware.lcd, 184, 2, g_score, 5, 1, COLOR_WHITE);
 }
 
-static void play_tone(uint8_t dir, uint8_t kind) {
-    uint16_t base = g_dir_tone[dir];
+static void draw_mode(void) {
+    fill(84, 126, 72, 10, COLOR_BLACK);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 86, 126, g_song_mode ? "LOOP" : "RAND", 1, COLOR_YELLOW);
+}
+
+static uint16_t spawn_due_ms(void) {
+    return g_song_mode ? g_loop_gap[g_chart_index & (LOOP_CHART_LEN - 1u)] : g_spawn_interval;
+}
+
+static void play_tone(uint8_t dir, uint8_t kind, uint8_t tone_index) {
+    uint16_t base = g_song_mode ? g_loop_tone[tone_index & (LOOP_CHART_LEN - 1u)] : g_dir_tone[dir];
     if (base == 0u) { base = 659u; }
-    g_tone_notes[0] = (Buzzer_note){base, 34, 65, 55, 0};
-    g_tone_notes[1] = (Buzzer_note){
-        (uint16_t)(kind == 1u ? base + base / 2u : kind == 4u ? base * 2u : base + base / 4u), 46, 72, 62, 0};
-    g_tone_music.length = 2;
-    if (kind == 4u) {
-        g_tone_notes[2] = (Buzzer_note){(uint16_t)(base * 2u + base / 2u), 60, 78, 70, 0};
+    const uint16_t upper = (uint16_t)(base + base / 4u);
+    const uint16_t fifth = (uint16_t)(base + base / 2u);
+    if (kind == 2u) {
+        g_tone_notes[0] = (Buzzer_note){base, 58, 92, 42, 0};
+        g_tone_notes[1] = (Buzzer_note){upper, 96, 88, 34, 0};
+        g_tone_music.length = 2;
+    } else {
+        g_tone_notes[0] = (Buzzer_note){base, 48, 94, 42, 0};
+        g_tone_notes[1] = (Buzzer_note){upper, 64, 90, 36, 0};
+        g_tone_notes[2] = (Buzzer_note){fifth, 120, 84, 28, 0};
         g_tone_music.length = 3;
     }
     Buzzer_Play(g_hardware.buzzer, &g_tone_music);
+}
+
+static void play_spawn_beat(void) {
+    if (g_song_mode && (g_spawn_count & 3u) == 1u) {
+        g_beat_notes[0] = (Buzzer_note){150, 24, 86, 58, BUZZER_NOTE_GLISSANDO};
+        g_beat_notes[1] = (Buzzer_note){75, 30, 42, 42, 0};
+        g_beat_music.length = 2;
+    } else {
+        g_beat_notes[0] = (Buzzer_note){3600, 12, 22, 26, 0};
+        g_beat_music.length = 1;
+    }
+    Buzzer_Play(g_hardware.buzzer, &g_beat_music);
 }
 
 static void show_feedback(uint8_t kind) {
@@ -179,6 +229,8 @@ static void start_game(void) {
     g_flash_frames = 0;
     g_feedback_frames = 0;
     g_feedback_kind = 0;
+    g_chart_index = 0;
+    g_spawn_count = 0;
     g_last_tick_ms = Bsp_Get_Tick_Ms();
     for (uint8_t i = 0; i < NOTE_COUNT; i++) { g_notes[i].active = 0; }
     draw_static_scene();
@@ -189,15 +241,25 @@ static void restart_game(void) {
     g_state = rhythm_state_ready;
     g_rand_state = Bsp_Get_Tick_Ms();
     draw_static_scene();
-    Game_Graphics_Draw_Text(g_hardware.lcd, 46, 140, "PUSH TO START", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 52, 140, "^/v START", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 46, 158, "< > MODE", 1, COLOR_GRAY);
+    draw_mode();
 }
 
 static void spawn_note(void) {
     for (uint8_t i = 0; i < NOTE_COUNT; i++) {
         if (g_notes[i].active) { continue; }
         g_notes[i].active = 1;
-        g_notes[i].dir = (uint8_t)(1u + (fast_rand() & 3u));
+        if (g_song_mode) {
+            g_notes[i].tone_index = g_chart_index;
+            g_notes[i].dir = g_loop_chart[g_chart_index];
+            g_chart_index = (uint8_t)((g_chart_index + 1u) & (LOOP_CHART_LEN - 1u));
+        } else {
+            g_notes[i].tone_index = 0;
+            g_notes[i].dir = (uint8_t)(1u + (fast_rand() & 3u));
+        }
         g_notes[i].y = NOTE_SPAWN_Y;
+        g_spawn_count++;
         return;
     }
 }
@@ -236,7 +298,14 @@ Game_result Rhythm_Update(const Game_input* input) {
         return game_result_running;
     }
     if (g_state == rhythm_state_ready) {
-        if (input->direction_pressed || input->confirm_pressed) { start_game(); }
+        if (input->direction_pressed &&
+            (input->direction == game_direction_left || input->direction == game_direction_right)) {
+            g_song_mode ^= 1u;
+            draw_mode();
+            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
+        } else if (input->direction_pressed || input->confirm_pressed) {
+            start_game();
+        }
         return game_result_running;
     }
 
@@ -246,10 +315,10 @@ Game_result Rhythm_Update(const Game_input* input) {
     g_last_tick_ms = now;
     g_spawn_ms += elapsed;
 
-    if (g_spawn_ms >= g_spawn_interval) {
+    if (g_spawn_ms >= spawn_due_ms()) {
         g_spawn_ms = 0;
         spawn_note();
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_menu_move);
+        play_spawn_beat();
     }
 
     if (input->direction == game_direction_none) { g_need_center = 0; }
@@ -272,11 +341,11 @@ Game_result Rhythm_Update(const Game_input* input) {
             g_combo++;
             g_score += best_delta <= 12 ? 100u + g_combo * 2u : 50u + g_combo;
             if (g_speed < 300u) { g_speed += 3u; }
-            if (g_spawn_interval > 360u && (g_combo & 3u) == 0u) { g_spawn_interval -= 20u; }
+            if (!g_song_mode && g_spawn_interval > 360u && (g_combo & 3u) == 0u) { g_spawn_interval -= 20u; }
             g_flash_frames = best_delta <= 12 ? 3u : 1u;
             const uint8_t feedback = (g_combo % 10u) == 0u ? 4u : (best_delta <= 12 ? 1u : 2u);
             show_feedback(feedback);
-            play_tone(input->direction, feedback);
+            play_tone(input->direction, feedback, g_notes[best].tone_index);
         } else {
             g_combo = 0;
             if (g_lives > 0) { g_lives--; }
