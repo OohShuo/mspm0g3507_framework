@@ -2,7 +2,7 @@
 
 ## 目的
 
-在 PC 上运行完整应用逻辑，加速开发。迭代周期：42s（硬件）→ 19s（VM），约 3 倍迭代密度提升。
+在 PC 上运行完整应用逻辑，加速开发。当前配置下典型迭代周期：约 42s（硬件烧录）→ 约 19s（VM），约 3 倍迭代密度提升（实测值，实际耗时取决于二进制大小和宿主机性能）。
 
 ## 架构
 
@@ -11,7 +11,7 @@ ARM:  APP → HAL(ARM) → BSP(ARM) → DriverLib → MSPM0
 VM:   APP → HAL(VM)  → BSP(VM)  → SDL2 → POSIX → x86
 ```
 
-APP 层代码相同。HAL/BSP 各一份 ARM 实现和一份 VM 桩实现。CMake `BUILD_PLATFORM=VM` 时替换。
+当前设计目标是 APP 层代码跨平台相同。HAL/BSP 各一份 ARM 实现和一份 VM 桩实现。CMake `BUILD_PLATFORM=VM` 时替换。
 
 ## 代码复用机制
 
@@ -27,7 +27,7 @@ APP 层代码相同。HAL/BSP 各一份 ARM 实现和一份 VM 桩实现。CMake
 | 显示 | ST7789 通过软件 SPI | SDL2 纹理，2 倍放大 |
 | 输入 | ADC 摇杆 + GPIO 按键 | WASD/方向键 + 空格 |
 | 音频 | PWM 蜂鸣器 | 空操作 / 控制台输出 |
-| Flash | W25Q32 通过硬件 SPI | RAM 模拟 |
+| Flash | W25Q32 通过硬件 SPI | 忽略读写 |
 | 时基 | SysTick | SDL_GetTicks |
 | RTOS | FreeRTOS 内核 | POSIX 线程 + 条件变量 |
 

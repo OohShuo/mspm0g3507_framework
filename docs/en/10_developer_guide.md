@@ -44,7 +44,7 @@
 2. `game_registry.h` — add `game_icon_my_game` to `Game_icon`, `game_id_my_game` to `Game_id`
 3. `game_registry.c` — add `Game_descriptor` entry
 4. `game_console.c` — add icon draw function + case in `draw_grid_cell()`
-5. Test on VM: `python3 scripts/cc.py --target vm && ./build/vm/framework_vm`（`--target` 匹配 config.yaml 中的 `name:`）
+5. Test on VM: `python3 scripts/cc.py --target vm && ./build/vm/framework_vm` (`--target` matches the `name:` field in config.yaml)
 
 ### Add a HAL Module
 
@@ -70,7 +70,7 @@
 
 ## Testing
 
-14 个独立测试模块，通过 `test_config.h` 开关控制：
+14 independent test modules, controlled via `test_config.h` switches:
 
 ```
 TEST_BUTTON / TEST_BUZZER / TEST_COM_UART / TEST_JOYSTICK / TEST_LCD
@@ -78,9 +78,9 @@ TEST_LED_BREATH / TEST_LED_SIMPLE / TEST_LFS / TEST_LVGL_BALL
 TEST_LVGL_HELLO / TEST_RTT / TEST_SLIP_RECV / TEST_ST7789_IMG / TEST_W25Q32
 ```
 
-所有默认禁用。`Test_Task_Def()` 创建测试任务（优先级 1）。
+All disabled by default. `Test_Task_Def()` creates test tasks (priority 1).
 
-VM 是主要测试平台：`printf` 输出直接可见，LCD 渲染在 PC 窗口，键盘输入模拟摇杆/按键。
+VM is the primary test platform: `printf` output is directly visible, LCD renders in a PC window, keyboard input simulates joystick/button.
 
 ## Naming & Return Convention
 

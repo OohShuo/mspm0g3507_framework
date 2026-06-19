@@ -2,7 +2,7 @@
 
 ## BSP — Board Support Package
 
-薄封装 DriverLib 外设。`board_config.h` 定义所有引脚映射。
+Thin wrappers around DriverLib peripherals. `board_config.h` defines all pin mappings.
 
 | Module | Key API |
 | --- | --- |
@@ -18,7 +18,7 @@ Init order in `Bsp_Init()`: GPIO → PWM → ADC → Hard SPI → Soft SPI → U
 
 ## HAL — Hardware Abstraction Layer
 
-对象式驱动，每个模块：`Config struct → Create(config) → Init() → Update_All()`。
+Object-style drivers, each module: `Config struct → Create(config) → Init() → Update_All()`.
 
 ### Modules
 
@@ -50,23 +50,23 @@ Init order in `Bsp_Init()`: GPIO → PWM → ADC → Hard SPI → Soft SPI → U
 | Gpio_Task | 10ms | `Led_Simple_Update_All`, `Led_Breath_Update_All`, `Button_Update_All` |
 | Buzzer_Task | 5ms | `Buzzer_Update_All` |
 
-ST7789 和 W25Q32 不通过 `Hal_Init()` 初始化——由 APP 层按需 `Create`。
+ST7789 and W25Q32 are not initialized via `Hal_Init()` — they are `Create`d on demand by the APP layer.
 
 ## APP — Application Layer
 
 ### Game Console
 
-Game descriptor 模式，3 状态状态机（Menu → Game → GameOver）。19 款游戏通过统一接口注册：
+Game descriptor pattern, 3-state state machine (Menu → Game → GameOver). 19 games registered via a unified interface:
 
 ```c
 typedef struct { name, icon, id, init, update, get_score, is_finished } Game_descriptor;
 ```
 
-详见 [06_game_console.md](06_game_console.md)。
+See [06_game_console.md](06_game_console.md).
 
 ### Storage
 
-W25Q32 双区：低 2 MiB Raw Flash，高 2 MiB LittleFS。FreeRTOS mutex 保护。
+W25Q32 dual-region: lower 2 MiB Raw Flash, upper 2 MiB LittleFS. Protected by FreeRTOS mutex.
 
 ```c
 uint8_t Storage_Init(void);
@@ -75,21 +75,21 @@ lfs_t* Storage_Get_Lfs(void);
 void Storage_Lock/Unlock(void);
 ```
 
-详见 [05_storage.md](05_storage.md)。
+See [05_storage.md](05_storage.md).
 
 ### Flash Manager
 
-UART 二进制协议远程管理文件。7 个命令（READ/WRITE/DELETE/LIST/INFO/FORMAT/RESET）。任务优先级 2，队列驱动。
+UART binary protocol for remote file management. 7 commands (READ/WRITE/DELETE/LIST/INFO/FORMAT/RESET). Priority 2 task, queue-driven.
 
-详见 [05_storage.md](05_storage.md)。
+See [05_storage.md](05_storage.md).
 
 ### LFS Port
 
-LittleFS block device 适配 W25Q32。静态 buffer（256B read + 256B prog + 16B lookahead）。
+LittleFS block device adapted for W25Q32. Static buffers (256B read + 256B prog + 16B lookahead).
 
 ### Image Asset
 
-游戏素材编码/解码，支持灰度图和调色板压缩。
+Game asset encode/decode, supports grayscale and palette compression.
 
 ## Cross-Layer Dependencies
 
