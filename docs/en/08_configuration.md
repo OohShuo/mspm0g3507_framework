@@ -23,7 +23,7 @@ FRAMEWORK_USE_RTT: OFF       # Debug transport
 FRAMEWORK_USE_UART: OFF      # UART subsystem
 ```
 
-Propagated as `#define FRAMEWORK_USE_xxx 1/0` to all sources. Disabled modules compile to stubs or are excluded by `#if`.
+Propagated as `#define FRAMEWORK_USE_xxx 1/0` to all sources. In the current design, disabled modules compile to stubs or are excluded by `#if`, minimizing overhead (verify actual savings via map file).
 
 ## App Toggles (app_config.h)
 
@@ -45,7 +45,8 @@ All pin/peripheral mappings:
 // ... etc
 
 // PWM: 2 channels
-#define PWM_BUZZER_IDX 1
+#define PWM_BUZZER_IDX     0
+#define PWM_VIB_MOTOR_IDX  1
 
 // ADC: joystick X/Y
 #define ADC_JOYSTICK_IDX 0
@@ -53,19 +54,22 @@ All pin/peripheral mappings:
 #define JOYSTICK_X_DEAD_ZONE ...
 // ... (voltage range, offset, reverse)
 
-// SPI: 3 instances
-#define SPI_LCD_IDX      0     // Hard SPI → W25Q32
-#define SOFT_SPI_LCD_IDX 1     // Soft SPI → ST7789
+// SPI: one hardware SPI + one software SPI
+#define SPI_NUM          1
+#define SPI_LCD_IDX      0 
+
+#define SOFT_SPI_NUM     1
+#define SOFT_SPI_LCD_IDX 0
 ```
 
 ## SysConfig
 
-TI 图形工具生成 `ti_msp_dl_config.c/h`（时钟树、引脚复用、DMA）。`SYSCFG_DL_init()` 在 `main()` 中首先调用。`board_config.h` 手动维护，提供外设索引的符号名。
+TI graphical tool generates `ti_msp_dl_config.c/h` (clock tree, pin mux, DMA). `SYSCFG_DL_init()` is called first in `main()`. `board_config.h` is maintained manually, providing symbolic names for peripheral indices.
 
 ### Flow
 
 ```
-framework.syscfg → SysConfig CLI → ti_msp_dl_config.c/h → ARM 编译
+framework.syscfg → SysConfig CLI → ti_msp_dl_config.c/h → ARM build
 ```
 
-VM 构建跳过 SysConfig。
+VM build skips SysConfig.

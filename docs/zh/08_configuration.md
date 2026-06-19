@@ -23,7 +23,7 @@ FRAMEWORK_USE_RTT: OFF       # 调试传输
 FRAMEWORK_USE_UART: OFF      # UART 子系统
 ```
 
-以 `#define FRAMEWORK_USE_xxx 1/0` 传递给所有源文件。禁用模块编译为空桩或由 `#if` 排除。
+以 `#define FRAMEWORK_USE_xxx 1/0` 传递给所有源文件。当前设计中，禁用模块编译为空桩或由 `#if` 排除，最大程度减少开销（实际节省需通过 map 文件确认）。
 
 ## 应用开关（app_config.h）
 
@@ -45,7 +45,8 @@ FRAMEWORK_USE_UART: OFF      # UART 子系统
 // ... 等等
 
 // PWM：2 个通道
-#define PWM_BUZZER_IDX 1
+#define PWM_BUZZER_IDX     0
+#define PWM_VIB_MOTOR_IDX  1
 
 // ADC：摇杆 X/Y
 #define ADC_JOYSTICK_IDX 0
@@ -53,9 +54,11 @@ FRAMEWORK_USE_UART: OFF      # UART 子系统
 #define JOYSTICK_X_DEAD_ZONE ...
 // ... （电压范围、偏移、反向）
 
-// SPI：3 个实例
-#define SPI_LCD_IDX      0     // 硬件 SPI → W25Q32
-#define SOFT_SPI_LCD_IDX 1     // 软件 SPI → ST7789
+// SPI：1 个硬件 SPI + 1 个软件 SPI
+#define SPI_NUM          1
+#define SPI_LCD_IDX      0      // 当前硬件 SPI 供 W25Q32 使用
+#define SOFT_SPI_NUM     1
+#define SOFT_SPI_LCD_IDX 0      // 软件 SPI 供 ST7789 使用
 ```
 
 ## SysConfig

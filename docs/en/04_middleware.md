@@ -10,7 +10,7 @@ Kernel v11.x, Cortex-M0+ port.
 | --- | --- | --- |
 | `configTICK_RATE_HZ` | 1000 | 1ms resolution |
 | `configMAX_PRIORITIES` | 5 | Timer(4) > FlashMgr(2) > App(1) > Idle(0) |
-| `configTOTAL_HEAP_SIZE` | 18KB | heap_4 best-fit |
+| `configTOTAL_HEAP_SIZE` | 14KB | heap_4 best-fit |
 | `configUSE_PREEMPTION` | 1 | Flash Manager preempts games |
 | `configUSE_MUTEXES` | 1 | Storage mutex |
 | `configUSE_TASK_NOTIFICATIONS` | 1 | Lightweight signaling |
@@ -30,7 +30,7 @@ Why FreeRTOS vs RTX/CMSIS-RTOS2/Zephyr/bare-metal: [adr/architecture_decisions.m
 
 ## LittleFS
 
-Fail-safe 文件系统，挂载于 W25Q32 高 2 MiB。Copy-on-write 元数据，动态磨损均衡。
+Fail-safe filesystem, mounted on W25Q32 upper 2 MiB. Copy-on-write metadata, dynamic wear leveling.
 
 ### Block Device
 
@@ -50,7 +50,7 @@ int Lfs_Port_Mount/Format/Unmount(port);
 lfs_t* Lfs_Port_Get_Lfs(port);
 ```
 
-Static buffers (528B total): read 256B, prog 256B, lookahead 16B。不从 heap 分配，避免碎片化。
+Static buffers (528B total): read 256B, prog 256B, lookahead 16B. No heap allocation, avoids fragmentation.
 
 ### ADR
 
@@ -58,7 +58,7 @@ Why LittleFS vs FatFS/SPIFFS/raw: [adr/architecture_decisions.md §3](adr/archit
 
 ## LVGL
 
-v9.5，**可选**（`FRAMEWORK_USE_LVGL=OFF`）。禁用时零资源消耗。
+v9.5, **optional** (`FRAMEWORK_USE_LVGL=OFF`). Negligible resource cost when disabled (compile-time exclusion).
 
 ### Display Driver
 
@@ -67,8 +67,8 @@ ST7789 flush callback: `St7789_Flush → lv_disp_flush_ready`. RGB565, 240×320.
 ### Memory
 
 - Flash: ~45KB (library + widgets)
-- RAM: 单缓冲 ~15KB, 双缓冲 ~30KB
-- 当前默认禁用：游戏使用直接 framebuffer 渲染，节省 RAM
+- RAM: single buffer ~15KB, double buffer ~30KB
+- Currently disabled by default: games use direct framebuffer rendering, saving RAM
 
 ### ADR
 
@@ -76,19 +76,19 @@ Why optional vs always-on/custom: [adr/architecture_decisions.md §4](adr/archit
 
 ## SEGGER RTT
 
-printf → RTT Channel 0 (J-Link SWD). 无需 UART 引脚。
+printf → RTT Channel 0 (J-Link SWD). No UART pins required.
 
 ### Why Macro, Not newlib Retarget
 
 newlib-nano + nosys → `_isatty` returns -1 → stdout fully buffered → short lines lost.  
-`#define printf(...) SEGGER_RTT_printf(0, __VA_ARGS__)` 绕过所有 FILE buffer.
+`#define printf(...) SEGGER_RTT_printf(0, __VA_ARGS__)` bypasses all FILE buffers.
 
 ```c
 // rtt_log.h
 #if FRAMEWORK_USE_RTT
     #define printf(...) SEGGER_RTT_printf(0, __VA_ARGS__)
 #else
-    #define printf(...) ((void)0)  // zero-cost when disabled
+    #define printf(...) ((void)0)  // effectively zero-cost when disabled
 #endif
 ```
 

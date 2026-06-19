@@ -1,20 +1,20 @@
 # 00 — Introduction
 
-MSPM0G3507 Framework 为 TI MSPM0G3507 提供完整嵌入式软件栈：从寄存器级驱动到游戏控制台应用。双平台构建（ARM + x86 SDL2 VM），应用层代码完全复用。
+MSPM0G3507 Framework provides a complete embedded software stack for TI MSPM0G3507: from register-level drivers to game console applications. Dual-platform build (ARM + x86 SDL2 VM), with APP layer code designed to be fully reusable.
 
 ## Key Design Decisions
 
-- **APP → HAL → BSP → DriverLib** 单向依赖，禁止反向
-- **编译期组合**：通过 `config.yaml` 选择模块，禁用模块零资源消耗
-- **VM parity**：同一份 APP 代码在 ARM 和 x86 上运行
-- **对象式 HAL**：`Create(config)` → `Init()` → `Update()`
+- **APP → HAL → BSP → DriverLib** one-way dependency, reverse forbidden
+- **Compile-time composition**: select modules via `config.yaml`, disabled modules have negligible resource cost
+- **VM parity**: the same APP code runs on ARM and x86
+- **Object-style HAL**: `Create(config)` → `Init()` → `Update()`
 
 ## Platform Support
 
 | Platform | Compiler | Use |
 | --- | --- | --- |
-| MSPM0G3507 | arm-none-eabi-gcc | 生产固件 |
-| x86_64 | GCC/Clang + SDL2 | 开发调试 |
+| MSPM0G3507 | arm-none-eabi-gcc | Production firmware |
+| x86_64 | GCC/Clang + SDL2 | Development & debugging |
 
 ## Core Components
 
