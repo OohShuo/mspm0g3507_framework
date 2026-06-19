@@ -2,7 +2,7 @@
 
 ## Architecture
 
-Game descriptor 模式，3 状态状态机。
+Game descriptor pattern, 3-state state machine.
 
 ```mermaid
 stateDiagram-v2

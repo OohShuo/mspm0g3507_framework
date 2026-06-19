@@ -56,4 +56,7 @@ void Test_Task_Def(void) {
 #if TEST_W25Q32_ENABLE
     Test_W25q32_Task_Def();
 #endif
+#if TEST_LFS_ENABLE
+    Test_Lfs_Task_Def();
+#endif
 }

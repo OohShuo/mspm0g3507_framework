@@ -142,7 +142,7 @@ graph TD
 
 ## 文档导航 · Doc Map
 
-| 你想做什么 · What to do | :flag_cn: 中文 | :uk: English |
+| 你想做什么 · What to do | :flag_cn: 中文 | :flag_gb: English |
 | :--- | :--- | :--- |
 | 理解架构 | [架构总览](zh/01_architecture.md) | [Overview](en/01_architecture.md) |
 | 构建项目 | [构建系统](zh/02_build_system.md) | [Build System](en/02_build_system.md) |
@@ -165,22 +165,19 @@ graph TD
 ```
 framework/
 ├── src/
-│   ├── app/          # APP — 应用层（游戏、存储、Flash 管理）
-│   ├── hal/          # HAL — 硬件抽象层（ST7789, W25Q32, Joystick, Buzzer）
-│   ├── bsp/          # BSP — 板级支持包（GPIO, PWM, ADC, SPI, UART, Time）
-│   ├── middleware/   # FreeRTOS, LVGL, LittleFS, SEGGER RTT
+│   ├── app/          # APP — 游戏、存储、Flash 管理
+│   ├── hal/          # HAL — ST7789, W25Q32, Joystick, Buzzer 等
+│   ├── bsp/          # BSP — GPIO, PWM, ADC, SPI, UART, Time
 │   ├── vm/           # SDL2 虚拟机
-│   └── sys/          # 系统启动
-├── config/           # config.yaml 配置文件
-├── cmake/            # CMake 工具链
-├── tools/            # 辅助工具
-├── docs/             # 文档（中英双语 + ADR）
-├── ti_device/        # TI DriverLib
+│   ├── test/         # 测试模块
+│   └── syscall/      # retarget / RTT log
+├── lib/              # FreeRTOS, LVGL, LittleFS, RTT, local_lib
+├── config/           # config.yaml, board_config.h, FreeRTOSConfig.h 等
+├── cmake/            # CMake 工具链与函数
+├── scripts/          # 构建、烧录、SysConfig、资源脚本
+├── docs/             # MkDocs 文档
+├── ti_device/        # TI DriverLib / CMSIS / linker script
 └── build/            # 构建产物
 ```
 
 ---
-
-## License
-
-MIT

@@ -48,7 +48,7 @@ graph TD
 
 ## Flash Manager
 
-UART 二进制协议远程管理 LittleFS 文件。
+UART binary protocol for remote management of LittleFS files.
 
 ### Frame Format
 
