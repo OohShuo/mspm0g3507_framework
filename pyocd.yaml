@@ -1,0 +1,6 @@
+target_override: mspm0g3507
+frequency: 4000000
+connect_mode: halt
+
+pack:
+  - tools/packs/TexasInstruments.MSPM0G_DFP.1.1.0.pack
