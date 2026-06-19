@@ -29,3 +29,10 @@ typedef enum {
     game_result_running,
     game_result_exit,
 } Game_result;
+
+/* ── Unified screen layout ── */
+#define GAME_TOP_BAR_H    30
+#define GAME_BOTTOM_BAR_H 20
+#define GAME_AREA_Y       GAME_TOP_BAR_H
+#define GAME_AREA_BOTTOM  300
+#define GAME_AREA_H       (GAME_AREA_BOTTOM - GAME_AREA_Y)

@@ -34,7 +34,7 @@
 #define CELL_GAP_X    8
 #define CELL_GAP_Y    10
 #define GRID_X0       10
-#define GRID_Y0       30
+#define GRID_Y0       56
 
 #define COLOR_BLACK   0x0000u
 #define COLOR_WHITE   0xffffu
@@ -73,7 +73,7 @@ static uint32_t g_last_input_tick = 0;
 static uint32_t g_fps_frame_count = 0;
 static uint32_t g_last_fps_time = 0;
 static uint32_t g_current_fps = 0;
-static uint32_t g_last_drawn_fps = 0;
+static uint32_t g_last_fps_draw_ms = 0;
 
 static Game_direction read_direction(void) {
     if (g_joystick == NULL) { return game_direction_none; }
@@ -520,7 +520,7 @@ static void format_page_text(char* text, uint8_t page, uint8_t total_pages) {
 static void draw_page_indicator(void) {
     const uint8_t game_count = Game_Registry_Count();
     const uint8_t total_pages = (uint8_t)((game_count + MENU_PER_PAGE - 1) / MENU_PER_PAGE);
-    const int32_t bar_y = 222;
+    const int32_t bar_y = 250;
     const int32_t dot_y = bar_y + 12;
 
     /* Separator line */
@@ -561,13 +561,21 @@ static void fps_tick(void) {
 }
 
 static void draw_fps(void) {
-    /* Only refresh once per second — when the value actually changes */
-    if (g_current_fps == g_last_drawn_fps) { return; }
-    g_last_drawn_fps = g_current_fps;
+    /* Refresh every 300ms */
+    const uint32_t now = Bsp_Get_Tick_Ms();
+    if (now - g_last_fps_draw_ms < 300u) { return; }
+    g_last_fps_draw_ms = now;
 
+    /* Menu / game: lightweight FPS update inside unified bottom bar */
+    if (g_console_state == console_state_game || g_console_state == console_state_menu) {
+        Game_Graphics_Update_Bottom_Fps(g_lcd, g_current_fps);
+        return;
+    }
+
+    /* For game-over / screensaver: FPS at bottom-right */
     Game_Graphics_Fill_Rect(g_lcd, SCREEN_WIDTH - 62, SCREEN_HEIGHT - 20, 62, 12, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 62, SCREEN_HEIGHT - 20, "FPS:", 1, COLOR_GRAY);
-    Game_Graphics_Draw_U32(g_lcd, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 20, g_current_fps, 3, 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 62, SCREEN_HEIGHT - 20, "FPS:", 1, 0x8410u);
+    Game_Graphics_Draw_U32(g_lcd, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 20, g_current_fps, 3, 1, 0xffffu);
 }
 
 static void render_menu(void) {
@@ -594,13 +602,14 @@ static void render_menu(void) {
     /* Page indicator with arrows and dots */
     draw_page_indicator();
 
-    /* Bottom hints */
-    Game_Graphics_Draw_Text(g_lcd, 14, 258, "< > ^ v", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 60, 258, "to select", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_lcd, 135, 258, "PRESS", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 170, 258, "to pick", 1, COLOR_GRAY);
+    /* Navigation hints above bottom bar */
+    Game_Graphics_Draw_Text(g_lcd, 14, 276, "< > ^ v", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 60, 276, "to select", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 135, 276, "PRESS", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 170, 276, "to pick", 1, COLOR_GRAY);
 
-    Game_Graphics_Draw_Text(g_lcd, 46, 282, "HOLD TO BACK", 1, COLOR_GRAY);
+    /* Unified bottom bar */
+    Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
 }
 
 static void enter_menu(void) {
@@ -719,7 +728,10 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
     if (game != NULL) {
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
         g_console_state = console_state_game;
+        Game_Graphics_Draw_Top_Bar(g_lcd, game->name);
+        Game_Graphics_Clear_Game_Area(g_lcd);
         game->init(hardware);
+        Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
     }
 }
 
@@ -759,7 +771,10 @@ static void update_game_over(const Game_input* input, const Game_hardware* hardw
             return;
         }
         g_console_state = console_state_game;
+        Game_Graphics_Draw_Top_Bar(g_lcd, game->name);
+        Game_Graphics_Clear_Game_Area(g_lcd);
         game->init(hardware);
+        Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
     }
 }
 
@@ -852,6 +867,12 @@ static void console_task(void* arg) {
                     render_menu();
                 } else if (g_console_state == console_state_game_over) {
                     Game_Over_Menu_Redraw();
+                } else if (g_console_state == console_state_game) {
+                    const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
+                    if (game != NULL) {
+                        Game_Graphics_Draw_Top_Bar(g_lcd, game->name);
+                        Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
+                    }
                 }
             } else {
                 Screensaver_Run_Frame();

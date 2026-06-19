@@ -8,10 +8,8 @@
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
-#define BAR_H         12
-#define BAR_BOT       298
-#define PLAY_TOP      BAR_H
-#define PLAY_BOT      BAR_BOT
+#define PLAY_TOP      GAME_TOP_BAR_H
+#define PLAY_BOT      GAME_AREA_BOTTOM
 #define GROUND_Y      200
 #define DINO_X        30
 #define DINO_W        20
@@ -51,7 +49,7 @@ static uint8_t g_dino_in_air, g_jump_held, g_gravity_acc, g_up_prev;
 static Obstacle g_obstacles[MAX_OBSTACLES];
 static uint16_t g_move_acc;
 static uint32_t g_score, g_old_score, g_spawn_countdown, g_rand_state;
-static uint8_t g_ptero_wing, g_bars_drawn;
+static uint8_t g_ptero_wing;
 static uint32_t g_start_ms;
 static uint32_t g_last_tick;
 
@@ -101,24 +99,11 @@ static uint16_t speed_scaled(uint32_t elapsed_ms) {
     return 768u + (uint16_t)((tick_count * 1280u) / 2000u);
 }
 
-/* ── Status bars ── */
-
-static void draw_bars(void) {
-    if (g_bars_drawn) { return; }
-    g_bars_drawn = 1;
-    St7789* l = g_hardware.lcd;
-    bar_fill(0, 0, SCREEN_WIDTH, BAR_H, COLOR_BLACK);
-    Game_Graphics_Draw_Text(l, 2, 2, "DINO", 1, COLOR_WHITE);
-    bar_fill(0, BAR_H - 1, SCREEN_WIDTH, 1, COLOR_DARK);
-    bar_fill(0, BAR_BOT, SCREEN_WIDTH, SCREEN_HEIGHT - BAR_BOT, COLOR_BLACK);
-    bar_fill(0, BAR_BOT, SCREEN_WIDTH, 1, COLOR_DARK);
-    Game_Graphics_Draw_Text(l, 56, BAR_BOT + 3, "HOLD TO BACK", 1, COLOR_GRAY);
-}
-
 static void update_score(void) {
     if (g_state == dino_state_ready) { return; }
-    bar_fill(SCREEN_WIDTH - 48, 2, 48, 8, COLOR_BLACK);
-    Game_Graphics_Draw_U32(g_hardware.lcd, SCREEN_WIDTH - 48, 2, g_score, 5, 1, COLOR_CYAN);
+    /* 5 digits = 30px → x=203 (5px margin) */
+    bar_fill(203, 2, 35, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 208, 2, g_score, 5, 1, COLOR_CYAN);
 }
 
 /* ── Dino ── */
@@ -304,11 +289,9 @@ static void restart_game(void) {
     g_rand_state = Bsp_Get_Tick_Ms();
     g_last_tick = 0;
     g_ptero_wing = 0;
-    g_bars_drawn = 0;
     for (uint8_t i = 0; i < MAX_OBSTACLES; i++) { g_obstacles[i].active = 0; }
 
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-    draw_bars();
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     draw_ground();
     draw_dino(g_dino_y, COLOR_GREEN);
     Game_Graphics_Draw_Text(g_hardware.lcd, 40, 140, "PUSH UP TO START", 1, COLOR_WHITE);

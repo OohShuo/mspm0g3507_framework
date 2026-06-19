@@ -10,14 +10,12 @@
 /* ── 屏幕常量 ── */
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
-#define BAR_H         12
-#define BAR_BOT       298
-#define PLAY_TOP      BAR_H
-#define PLAY_BOT      BAR_BOT
+#define PLAY_TOP      GAME_TOP_BAR_H
+#define PLAY_BOT      GAME_AREA_BOTTOM
 
-/* ── 迷宫参数（15×17 格，16px 每格 = 240×272） ── */
+/* ── 迷宫参数（15×16 格，16px 每格 = 240×256） ── */
 #define MAZE_COLS     15
-#define MAZE_ROWS     17
+#define MAZE_ROWS     16
 #define CELL_SIZE     16
 #define MAZE_X0       0
 #define MAZE_Y0       PLAY_TOP
@@ -135,28 +133,18 @@ static void draw_maze_walls(void) {
     }
 }
 
-/* ── 顶栏和底栏 ── */
-
-static void draw_bars(void) {
-    St7789* l = g_hardware.lcd;
-    bar_fill(0, 0, SCREEN_WIDTH, BAR_H, COLOR_BLACK);
-    Game_Graphics_Draw_Text(l, 2, 2, "MAZE", 1, COLOR_WHITE);
-    bar_fill(0, BAR_H - 1, SCREEN_WIDTH, 1, COLOR_DARK);
-    bar_fill(0, BAR_BOT, SCREEN_WIDTH, SCREEN_HEIGHT - BAR_BOT, COLOR_BLACK);
-    bar_fill(0, BAR_BOT, SCREEN_WIDTH, 1, COLOR_DARK);
-    Game_Graphics_Draw_Text(l, 56, BAR_BOT + 3, "HOLD TO BACK", 1, COLOR_GRAY);
-}
-
 static void draw_seed_display(void) {
-    bar_fill(80, 2, SCREEN_WIDTH - 80, 8, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 80, 2, "SEED:", 1, COLOR_GRAY);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 120, 2, g_seed, 6, 1, COLOR_CYAN);
+    /* "SEED:123456"=66px */
+    bar_fill(162, 2, 76, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 167, 2, "SEED:", 1, COLOR_GRAY);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 203, 2, g_seed, 6, 1, COLOR_CYAN);
 }
 
 static void update_score_display(void) {
-    bar_fill(2, 2, 74, 8, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 40, 2, "GEM:", 1, COLOR_YELLOW);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 66, 2, g_gems_collected, 2, 1, COLOR_YELLOW);
+    /* "GEM:12"=36px */
+    bar_fill(192, 12, 46, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 197, 12, "GEM:", 1, COLOR_YELLOW);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 223, 12, g_gems_collected, 2, 1, COLOR_YELLOW);
 }
 
 /* ── 随机数生成器 ── */
@@ -399,7 +387,7 @@ static void draw_all_gems(void) {
 
 static void draw_prompt(const char* text) {
     /* 擦除间隙区域 */
-    bar_fill(0, GAP_Y, SCREEN_WIDTH, BAR_BOT - GAP_Y, COLOR_BLACK);
+    bar_fill(0, GAP_Y, SCREEN_WIDTH, PLAY_BOT - GAP_Y, COLOR_BLACK);
     if (text != NULL) { Game_Graphics_Draw_Text(g_hardware.lcd, 52, GAP_Y + 3, text, 1, COLOR_WHITE); }
 }
 
@@ -424,8 +412,7 @@ static void restart_game(void) {
     g_score = 0;
     g_gems_collected = 0;
 
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-    draw_bars();
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     draw_seed_display();
     draw_maze_walls();
     draw_all_gems();
@@ -485,9 +472,8 @@ Game_result Maze_Update(const Game_input* input) {
     if (g_state == maze_state_ready) {
         if (input->direction_pressed) {
             g_state = maze_state_playing;
-            /* 清除间隙中的提示，恢复底栏 */
-            bar_fill(0, GAP_Y, SCREEN_WIDTH, BAR_BOT - GAP_Y, COLOR_BLACK);
-            Game_Graphics_Draw_Text(lcd, 56, BAR_BOT + 3, "HOLD TO BACK", 1, COLOR_GRAY);
+            /* 清除间隙中的提示 */
+            bar_fill(0, GAP_Y, SCREEN_WIDTH, PLAY_BOT - GAP_Y, COLOR_BLACK);
         }
         return game_result_running;
     }
@@ -543,7 +529,7 @@ Game_result Maze_Update(const Game_input* input) {
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
 
                 /* 画 GAME OVER 在间隙中 */
-                bar_fill(0, GAP_Y, SCREEN_WIDTH, BAR_BOT - GAP_Y, COLOR_BLACK);
+                bar_fill(0, GAP_Y, SCREEN_WIDTH, PLAY_BOT - GAP_Y, COLOR_BLACK);
                 Game_Graphics_Draw_Text(lcd, 40, GAP_Y + 3, "GAME OVER", 1, COLOR_RED);
                 Game_Graphics_Draw_Text(lcd, 140, GAP_Y + 3, "PUSH RESTART", 1, COLOR_WHITE);
             }

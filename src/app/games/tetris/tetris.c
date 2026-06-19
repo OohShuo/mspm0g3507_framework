@@ -13,9 +13,9 @@
 #define BOARD_ROWS      20
 #define CELL_SIZE       10
 #define BOARD_X         ((SCREEN_WIDTH - BOARD_COLS * CELL_SIZE) / 2)
-#define BOARD_Y         52
+#define BOARD_Y         65
 #define PREVIEW_X       178
-#define PREVIEW_Y       56
+#define PREVIEW_Y       69
 #define PREVIEW_CELL    8
 
 #define START_DROP_MS   600u
@@ -245,23 +245,19 @@ static void render_preview(void) {
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, 42, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 6, 6, "SCORE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 54, 6, g_score, 6, 1, COLOR_BORDER);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 6, 22, "LINES", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 54, 22, g_lines, 3, 1, COLOR_BORDER);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 100, 6, "LEVEL", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 148, 6, g_level, 2, 1, 0xffe0u);
-
-    if (g_state == tetris_state_over) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 51, 300, "PRESS RESTART", 1, COLOR_GAME_OVER);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 58, 300, "HOLD FOR MENU", 1, COLOR_WHITE);
-    }
+    /* Row1: "SC:012345"=54px → x=179, Row2: "LV:2 LN:012"=66px → x=167 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 179, 4, 59, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 184, 4, "SC:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 204, 4, g_score, 6, 1, COLOR_BORDER);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 167, 16, 71, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 172, 16, "LV:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 192, 16, g_level, 2, 1, 0xffe0u);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 210, 16, "LN:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 228, 16, g_lines, 3, 1, COLOR_BORDER);
 }
 
 static void render_full(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     render_board();
     render_preview();
     /* Borders drawn after preview so preview blackout doesn't erase them */

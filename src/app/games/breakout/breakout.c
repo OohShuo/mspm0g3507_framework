@@ -22,7 +22,7 @@
 
 #define PADDLE_WIDTH    40
 #define PADDLE_HEIGHT   6
-#define PADDLE_Y        290
+#define PADDLE_Y        292
 #define PADDLE_STEP     5
 
 #define BALL_SIZE       4
@@ -117,27 +117,17 @@ static void render_ball(int16_t old_x, int16_t old_y) {
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, 42, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 6, 6, "SCORE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 54, 6, g_score, 6, 1, COLOR_BORDER);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 6, 22, "LIVES", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 54, 22, g_lives, 1, 1, COLOR_PADDLE);
-
-    /* Clear status text line (7px glyph at y=300) */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 300, SCREEN_WIDTH, 7, COLOR_BLACK);
-    if (g_state == breakout_state_serving) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 53, 300, "PRESS TO LAUNCH", 1, COLOR_WHITE);
-    } else if (g_state == breakout_state_over) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 51, 300, "PRESS RESTART", 1, COLOR_GAME_OVER);
-    } else if (g_state == breakout_state_win) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 79, 300, "YOU WIN", 1, COLOR_WIN);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 58, 300, "HOLD FOR MENU", 1, COLOR_WHITE);
-    }
+    /* "SC:012345"=54px → x=179 (5px margin), "L:3"=18px → x=215 */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 179, 4, 59, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 184, 4, "SC:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 204, 4, g_score, 6, 1, COLOR_BORDER);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 215, 16, 23, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 220, 16, "L:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 234, 16, g_lives, 1, 1, COLOR_PADDLE);
 }
 
 static void render_full(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     render_all_bricks();
     render_paddle(g_paddle_x, g_paddle_x);
     render_ball(g_ball_x, g_ball_y);
@@ -255,8 +245,8 @@ Game_result Breakout_Update(const Game_input* input) {
         g_ball_x = (int16_t)(SCREEN_WIDTH - BALL_SIZE);
         g_ball_dx = (int8_t)-g_ball_dx;
     }
-    if (g_ball_y <= 42) {
-        g_ball_y = 42;
+    if (g_ball_y <= GAME_TOP_BAR_H) {
+        g_ball_y = (int16_t)GAME_TOP_BAR_H;
         g_ball_dy = (int8_t)-g_ball_dy;
     }
 
@@ -285,7 +275,7 @@ Game_result Breakout_Update(const Game_input* input) {
     }
 
     /* Ball falls off bottom */
-    if (g_ball_y > SCREEN_HEIGHT) {
+    if (g_ball_y > GAME_AREA_BOTTOM) {
         if (g_lives > 1) {
             g_lives--;
             g_state = breakout_state_serving;

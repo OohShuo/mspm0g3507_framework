@@ -53,10 +53,6 @@ static void draw_page_indicator(void) {
 
 /* ── Page 1: development info + HITSZ 100x100 logo ── */
 static void render_page1(void) {
-    /* Top status bar */
-    Game_Graphics_Draw_Text(g_lcd, 10, 5, "INFO", 1, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, 10, 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
-
     /* Credits */
     Game_Graphics_Draw_Text(g_lcd, 48, 38, "Designed by:", 2, COLOR_WHITE);
     Game_Graphics_Draw_Text(g_lcd, 96, 64, "Shuo", 2, COLOR_WHITE);
@@ -69,17 +65,10 @@ static void render_page1(void) {
 
     /* Page indicator */
     draw_page_indicator();
-
-    /* Bottom hint */
-    Game_Graphics_Draw_Text(g_lcd, 64, 300, "HOLD TO BACK", 1, COLOR_GRAY);
 }
 
 /* ── Page 2: GitHub link ── */
 static void render_page2(void) {
-    /* Top status bar */
-    Game_Graphics_Draw_Text(g_lcd, 10, 5, "INFO", 1, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, 10, 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
-
     /* Intro text */
     Game_Graphics_Draw_Text(g_lcd, 78, 35, "For more", 2, COLOR_WHITE);
     Game_Graphics_Draw_Text(g_lcd, 60, 55, "information", 2, COLOR_WHITE);
@@ -101,14 +90,11 @@ static void render_page2(void) {
 
     /* Page indicator */
     draw_page_indicator();
-
-    /* Bottom hint */
-    Game_Graphics_Draw_Text(g_lcd, 64, 300, "HOLD TO BACK", 1, COLOR_GRAY);
 }
 
 /* ── Full screen render ── */
 static void render_info_screen(void) {
-    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_lcd);
 
     if (g_current_page == 0) {
         render_page1();

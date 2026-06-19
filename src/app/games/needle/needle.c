@@ -10,9 +10,6 @@
 /* ── 屏幕常量 ── */
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
-#define BAR_H         12
-#define BAR_BOT       298
-
 /* ── 圆盘参数 ── */
 #define DISK_CX       120
 #define DISK_CY       145
@@ -21,7 +18,7 @@
 #define FLY_SPEED     5
 #define MAX_NEEDLES   80
 #define COLLIDE_ANGLE 7 /* 碰撞角度阈值，越小越宽松 */
-#define LAUNCH_Y      298
+#define LAUNCH_Y      GAME_AREA_BOTTOM
 
 /* 转速参数：定点 1/256 单位/帧，线性从 4 针到 20 针 */
 #define ANG_VEL_INIT  341 /* 341/256 ≈ 1.33（原 2 的 2/3） */
@@ -206,25 +203,14 @@ static void draw_aim_guide(void) {
 
 /* ── UI ── */
 
-static void draw_bars(void) {
-    St7789* l = g_hardware.lcd;
-    bar_fill(0, 0, SCREEN_WIDTH, BAR_H, COLOR_BLACK);
-    Game_Graphics_Draw_Text(l, 2, 2, "NEEDLE", 1, COLOR_WHITE);
-    bar_fill(0, BAR_H - 1, SCREEN_WIDTH, 1, COLOR_DARK);
-    bar_fill(0, BAR_BOT, SCREEN_WIDTH, SCREEN_HEIGHT - BAR_BOT, COLOR_BLACK);
-    bar_fill(0, BAR_BOT, SCREEN_WIDTH, 1, COLOR_DARK);
-    Game_Graphics_Draw_Text(l, 56, BAR_BOT + 3, "HOLD TO BACK", 1, COLOR_GRAY);
-}
-
 static void draw_score(void) {
-    bar_fill(SCREEN_WIDTH - 48, 2, 48, 8, COLOR_BLACK);
-    Game_Graphics_Draw_U32(g_hardware.lcd, SCREEN_WIDTH - 48, 2, g_score, 5, 1, COLOR_CYAN);
+    bar_fill(198, 2, 40, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 203, 2, g_score, 5, 1, COLOR_CYAN);
 }
 
 static void draw_bottom_text(const char* s, uint16_t color) {
-    bar_fill(0, LAUNCH_Y, SCREEN_WIDTH, SCREEN_HEIGHT - LAUNCH_Y, COLOR_BLACK);
-    bar_fill(0, BAR_BOT, SCREEN_WIDTH, 1, COLOR_DARK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 40, BAR_BOT + 3, s, 1, color);
+    bar_fill(0, LAUNCH_Y, SCREEN_WIDTH, SCREEN_HEIGHT - LAUNCH_Y, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 40, LAUNCH_Y + 3, s, 1, color);
 }
 
 /* ── 重启 ── */
@@ -249,8 +235,7 @@ static void restart_game(void) {
     g_needle_count = 4;
     for (i = 0; i < g_needle_count; i++) { g_prev_angles[i] = g_needle_angles[i]; }
 
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-    draw_bars();
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     draw_disk();
     /* 初态直接画针，不做擦除 */
     for (i = 0; i < g_needle_count; i++) { draw_tip_at_angle(g_prev_angles[i], g_needle_colors[i % 7]); }
