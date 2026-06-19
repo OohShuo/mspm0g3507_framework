@@ -97,6 +97,7 @@ static Game_input poll_input(void) {
 
     input.direction = read_direction();
     input.direction_pressed = input.direction != game_direction_none && input.direction != g_last_direction;
+    input.confirm_down = button_state == button_state_down;
 
     if (button_state == button_state_down && g_last_button_state == button_state_up) {
         g_button_down_time = now;
@@ -424,6 +425,18 @@ static void draw_dodge_box_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 7, y + 3, 5, 5, COLOR_RED);
 }
 
+static void draw_low_knight_icon(int32_t x, int32_t y) {
+    Game_Graphics_Fill_Rect(g_lcd, x - 11, y - 9, 23, 20, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x - 7, y - 5, 15, 14, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 14, y - 17, 5, 10, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 10, y - 17, 5, 10, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x - 10, y - 14, 5, 5, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 6, y - 14, 5, 5, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 5, y - 1, 3, 5, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x + 3, y - 1, 3, 5, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_lcd, x - 15, y + 13, 31, 2, COLOR_CYAN);
+}
+
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
 static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
 
@@ -489,6 +502,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_volume_control_icon(cx + 12, cy + 4);
     } else if (game->icon == game_icon_dodge_box) {
         draw_dodge_box_icon(icon_cx, icon_cy);
+    } else if (game->icon == game_icon_low_knight) {
+        draw_low_knight_icon(icon_cx, icon_cy);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }

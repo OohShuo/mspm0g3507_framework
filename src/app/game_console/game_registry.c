@@ -12,6 +12,7 @@
 #include "game_2048.h"
 #include "gomoku.h"
 #include "info.h"
+#include "low_knight.h"
 #include "maze.h"
 #include "needle.h"
 #include "pacman.h"
@@ -195,6 +196,15 @@ static const Game_descriptor g_games[] = {
         .update = Volume_Control_Update,
         .get_score = Volume_Control_Get_Score,
         .is_finished = Volume_Control_Is_Finished,
+    },
+    {
+        .name = "LOWKNT",
+        .icon = game_icon_low_knight,
+        .id = game_id_low_knight,
+        .init = Low_Knight_Init,
+        .update = Low_Knight_Update,
+        .get_score = Low_Knight_Get_Score,
+        .is_finished = Low_Knight_Is_Finished,
     },
     {
         .name = "INFO",

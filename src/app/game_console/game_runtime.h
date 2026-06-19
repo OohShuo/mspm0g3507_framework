@@ -16,6 +16,7 @@ typedef enum {
 typedef struct {
     Game_direction direction;
     uint8_t direction_pressed;
+    uint8_t confirm_down;
     uint8_t confirm_pressed;
     uint8_t back_requested;
 } Game_input;
