@@ -69,11 +69,12 @@ static uint32_t g_last_monitor_time = 0;
 #endif
 static uint32_t g_last_input_tick = 0;
 
-/* ── FPS tracking ── */
+#if GAME_CONSOLE_FPS_OVERLAY_ENABLE
 static uint32_t g_fps_frame_count = 0;
 static uint32_t g_last_fps_time = 0;
 static uint32_t g_current_fps = 0;
 static uint32_t g_last_drawn_fps = 0;
+#endif
 
 static Game_direction read_direction(void) {
     if (g_joystick == NULL) { return game_direction_none; }
@@ -387,26 +388,6 @@ static void draw_calculator_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 24, y + 26, 5, 3, COLOR_CYAN);
 }
 
-static void draw_fps_test_icon(int32_t x, int32_t y) {
-    /* Screen outline */
-    Game_Graphics_Fill_Rect(g_lcd, x + 6, y + 2, 36, 30, COLOR_DARK);
-    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 4, 32, 26, COLOR_BLACK);
-
-    /* Top bar */
-    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 4, 32, 5, COLOR_CYAN);
-    /* "FPS" text hint in top bar */
-    Game_Graphics_Draw_Text(g_lcd, x + 21, y + 4, "F", 1, COLOR_BLACK);
-
-    /* Bottom bar */
-    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 25, 32, 5, COLOR_DARK);
-
-    /* Color bars in middle — simulate refresh cycling */
-    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 9, 8, 16, COLOR_RED);
-    Game_Graphics_Fill_Rect(g_lcd, x + 16, y + 9, 8, 16, COLOR_GREEN);
-    Game_Graphics_Fill_Rect(g_lcd, x + 24, y + 9, 8, 16, COLOR_BLUE);
-    Game_Graphics_Fill_Rect(g_lcd, x + 32, y + 9, 8, 16, COLOR_YELLOW);
-}
-
 static void draw_dodge_box_icon(int32_t x, int32_t y) {
     /* Arena border — the "box" */
     Game_Graphics_Fill_Rect(g_lcd, x - 14, y - 11, 28, 22, COLOR_BLACK);
@@ -494,8 +475,6 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_info_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_calculator) {
         draw_calculator_icon(cx + 10, cy + 2);
-    } else if (game->icon == game_icon_fps_test) {
-        draw_fps_test_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_sfx_lib) {
         draw_sfx_lib_icon(cx + 12, cy + 4);
     } else if (game->icon == game_icon_volume_control) {
@@ -564,6 +543,7 @@ static void draw_page_indicator(void) {
     Game_Graphics_Fill_Rect(g_lcd, 10, bar_y + 22, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 }
 
+#if GAME_CONSOLE_FPS_OVERLAY_ENABLE
 static void fps_tick(void) {
     g_fps_frame_count++;
     const uint32_t now = Bsp_Get_Tick_Ms();
@@ -584,6 +564,7 @@ static void draw_fps(void) {
     Game_Graphics_Draw_Text(g_lcd, SCREEN_WIDTH - 62, SCREEN_HEIGHT - 20, "FPS:", 1, COLOR_GRAY);
     Game_Graphics_Draw_U32(g_lcd, SCREEN_WIDTH - 28, SCREEN_HEIGHT - 20, g_current_fps, 3, 1, COLOR_WHITE);
 }
+#endif
 
 static void render_menu(void) {
     const uint8_t game_count = Game_Registry_Count();
@@ -840,7 +821,9 @@ static void console_task(void* arg) {
     uint32_t tick = xTaskGetTickCount();
 
     while (1) {
+#if GAME_CONSOLE_FPS_OVERLAY_ENABLE
         fps_tick();
+#endif
 
         const Game_input input = poll_input();
         Game_result result = game_result_running;
@@ -871,7 +854,9 @@ static void console_task(void* arg) {
             } else {
                 Screensaver_Run_Frame();
             }
+#if GAME_CONSOLE_FPS_OVERLAY_ENABLE
             draw_fps();
+#endif
             vTaskDelayUntil(&tick, pdMS_TO_TICKS(20));
             continue;
         }
@@ -887,7 +872,9 @@ static void console_task(void* arg) {
 
         if (result == game_result_exit) { enter_menu(); }
         monitor_resources();
+#if GAME_CONSOLE_FPS_OVERLAY_ENABLE
         draw_fps();
+#endif
         vTaskDelayUntil(&tick, pdMS_TO_TICKS(5));
     }
 }

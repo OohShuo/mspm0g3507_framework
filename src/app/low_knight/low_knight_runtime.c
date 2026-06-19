@@ -21,7 +21,7 @@
 #define LOW_KNIGHT_BG_TILE_Y   0u
 #define LOW_KNIGHT_BG_TILE_W   19u
 #define LOW_KNIGHT_BG_TILE_H   20u
-#define TILE_ROW_CACHE_SIZE    64u
+#define TILE_ROW_CACHE_SIZE    32u
 #define ENEMY_TILE_CACHE_COUNT 46u
 
 #define PHYSICS_Q_SHIFT        8

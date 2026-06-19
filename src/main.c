@@ -1,4 +1,5 @@
 #include "FreeRTOS.h"
+#include "app_config.h"
 #include "app.h"
 #include "board_config.h"
 #include "bsp.h"
@@ -26,9 +27,13 @@ int main(void) {
     SYSCFG_DL_init();
     NVIC_EnableIRQ(DMA_INT_IRQn);
 
+#if FRAMEWORK_USE_RTT
     Syscall_Init();
+#endif
 
+#if LOCAL_LIB_INIT_ENABLE
     Local_Lib_Init();
+#endif
     Bsp_Init();
     Hal_Init();
     App_Init();

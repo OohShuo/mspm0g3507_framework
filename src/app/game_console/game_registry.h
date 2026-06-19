@@ -20,7 +20,6 @@ typedef enum {
     game_icon_maze,
     game_icon_needle,
     game_icon_calculator,
-    game_icon_fps_test,
     game_icon_info,
     game_icon_sfx_lib,
     game_icon_volume_control,
@@ -44,6 +43,7 @@ typedef enum {
     game_id_maze,
     game_id_needle,
     game_id_calculator,
+    /* Retired release-only FPS test slot; keep the ID to avoid shifting saved scores. */
     game_id_fps_test,
     game_id_info,
     game_id_sfx_lib,
