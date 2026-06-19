@@ -39,6 +39,11 @@ if(BUILD_PLATFORM STREQUAL "VM")
     add_compile_options(-fdiagnostics-color=always -Wall)
 
     find_package(SDL2 REQUIRED)
+    set(FRAMEWORK_SDL2_LIBRARIES ${SDL2_LIBRARIES})
+    if(WIN32)
+        list(FILTER FRAMEWORK_SDL2_LIBRARIES EXCLUDE REGEX ".*SDL2main.*")
+        list(FILTER FRAMEWORK_SDL2_LIBRARIES EXCLUDE REGEX "^-mwindows$")
+    endif()
 
     add_executable(${PROJECT_NAME}_vm "${ENTRANCE_MAIN_C}" "${ASSETS_C}")
 
@@ -60,7 +65,7 @@ if(BUILD_PLATFORM STREQUAL "VM")
     target_link_libraries(app PRIVATE vm)
 
     target_link_libraries(${PROJECT_NAME}_vm PRIVATE vm app lib)
-    target_link_libraries(${PROJECT_NAME}_vm PRIVATE ${SDL2_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME}_vm PRIVATE ${FRAMEWORK_SDL2_LIBRARIES})
     target_include_directories(${PROJECT_NAME}_vm PRIVATE ${SDL2_INCLUDE_DIRS})
 
     print_blankline()

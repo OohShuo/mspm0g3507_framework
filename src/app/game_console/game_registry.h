@@ -7,7 +7,6 @@
 typedef enum {
     game_icon_pacman,
     game_icon_snake,
-    game_icon_racing,
     game_icon_tank,
     game_icon_air,
     game_icon_tetris,
@@ -21,15 +20,16 @@ typedef enum {
     game_icon_needle,
     game_icon_calculator,
     game_icon_info,
-    game_icon_sfx_lib,
     game_icon_volume_control,
     game_icon_dodge_box,
     game_icon_low_knight,
+    game_icon_rhythm,
 } Game_icon;
 
 typedef enum {
     game_id_pacman,
     game_id_snake,
+    /* Retired release-only racing slot; keep the ID to avoid shifting saved scores. */
     game_id_racing,
     game_id_tank,
     game_id_air,
@@ -46,10 +46,12 @@ typedef enum {
     /* Retired release-only FPS test slot; keep the ID to avoid shifting saved scores. */
     game_id_fps_test,
     game_id_info,
+    /* Retired release-only SFX library slot; keep the ID to avoid shifting saved scores. */
     game_id_sfx_lib,
     game_id_volume_control,
     game_id_dodge_box,
     game_id_low_knight,
+    game_id_rhythm,
     game_id_count,
 } Game_id;
 

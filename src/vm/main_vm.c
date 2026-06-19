@@ -1,3 +1,4 @@
+#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include <signal.h>
 #include <stdio.h>
@@ -16,7 +17,11 @@ static void on_signal(int s) {
     g_run = 0;
 }
 
-int main(void) {
+int main(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+    SDL_SetMainReady();
+
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
 

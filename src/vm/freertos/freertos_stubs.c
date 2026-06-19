@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,16 +11,16 @@
 typedef struct {
     TaskFunction_t f;
     void* p;
-    pthread_t t;
+    SDL_Thread* t;
     int used;
 } VmTask;
 static VmTask g_tasks[MAX_TASKS];
 static int g_n = 0;
 
-static void* wrap(void* a) {
+static int wrap(void* a) {
     VmTask* td = (VmTask*)a;
     td->f(td->p);
-    return NULL;
+    return 0;
 }
 
 BaseType_t xTaskCreate(
@@ -34,11 +33,12 @@ BaseType_t xTaskCreate(
     td->f = f;
     td->p = p;
     td->used = 1;
-    if (pthread_create(&td->t, NULL, wrap, td) != 0) {
+    td->t = SDL_CreateThread(wrap, nm != NULL ? nm : "vm", td);
+    if (td->t == NULL) {
         td->used = 0;
         return pdFAIL;
     }
-    pthread_detach(td->t);
+    SDL_DetachThread(td->t);
     if (h) *h = (TaskHandle_t)td;
     return pdPASS;
 }
@@ -62,17 +62,15 @@ size_t xPortGetFreeHeapSize(void) { return 256 * 1024 * 1024; }
 size_t xPortGetMinimumEverFreeHeapSize(void) { return 200 * 1024 * 1024; }
 
 SemaphoreHandle_t xSemaphoreCreateMutex(void) {
-    pthread_mutex_t* m = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
-    if (m) pthread_mutex_init(m, NULL);
-    return (SemaphoreHandle_t)m;
+    return (SemaphoreHandle_t)SDL_CreateMutex();
 }
 BaseType_t xSemaphoreTake(SemaphoreHandle_t m, TickType_t t) {
     (void)t;
-    if (m) pthread_mutex_lock(m);
+    if (m) SDL_LockMutex((SDL_mutex*)m);
     return pdPASS;
 }
 BaseType_t xSemaphoreGive(SemaphoreHandle_t m) {
-    if (m) pthread_mutex_unlock(m);
+    if (m) SDL_UnlockMutex((SDL_mutex*)m);
     return pdPASS;
 }
 

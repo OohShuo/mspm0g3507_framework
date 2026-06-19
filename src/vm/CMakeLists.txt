@@ -4,6 +4,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 # Compile all .c files under src/vm (hal stubs, bsp stubs, freertos stubs, main, display, input)
 file(GLOB_RECURSE VM_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
 add_library(vm STATIC ${VM_SRC})
+target_sources(vm PRIVATE "${CMAKE_SOURCE_DIR}/src/hal/buzzer/buzzer_def.c")
 
 # --- Include paths (order matters for shadowing) ---
 
@@ -61,6 +62,6 @@ target_include_directories(vm PRIVATE
 
 # 7. SDL2
 target_include_directories(vm PUBLIC ${SDL2_INCLUDE_DIRS})
-target_link_libraries(vm PUBLIC ${SDL2_LIBRARIES} lib)
+target_link_libraries(vm PUBLIC ${FRAMEWORK_SDL2_LIBRARIES} lib)
 
 print_item("VM" "library ${ColorBold}vm${ColorReset} built (SDL2 virtual devices)")

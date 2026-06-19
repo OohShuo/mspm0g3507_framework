@@ -138,13 +138,6 @@ static void draw_snake_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 39, y + 19, 2, 2, COLOR_BLACK);
 }
 
-static void draw_racing_icon(int32_t x, int32_t y) {
-    Game_Graphics_Fill_Rect(g_lcd, x, y, 48, 34, COLOR_DARK);
-    Game_Graphics_Fill_Rect(g_lcd, x + 22, y, 4, 34, COLOR_WHITE);
-    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 8, 18, 24, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, x + 12, y + 12, 10, 8, COLOR_BLUE);
-}
-
 static void draw_tank_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 5, 8, 28, COLOR_GREEN);
     Game_Graphics_Fill_Rect(g_lcd, x + 34, y + 5, 8, 28, COLOR_GREEN);
@@ -313,23 +306,6 @@ static void draw_needle_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, cx - 1, cy + 22, 2, 10, COLOR_WHITE);
 }
 
-static void draw_sfx_lib_icon(int32_t x, int32_t y) {
-    /* Note head */
-    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 20, 12, 4, COLOR_WHITE);
-    Game_Graphics_Fill_Rect(g_lcd, x + 6, y + 22, 16, 5, COLOR_WHITE);
-    Game_Graphics_Fill_Rect(g_lcd, x + 8, y + 27, 12, 4, COLOR_WHITE);
-    /* Stem */
-    Game_Graphics_Fill_Rect(g_lcd, x + 18, y + 0, 4, 24, COLOR_WHITE);
-    /* Flag */
-    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 0, 10, 3, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 3, 7, 3, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, x + 22, y + 6, 4, 3, COLOR_CYAN);
-    /* Sound lines from the note */
-    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 18, 4, 2, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, x + 0, y + 22, 4, 2, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, x + 2, y + 26, 4, 2, COLOR_CYAN);
-}
-
 static void draw_volume_control_icon(int32_t x, int32_t y) {
     /* Speaker body */
     Game_Graphics_Fill_Rect(g_lcd, x + 4, y + 10, 8, 16, COLOR_WHITE);
@@ -418,6 +394,19 @@ static void draw_low_knight_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x - 15, y + 13, 31, 2, COLOR_CYAN);
 }
 
+static void draw_rhythm_icon(int32_t x, int32_t y) {
+    for (int32_t i = 0; i < 4; i++) {
+        const int32_t lx = x - 18 + i * 12;
+        Game_Graphics_Fill_Rect(g_lcd, lx, y - 18, 1, 36, COLOR_DARK);
+        Game_Graphics_Fill_Rect(g_lcd, lx - 4, y + 13, 9, 2, COLOR_CYAN);
+    }
+    Game_Graphics_Fill_Rect(g_lcd, x - 21, y + 8, 42, 2, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_lcd, x - 18, y - 10, 7, 7, COLOR_YELLOW);
+    Game_Graphics_Fill_Rect(g_lcd, x - 6, y - 2, 7, 7, COLOR_GREEN);
+    Game_Graphics_Fill_Rect(g_lcd, x + 6, y - 14, 7, 7, COLOR_RED);
+    Game_Graphics_Fill_Rect(g_lcd, x + 18, y - 5, 7, 7, COLOR_WHITE);
+}
+
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
 static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
 
@@ -449,8 +438,6 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_pacman_icon(icon_cx, icon_cy);
     } else if (game->icon == game_icon_snake) {
         draw_snake_icon(cx + 11, cy + 8);
-    } else if (game->icon == game_icon_racing) {
-        draw_racing_icon(cx + 10, cy + 5);
     } else if (game->icon == game_icon_tank) {
         draw_tank_icon(cx + 12, cy + 6);
     } else if (game->icon == game_icon_tetris) {
@@ -475,14 +462,14 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_info_icon(cx + 10, cy + 2);
     } else if (game->icon == game_icon_calculator) {
         draw_calculator_icon(cx + 10, cy + 2);
-    } else if (game->icon == game_icon_sfx_lib) {
-        draw_sfx_lib_icon(cx + 12, cy + 4);
     } else if (game->icon == game_icon_volume_control) {
         draw_volume_control_icon(cx + 12, cy + 4);
     } else if (game->icon == game_icon_dodge_box) {
         draw_dodge_box_icon(icon_cx, icon_cy);
     } else if (game->icon == game_icon_low_knight) {
         draw_low_knight_icon(icon_cx, icon_cy);
+    } else if (game->icon == game_icon_rhythm) {
+        draw_rhythm_icon(icon_cx, icon_cy);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }

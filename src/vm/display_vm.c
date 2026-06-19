@@ -20,6 +20,7 @@ void Vm_Display_Init(void) {
         SDL_WINDOWPOS_UNDEFINED, 480, 640, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (!g_window) return;
     g_renderer = SDL_CreateRenderer(g_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!g_renderer) { g_renderer = SDL_CreateRenderer(g_window, -1, SDL_RENDERER_SOFTWARE); }
     if (!g_renderer) return;
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     g_texture = SDL_CreateTexture(g_renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, 240, 320);

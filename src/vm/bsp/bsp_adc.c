@@ -1,24 +1,23 @@
 #include "bsp_adc.h"
 
-#include <pthread.h>
+#include <SDL2/SDL.h>
 #include <stdio.h>
-#include <unistd.h>
 
 #include "input_vm.h"
 
 // External: Vm_Joystick_Update is in joystick_vm.c
 extern void Vm_Joystick_Update(void);
 
-static pthread_t g_thread;
+static SDL_Thread* g_thread = NULL;
 static volatile int g_running = 0;
 
-static void* adc_thread(void* a) {
+static int adc_thread(void* a) {
     (void)a;
     while (g_running) {
         Vm_Joystick_Update();
-        usleep(10000);  // 10 ms
+        SDL_Delay(10);
     }
-    return NULL;
+    return 0;
 }
 
 void Bsp_Adc_Init(void) {}
@@ -26,13 +25,14 @@ void Bsp_Adc_Start(uint32_t i) {
     (void)i;
     if (!g_running) {
         g_running = 1;
-        pthread_create(&g_thread, NULL, adc_thread, NULL);
-        pthread_detach(g_thread);
+        g_thread = SDL_CreateThread(adc_thread, "vm-adc", NULL);
+        if (g_thread != NULL) { SDL_DetachThread(g_thread); }
     }
 }
 void Bsp_Adc_Stop(uint32_t i) {
     (void)i;
     g_running = 0;
+    g_thread = NULL;
 }
 float Bsp_Adc_Read_Voltage(uint32_t i, uint32_t ch) {
     (void)i;
