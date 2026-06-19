@@ -1,15 +1,15 @@
 build:
-  - name: vm
-    platform: VM
-    build_type: Release
-    generator: ninja
-    graphviz: ON
+  # - name: vm
+  #   platform: VM
+  #   build_type: Release
+  #   generator: ninja
+  #   graphviz: ON
 
-    FRAMEWORK_USE_FREERTOS: ON
-    FRAMEWORK_USE_RTT: OFF
-    FRAMEWORK_USE_LVGL: OFF
-    FRAMEWORK_USE_LFS: ON
-    FRAMEWORK_USE_UART: OFF
+  #   FRAMEWORK_USE_FREERTOS: ON
+  #   FRAMEWORK_USE_RTT: OFF
+  #   FRAMEWORK_USE_LVGL: OFF
+  #   FRAMEWORK_USE_LFS: ON
+  #   FRAMEWORK_USE_UART: OFF
 
   - name: arm
     platform: ARM

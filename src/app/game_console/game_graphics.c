@@ -215,6 +215,30 @@ static const uint16_t g_gray4_lut[16] = {
     0xffffu, /* 15 — white */
 };
 
+typedef struct {
+    const uint8_t* src;
+    uint8_t count;
+    uint8_t value;
+    uint8_t run;
+} Rle4_reader;
+
+static uint8_t rle4_read_byte(Rle4_reader* reader) {
+    if (reader->count == 0u) {
+        const uint8_t token = *reader->src++;
+        if ((token & 0x80u) != 0u) {
+            reader->count = (uint8_t)((token & 0x7fu) + 3u);
+            reader->value = *reader->src++;
+            reader->run = 1u;
+        } else {
+            reader->count = (uint8_t)(token + 1u);
+            reader->run = 0u;
+        }
+    }
+
+    reader->count--;
+    return reader->run ? reader->value : *reader->src++;
+}
+
 void Game_Graphics_Draw_Gray4_Bitmap(
     St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t* data) {
     if (lcd == NULL || data == NULL || w <= 0 || h <= 0) { return; }
@@ -246,6 +270,41 @@ void Game_Graphics_Draw_Gray4_Bitmap(
     St7789_End_Write(lcd);
 }
 
+static void draw_pal4_rle_bitmap(
+    St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* palette, const uint8_t* data) {
+    if (lcd == NULL || palette == NULL || data == NULL || w <= 0 || h <= 0) { return; }
+    if (w > SCREEN_WIDTH) { return; }
+
+    St7789_Begin_Write(lcd, x, y, x + w - 1, y + h - 1);
+
+    const int32_t row_bytes = (w + 1) / 2;
+    Rle4_reader reader = {data, 0u, 0u, 0u};
+
+    for (int32_t row = 0; row < h; row++) {
+        uint16_t* dst = g_line_buffer;
+        int32_t remaining = w;
+
+        for (int32_t i = 0; i < row_bytes; i++) {
+            const uint8_t byte = rle4_read_byte(&reader);
+            *dst++ = palette[byte >> 4];
+            remaining--;
+            if (remaining > 0) {
+                *dst++ = palette[byte & 0x0Fu];
+                remaining--;
+            }
+        }
+
+        St7789_Write_Pixels(lcd, (uint8_t*)g_line_buffer, (uint32_t)w * sizeof(uint16_t));
+    }
+
+    St7789_End_Write(lcd);
+}
+
+void Game_Graphics_Draw_Gray4_Rle_Bitmap(
+    St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t* data) {
+    draw_pal4_rle_bitmap(lcd, x, y, w, h, g_gray4_lut, data);
+}
+
 void Game_Graphics_Draw_Pal4_Bitmap(
     St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* palette, const uint8_t* data) {
     if (lcd == NULL || palette == NULL || data == NULL || w <= 0 || h <= 0) { return; }
@@ -275,4 +334,9 @@ void Game_Graphics_Draw_Pal4_Bitmap(
     }
 
     St7789_End_Write(lcd);
+}
+
+void Game_Graphics_Draw_Pal4_Rle_Bitmap(
+    St7789* lcd, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* palette, const uint8_t* data) {
+    draw_pal4_rle_bitmap(lcd, x, y, w, h, palette, data);
 }

@@ -21,3 +21,5 @@ __pycache__/
 .superpowers/
 
 site/
+
+.idea

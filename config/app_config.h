@@ -4,6 +4,7 @@
 #define GAME_CONSOLE_ENABLE 1
 #define GAME_RUNTIME_MONITOR_ENABLE 0
 #define GAME_RUNTIME_MONITOR_INTERVAL_MS 5000u
+#define INFO_EXTERNAL_ASSETS_ENABLE 1
 
 /* Raw cache slot in the W25Q32 low 2 MiB reserved resource area. */
 #define AIR_BATTLE_BG_CACHE_ADDRESS  (1u * 1024u * 1024u)
