@@ -16,7 +16,7 @@
 #include "needle.h"
 #include "pacman.h"
 #include "pong.h"
-#include "racing.h"
+#include "rhythm.h"
 #include "sfx_lib.h"
 #include "snake.h"
 #include "tank_battle.h"
@@ -41,15 +41,6 @@ static const Game_descriptor g_games[] = {
         .update = Snake_Update,
         .get_score = Snake_Get_Score,
         .is_finished = Snake_Is_Finished,
-    },
-    {
-        .name = "RACING",
-        .icon = game_icon_racing,
-        .id = game_id_racing,
-        .init = Racing_Init,
-        .update = Racing_Update,
-        .get_score = Racing_Get_Score,
-        .is_finished = Racing_Is_Finished,
     },
     {
         .name = "TANK",
@@ -158,6 +149,15 @@ static const Game_descriptor g_games[] = {
         .update = Dodge_Box_Update,
         .get_score = Dodge_Box_Get_Score,
         .is_finished = Dodge_Box_Is_Finished,
+    },
+    {
+        .name = "RHYTHM",
+        .icon = game_icon_rhythm,
+        .id = game_id_rhythm,
+        .init = Rhythm_Init,
+        .update = Rhythm_Update,
+        .get_score = Rhythm_Get_Score,
+        .is_finished = Rhythm_Is_Finished,
     },
     {
         .name = "SFX",
