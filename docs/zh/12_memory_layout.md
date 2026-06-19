@@ -13,8 +13,10 @@
 
 ## Flash（128 KB）
 
+以下为基于当前构建配置的估算；需通过 `arm-none-eabi-size` 和 map 文件实测确认。
+
 ```mermaid
-pie title Flash 使用分布
+pie title Flash 使用分布（当前配置估算）
     "DriverLib" : 30
     "游戏" : 25
     "FreeRTOS" : 15
@@ -34,7 +36,7 @@ pie title Flash 使用分布
 | --- | --- | --- |
 | .data + .bss | ~3 KB | 全局/静态变量 |
 | newlib 堆 | 1 KB | `_sbrk` 区域 |
-| FreeRTOS 堆（heap_4） | 18 KB | 任务、HAL 对象、队列、信号量 |
+| FreeRTOS 堆（heap_4） | 14 KB | 任务、HAL 对象、队列、信号量 |
 | LFS 缓冲区（静态） | 528 B | 读 256B + 写 256B + 预读 16B |
 | 系统栈 | 128 B | ISR + 启动 |
 
@@ -53,7 +55,9 @@ pie title Flash 使用分布
 
 ## 任务栈
 
-| 任务 | 栈 | 高水位 | 余量 |
+以下高水位为特定构建在典型负载下的实测值；实际值因编译器版本、优化级别和工作负载而异。需通过 `uxTaskGetStackHighWaterMark(NULL)` 实测确认。
+
+| 任务 | 栈 | 高水位（实测） | 余量 |
 | --- | --- | --- | --- |
 | Game_Console | 4096 B | ~3072 B | 25% |
 | Flash_Mgr | 4096 B | ~3584 B | 12% |
@@ -78,5 +82,5 @@ pie title Flash 使用分布
 - `-ffunction-sections -fdata-sections` + `-Wl,--gc-sections`：死代码消除
 - `--specs=nano.specs`：newlib-nano
 - 静态 LFS 缓冲区：无堆碎片
-- 编译期配置：未用模块零代码产出
+- 编译期配置：当前设计下未用模块不产生额外代码（需通过 map 文件确认）
 - 直接 framebuffer 渲染：无 LVGL 控件/RAM 开销

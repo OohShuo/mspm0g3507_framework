@@ -2,34 +2,25 @@
 
 ## Porting Guide
 
-分层架构使移植系统化：只需修改 BSP，HAL 需微调，APP 零改动。
+The layered architecture makes porting systematic: only BSP needs rewriting, HAL needs minor adjustments, APP requires zero changes.
 
 ### What Changes
 
 | Layer | Effort | What |
 | --- | --- | --- |
-| APP | None | 完全复用 |
-| HAL | Low | 更新引脚索引，调整时序常量 |
-| BSP | Complete | 用新 MCU SDK 重写 6 个外设模块 |
-| DriverLib | Replace | 新 MCU 的 CMSIS + SDK + 链接脚本 |
-| Middleware | None | FreeRTOS/LVGL/LFS/RTT 全可移植 |
-
-### Per-Target Effort
-
-| Target | BSP | Config | Total |
-| --- | --- | --- | --- |
-| MSPM0L (同系列) | 1-2天 | 0.5天 | 1.5-2.5天 |
-| STM32F1/F4 | 3-5天 | 1-2天 | 4-7天 |
-| GD32 | 3-5天 | 1-2天 | 4-7天 |
-| ESP32 | 5-10天 | 2-3天 | 7-13天 |
+| APP | None | Fully reusable |
+| HAL | Low | Update pin indices, adjust timing constants |
+| BSP | Complete | Rewrite 6 peripheral modules with new MCU SDK |
+| DriverLib | Replace | New MCU CMSIS + SDK + linker script |
+| Middleware | None | FreeRTOS/LVGL/LFS/RTT are fully portable |
 
 ### Porting Sequence
 
-1. GPIO + Time（最简单）→ 2. PWM → 3. ADC → 4. SPI → 5. UART → 6. 集成测试
+1. GPIO + Time (simplest) → 2. PWM → 3. ADC → 4. SPI → 5. UART → 6. Integration test
 
 ### Verification
 
-每个 BSP 模块有对应测试（`src/test/`），按开关逐模块验证。
+Each BSP module has a corresponding test (`src/test/`), verified module by module via feature switches.
 
 ## Module Development Convention
 
@@ -75,8 +66,8 @@ Registration: enum + descriptor in `game_registry.c` + icon in `game_console.c`.
 
 ### Rules
 
-- **APP/HAL 禁止 include DriverLib**
-- **BSP 函数保持 ≤30 行**（薄封装）
-- **新模块必须有 VM stub**
-- **功能门控用 `#if MACRO`**（不用 `#ifdef`，宏始终定义为 0/1）
-- **配置来自 config 文件**，不硬编码
+- **APP/HAL must never include DriverLib**
+- **BSP functions must stay ≤30 lines** (thin wrappers)
+- **New modules must have a VM stub**
+- **Feature gate with `#if MACRO`** (not `#ifdef`, macros are always defined as 0/1)
+- **Configuration comes from config files**, not hardcoded

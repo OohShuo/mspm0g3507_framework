@@ -66,7 +66,3 @@ bash scripts/cm.bash --target vm
 | 设计原则 | [11_design_principles](docs/en/11_design_principles.md) | [11_设计原则](docs/zh/11_design_principles.md) |
 | 内存布局 | [12_memory_layout](docs/en/12_memory_layout.md) | [12_内存布局](docs/zh/12_memory_layout.md) |
 | 架构决策 | [ADR](docs/en/adr/architecture_decisions.md) | — |
-
-## License
-
-MIT

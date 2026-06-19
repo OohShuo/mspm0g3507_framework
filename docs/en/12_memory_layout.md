@@ -13,8 +13,10 @@
 
 ## Flash (128 KB)
 
+The following is an estimate based on the current build configuration; verify actual sizes via `arm-none-eabi-size` and the map file.
+
 ```mermaid
-pie title Flash Usage
+pie title Estimated Flash Usage (current config)
     "DriverLib" : 30
     "Games" : 25
     "FreeRTOS" : 15
@@ -34,7 +36,7 @@ pie title Flash Usage
 | --- | --- | --- |
 | .data + .bss | ~3 KB | Global/static variables |
 | newlib heap | 1 KB | `_sbrk` region |
-| FreeRTOS heap (heap_4) | 18 KB | Tasks, HAL objects, queues, semaphores |
+| FreeRTOS heap (heap_4) | 14 KB | Tasks, HAL objects, queues, semaphores |
 | LFS buffers (static) | 528 B | read 256B + prog 256B + lookahead 16B |
 | System stack | 128 B | ISR + startup |
 
@@ -53,7 +55,9 @@ pie title Flash Usage
 
 ## Task Stacks
 
-| Task | Stack | High Water | Margin |
+High water marks below are measured on a specific build under typical load; actual values vary with compiler version, optimization level, and workload. Verify with `uxTaskGetStackHighWaterMark(NULL)`.
+
+| Task | Stack | High Water (measured) | Margin |
 | --- | --- | --- | --- |
 | Game_Console | 4096 B | ~3072 B | 25% |
 | Flash_Mgr | 4096 B | ~3584 B | 12% |
@@ -78,5 +82,5 @@ Additional ~45 KB Flash + ~15-30 KB RAM (display buffers). Currently disabled; g
 - `-ffunction-sections -fdata-sections` + `-Wl,--gc-sections`: dead code elimination
 - `--specs=nano.specs`: newlib-nano
 - Static LFS buffers: no heap fragmentation
-- Compile-time config: unused modules produce zero code
+- Compile-time config: unused modules are designed to produce no extra code (verify via map file)
 - Direct framebuffer rendering: no LVGL widget/RAM overhead
