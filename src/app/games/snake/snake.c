@@ -13,7 +13,7 @@
 #define GRID_HEIGHT     24
 #define CELL_SIZE       10
 #define FIELD_X         ((SCREEN_WIDTH - GRID_WIDTH * CELL_SIZE) / 2)
-#define FIELD_Y         54
+#define FIELD_Y         45
 #define MAX_SNAKE       160
 
 #define START_MOVE_MS   220u
@@ -104,21 +104,14 @@ static void render_cell(Snake_position position) {
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, 42, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 12, 10, "SCORE", 2, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 92, 10, g_score, 5, 2, COLOR_BORDER);
-
-    if (g_state == snake_state_over) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 55, 300, "PRESS RESTART", 1, COLOR_GAME_OVER);
-    } else if (g_state == snake_state_win) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 79, 300, "YOU WIN", 1, COLOR_WIN);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 58, 300, "HOLD FOR MENU", 1, COLOR_WHITE);
-    }
+    /* "SC:12345"=48px → x=185 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 185, 4, 53, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 190, 4, "SC:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 210, 4, g_score, 5, 1, COLOR_BORDER);
 }
 
 static void render_full(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     Game_Graphics_Fill_Rect(
         g_hardware.lcd, FIELD_X - 2, FIELD_Y - 2, GRID_WIDTH * CELL_SIZE + 4, 2, COLOR_BORDER);
     Game_Graphics_Fill_Rect(g_hardware.lcd, FIELD_X - 2, FIELD_Y + GRID_HEIGHT * CELL_SIZE,

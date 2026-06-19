@@ -8,11 +8,10 @@
 
 #define SCREEN_WIDTH   240
 #define SCREEN_HEIGHT  320
-#define TOP_BAR_H      24
-#define LIST_TOP       (TOP_BAR_H + 2)
+#define TOP_BAR_H      GAME_TOP_BAR_H
+#define LIST_TOP       (GAME_AREA_Y + 2)
 #define ROW_H          11
-#define ITEMS_PER_PAGE 24
-#define BOTTOM_HINT_Y  (LIST_TOP + ITEMS_PER_PAGE * ROW_H + 2)
+#define ITEMS_PER_PAGE ((GAME_AREA_BOTTOM - LIST_TOP) / ROW_H)
 
 #define DAS_INITIAL_MS 280u
 #define DAS_REPEAT_MS  200u /* 5 Hz */
@@ -66,29 +65,26 @@ static uint8_t page_items(void) {
  * ══════════════════════════════════════════════════════════════════════ */
 
 static void draw_top_bar(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, TOP_BAR_H, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 6, 5, "SFX LIBRARY", 2, COLOR_CYAN);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 152, 5, sfx_count(), 2, 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 170, 5, "SFX", 1, COLOR_GRAY);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 4, TOP_BAR_H - 1, SCREEN_WIDTH - 8, 1, COLOR_DARK);
+    /* "XX SFX"=36px → x=197 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 197, 4, 41, 10, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 202, 5, sfx_count(), 2, 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 218, 5, "SFX", 1, COLOR_GRAY);
 }
 
-static void draw_bottom_hint(void) {
+static void draw_page_indicator(void) {
     const uint8_t pages = total_pages();
+    const int32_t y = LIST_TOP + (int32_t)ITEMS_PER_PAGE * ROW_H; /* right below last row */
 
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 4, BOTTOM_HINT_Y, SCREEN_WIDTH - 8, 1, COLOR_DARK);
-    Game_Graphics_Fill_Rect(
-        g_hardware.lcd, 0, BOTTOM_HINT_Y + 1, SCREEN_WIDTH, SCREEN_HEIGHT - BOTTOM_HINT_Y - 1, COLOR_BLACK);
+    /* Separator */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 4, y, SCREEN_WIDTH - 8, 1, COLOR_DARK);
 
-    /* 页码 */
-    Game_Graphics_Draw_U32(g_hardware.lcd, 14, BOTTOM_HINT_Y + 5, (uint32_t)(g_page + 1), 1, 1, COLOR_CYAN);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 22, BOTTOM_HINT_Y + 5, "/", 1, COLOR_GRAY);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 30, BOTTOM_HINT_Y + 5, pages, 1, 1, COLOR_GRAY);
+    /* Clear below separator */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, y + 1, SCREEN_WIDTH, GAME_AREA_BOTTOM - y - 1, COLOR_BLACK);
 
-    Game_Graphics_Draw_Text(g_hardware.lcd, 58, BOTTOM_HINT_Y + 5, "^ v", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 82, BOTTOM_HINT_Y + 5, "nav", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 110, BOTTOM_HINT_Y + 5, "< >", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 146, BOTTOM_HINT_Y + 5, "page", 1, COLOR_GRAY);
+    /* Page number only (nav hints handled by console) */
+    Game_Graphics_Draw_U32(g_hardware.lcd, 14, y + 3, (uint32_t)(g_page + 1), 1, 1, COLOR_CYAN);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 22, y + 3, "/", 1, COLOR_GRAY);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 30, y + 3, pages, 1, 1, COLOR_GRAY);
 }
 
 static int32_t row_y(uint8_t pos) { return LIST_TOP + (int32_t)pos * ROW_H; }
@@ -123,12 +119,12 @@ static void delta_redraw(uint8_t old_pos, uint8_t new_pos) {
 static void draw_full_page(void) {
     const uint8_t items = page_items();
 
-    /* 清空列表区域 */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, LIST_TOP, SCREEN_WIDTH, BOTTOM_HINT_Y - LIST_TOP, COLOR_BLACK);
+    /* Clear list and page-indicator area */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, LIST_TOP, SCREEN_WIDTH, GAME_AREA_BOTTOM - LIST_TOP, COLOR_BLACK);
 
     for (uint8_t i = 0; i < items; i++) { draw_row(i, i == g_cursor); }
 
-    draw_bottom_hint();
+    draw_page_indicator();
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -192,7 +188,7 @@ void Sfx_Lib_Init(const Game_hardware* hardware) {
     g_old_cursor = 0;
     g_das_dir = 0;
     g_das_fired = 0;
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     draw_top_bar();
     draw_full_page();
 }

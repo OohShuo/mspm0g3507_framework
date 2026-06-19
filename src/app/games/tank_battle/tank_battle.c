@@ -14,7 +14,7 @@
 #define GRID_HEIGHT       20
 #define CELL_SIZE         12
 #define FIELD_X           0
-#define FIELD_Y           48
+#define FIELD_Y           45
 
 #define ENEMY_COUNT       4
 #define BULLET_COUNT      10
@@ -249,13 +249,15 @@ static void render_cell(int8_t x, int8_t y) {
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, 42, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 6, 7, "SCORE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 48, 7, g_score, 5, 1, COLOR_HUD);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 112, 7, "LIFE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 154, 7, g_lives, 1, 1, COLOR_PLAYER);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 176, 7, "EN", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 198, 7, TOTAL_ENEMIES - g_destroyed, 2, 1, COLOR_ENEMY);
+    /* Row1: "SC:12345"=48px, Row2: "L:3 E:12"=48px */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 180, 4, 58, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 185, 4, "SC:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 205, 4, g_score, 5, 1, COLOR_HUD);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 180, 16, 58, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 185, 16, "L:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 199, 16, g_lives, 1, 1, COLOR_PLAYER);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 213, 16, "E:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 227, 16, TOTAL_ENEMIES - g_destroyed, 2, 1, COLOR_ENEMY);
 
     if (g_state == tank_state_over) {
         Game_Graphics_Draw_Text(g_hardware.lcd, 80, 29, "GAME OVER", 1, COLOR_GAME_OVER);
@@ -267,12 +269,11 @@ static void render_hud(void) {
 }
 
 static void render_full(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     for (int8_t y = 0; y < GRID_HEIGHT; y++) {
         for (int8_t x = 0; x < GRID_WIDTH; x++) { render_cell(x, y); }
     }
     render_hud();
-    Game_Graphics_Draw_Text(g_hardware.lcd, 78, 300, "HOLD MENU", 1, COLOR_WHITE);
 }
 
 static void load_level(void) {

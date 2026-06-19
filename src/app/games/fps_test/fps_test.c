@@ -9,9 +9,9 @@
 #define SCREEN_HEIGHT    320
 
 #define TOP_BAR_Y        0
-#define TOP_BAR_H        24
-#define BOTTOM_BAR_Y     290
-#define BOTTOM_BAR_H     30
+#define TOP_BAR_H        GAME_TOP_BAR_H
+#define BOTTOM_BAR_Y     GAME_AREA_BOTTOM
+#define BOTTOM_BAR_H     GAME_BOTTOM_BAR_H
 #define MIDDLE_Y         (TOP_BAR_Y + TOP_BAR_H)
 #define MIDDLE_H         (BOTTOM_BAR_Y - MIDDLE_Y)
 
@@ -57,43 +57,21 @@ static const uint16_t g_palette[] = {
 
 /* ── Draw top status bar ── */
 static void draw_top_bar(void) {
-    /* Clear top bar */
-    Game_Graphics_Fill_Rect(g_lcd, 0, TOP_BAR_Y, SCREEN_WIDTH, TOP_BAR_H, COLOR_BLACK);
-
-    /* Title */
-    Game_Graphics_Draw_Text(g_lcd, 10, 5, "FPS TEST", 2, COLOR_CYAN);
-
-    /* FPS value on right side */
+    /* "TESTING..."=60px max → x=173 (5px margin) */
+    Game_Graphics_Fill_Rect(g_lcd, 173, 4, 65, 10, GAME_BAR_COLOR_BG);
     if (g_state == fps_state_idle) {
-        Game_Graphics_Draw_Text(g_lcd, 174, 6, "---", 1, COLOR_GRAY);
-        Game_Graphics_Draw_Text(g_lcd, 198, 6, "FPS", 1, COLOR_GRAY);
+        /* "--- FPS"=42px → x=196 */
+        Game_Graphics_Draw_Text(g_lcd, 196, 6, "---", 1, COLOR_GRAY);
+        Game_Graphics_Draw_Text(g_lcd, 220, 6, "FPS", 1, COLOR_GRAY);
     } else if (g_state == fps_state_testing) {
-        Game_Graphics_Draw_Text(g_lcd, 162, 6, "TESTING...", 1, COLOR_YELLOW);
+        Game_Graphics_Draw_Text(g_lcd, 178, 6, "TESTING...", 1, COLOR_YELLOW);
     } else {
-        /* RESULT — show actual FPS */
-        Game_Graphics_Draw_U32(g_lcd, 174, 6, g_last_fps, 3, 1, COLOR_GREEN);
-        Game_Graphics_Draw_Text(g_lcd, 198, 6, "FPS", 1, COLOR_GREEN);
-    }
-
-    /* Separator */
-    Game_Graphics_Fill_Rect(g_lcd, 10, TOP_BAR_H - 2, SCREEN_WIDTH - 20, 1, COLOR_DARK);
-}
-
-/* ── Draw bottom bar ── */
-static void draw_bottom_bar(void) {
-    Game_Graphics_Fill_Rect(g_lcd, 10, BOTTOM_BAR_Y, SCREEN_WIDTH - 20, 1, COLOR_DARK);
-    Game_Graphics_Fill_Rect(g_lcd, 10, BOTTOM_BAR_Y + 1, SCREEN_WIDTH - 20, BOTTOM_BAR_H, COLOR_BLACK);
-
-    if (g_state == fps_state_idle) {
-        Game_Graphics_Draw_Text(g_lcd, 85, BOTTOM_BAR_Y + 10, "PRESS TO START", 1, COLOR_WHITE);
-        Game_Graphics_Draw_Text(g_lcd, 10, BOTTOM_BAR_Y + 10, "HOLD TO BACK", 1, COLOR_GRAY);
-    } else if (g_state == fps_state_testing) {
-        Game_Graphics_Draw_Text(g_lcd, 72, BOTTOM_BAR_Y + 10, "TESTING...", 1, COLOR_YELLOW);
-    } else {
-        Game_Graphics_Draw_Text(g_lcd, 85, BOTTOM_BAR_Y + 10, "PRESS TO RETEST", 1, COLOR_WHITE);
-        Game_Graphics_Draw_Text(g_lcd, 10, BOTTOM_BAR_Y + 10, "HOLD TO BACK", 1, COLOR_GRAY);
+        Game_Graphics_Draw_U32(g_lcd, 196, 6, g_last_fps, 3, 1, COLOR_GREEN);
+        Game_Graphics_Draw_Text(g_lcd, 220, 6, "FPS", 1, COLOR_GREEN);
     }
 }
+
+/* Bottom bar is drawn by the console (hints + FPS) */
 
 /* ── Fill middle area with current color ── */
 static void fill_middle(void) {
@@ -108,12 +86,7 @@ static void fill_middle(void) {
     Game_Graphics_Fill_Rect(g_lcd, 0, MIDDLE_Y, SCREEN_WIDTH, MIDDLE_H, color);
 }
 
-/* ── Full screen render ── */
-static void render_all(void) {
-    fill_middle();
-    draw_top_bar();
-    draw_bottom_bar();
-}
+/* Full-screen render replaced by per-component drawing in Init/Update */
 
 void Fps_Test_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
@@ -121,7 +94,8 @@ void Fps_Test_Init(const Game_hardware* hardware) {
     g_frame_count = 0;
     g_last_fps = 0;
     g_color_index = 0;
-    render_all();
+    Game_Graphics_Clear_Game_Area(g_lcd);
+    draw_top_bar();
 }
 
 Game_result Fps_Test_Update(const Game_input* input) {
@@ -138,7 +112,6 @@ Game_result Fps_Test_Update(const Game_input* input) {
             g_start_time = now;
             fill_middle();
             draw_top_bar();
-            draw_bottom_bar();
         }
     } else if (g_state == fps_state_testing) {
         g_frame_count++;
@@ -150,7 +123,6 @@ Game_result Fps_Test_Update(const Game_input* input) {
             g_last_fps = g_frame_count;
             g_state = fps_state_result;
             draw_top_bar();
-            draw_bottom_bar();
         }
     } else {
         /* result */
@@ -162,7 +134,6 @@ Game_result Fps_Test_Update(const Game_input* input) {
             g_start_time = now;
             fill_middle();
             draw_top_bar();
-            draw_bottom_bar();
         }
     }
 

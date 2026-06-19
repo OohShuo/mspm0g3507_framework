@@ -16,7 +16,7 @@
 #define MAP_HEIGHT        21
 #define TILE_SIZE         12
 #define MAP_X             ((SCREEN_WIDTH - MAP_WIDTH * TILE_SIZE) / 2)
-#define MAP_Y             42
+#define MAP_Y             (GAME_TOP_BAR_H + (GAME_AREA_H - MAP_HEIGHT * TILE_SIZE) / 2)
 
 #define PLAYER_MOVE_MS    250u
 #define GHOST_MOVE_MS     500u
@@ -234,42 +234,14 @@ static void render_cell(int8_t map_x, int8_t map_y) {
         (uint8_t*)g_tile_buffer, sizeof(g_tile_buffer));
 }
 
-static const uint8_t g_digit_font[10][5] = {
-    {0x7, 0x5, 0x5, 0x5, 0x7},
-    {0x2, 0x6, 0x2, 0x2, 0x7},
-    {0x7, 0x1, 0x7, 0x4, 0x7},
-    {0x7, 0x1, 0x7, 0x1, 0x7},
-    {0x5, 0x5, 0x7, 0x1, 0x1},
-    {0x7, 0x4, 0x7, 0x1, 0x7},
-    {0x7, 0x4, 0x7, 0x5, 0x7},
-    {0x7, 0x1, 0x1, 0x1, 0x1},
-    {0x7, 0x5, 0x7, 0x5, 0x7},
-    {0x7, 0x5, 0x7, 0x1, 0x7},
-};
-
-static void draw_digit(int32_t x, int32_t y, uint8_t digit, uint16_t color) {
-    if (digit > 9) { return; }
-    for (int32_t row = 0; row < 5; row++) {
-        for (int32_t col = 0; col < 3; col++) {
-            if (g_digit_font[digit][row] & (1u << (2 - col))) {
-                fill_rect(x + col * 2, y + row * 2, 2, 2, color);
-            }
-        }
-    }
-}
-
 static void render_hud(void) {
-    fill_rect(0, 0, SCREEN_WIDTH, 34, COLOR_BLACK);
-
-    uint32_t score = g_score;
-    for (int32_t i = 5; i >= 0; i--) {
-        draw_digit(8 + i * 9, 9, (uint8_t)(score % 10u), COLOR_HUD);
-        score /= 10u;
-    }
-
-    draw_digit(102, 9, g_level % 10u, COLOR_WHITE);
-
-    for (uint8_t i = 0; i < g_lives; i++) { fill_rect(174 + i * 18, 10, 10, 10, COLOR_PACMAN); }
+    /* "SC:12345"=48px → x=185, "L:3"=18px → x=215 (5px margin) */
+    fill_rect(185, 4, 53, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_lcd, 190, 4, "SC:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_lcd, 210, 4, g_score, 5, 1, COLOR_HUD);
+    fill_rect(215, 16, 23, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_lcd, 220, 16, "L:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_lcd, 234, 16, g_lives, 1, 1, COLOR_PACMAN);
 
     if (g_game_state == game_state_over) {
         fill_rect(70, 27, 100, 5, COLOR_GAME_OVER);
@@ -279,11 +251,10 @@ static void render_hud(void) {
 }
 
 static void render_full_map(void) {
-    fill_rect(0, 34, SCREEN_WIDTH, SCREEN_HEIGHT - 34, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_lcd);
     for (int8_t y = 0; y < MAP_HEIGHT; y++) {
         for (int8_t x = 0; x < MAP_WIDTH; x++) { render_cell(x, y); }
     }
-    Game_Graphics_Draw_Text(g_lcd, 90, 304, "HOLD MENU", 1, COLOR_WHITE);
     render_hud();
 }
 

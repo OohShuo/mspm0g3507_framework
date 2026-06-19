@@ -8,12 +8,12 @@
 
 #define SCREEN_WIDTH    240
 #define SCREEN_HEIGHT   320
-#define HUD_HEIGHT      46
+#define HUD_HEIGHT      GAME_TOP_BAR_H
 
 #define BOARD_SIZE      12
 #define CELL_SIZE       16
 #define BOARD_X         ((SCREEN_WIDTH - BOARD_SIZE * CELL_SIZE) / 2)
-#define BOARD_Y         52
+#define BOARD_Y         69
 
 #define STONE_RADIUS    6
 #define DAS_INITIAL     200u
@@ -50,7 +50,6 @@ static uint8_t g_move_count = 0;
 static uint8_t g_das_dir = 0;
 static uint32_t g_das_time = 0;
 static uint8_t g_das_fired = 0;
-static uint8_t g_old_state = 99;
 
 /* ---- helpers ---- */
 
@@ -239,7 +238,7 @@ static void move_cursor(int8_t nx, int8_t ny) {
 
 static void render_board_bg(void) {
     Game_Graphics_Fill_Rect(
-        g_hardware.lcd, 0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT, COLOR_BOARD);
+        g_hardware.lcd, 0, HUD_HEIGHT, SCREEN_WIDTH, GAME_AREA_BOTTOM - HUD_HEIGHT, COLOR_BOARD);
     for (int8_t i = 0; i < BOARD_SIZE; i++) {
         const int32_t px = BOARD_X + i * CELL_SIZE + CELL_SIZE / 2;
         const int32_t py = BOARD_Y + i * CELL_SIZE + CELL_SIZE / 2;
@@ -252,29 +251,16 @@ static void render_board_bg(void) {
 
 /* Top bar drawn once on init — never changes */
 static void render_hud_top(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, HUD_HEIGHT, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 4, 6, "GOMOKU", 2, COLOR_CYAN);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 120, 8, "YOU", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 155, 8, "AI", 1, COLOR_YELLOW);
-    /* Black stone with white border (visible on black HUD) */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 165, 8, 6, 6, COLOR_WHITE);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 166, 9, 4, 4, COLOR_PLAYER);
-    /* White stone with dark border */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 180, 8, 6, 6, COLOR_GRID);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 181, 9, 4, 4, COLOR_AI);
+    /* "YOU"=18px + ■6px + "AI"=12px + ○6px = 42px → x=191 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 191, 3, 47, 22, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 196, 4, "YOU", 1, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 218, 5, 6, 6, COLOR_WHITE);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 219, 6, 4, 4, COLOR_PLAYER);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 196, 16, "AI", 1, COLOR_YELLOW);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 212, 17, 6, 6, COLOR_GRID);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 213, 18, 4, 4, COLOR_AI);
 }
 
-/* Bottom status bar — only call on state transitions */
-static void render_status(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 284, SCREEN_WIDTH, 36, COLOR_BLACK);
-    if (g_state == gomoku_state_over) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, g_winner == 1 ? 67 : 73, 300,
-            g_winner == 1 ? "YOU WIN" : "AI WINS", 1, g_winner == 1 ? COLOR_WIN : COLOR_GAMEOVER);
-        Game_Graphics_Draw_Text(g_hardware.lcd, 37, 284, "PRESS RESTART", 1, COLOR_WHITE);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 58, 300, "HOLD FOR MENU", 1, COLOR_WHITE);
-    }
-}
 
 static void restart_game(void) {
     for (int8_t y = 0; y < BOARD_SIZE; y++) {
@@ -288,12 +274,10 @@ static void restart_game(void) {
     g_move_count = 0;
     g_das_dir = 0;
     g_das_fired = 0;
-    g_old_state = 99;
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     render_hud_top();
     render_board_bg();
     draw_cursor_at(g_cursor_x, g_cursor_y);
-    render_status();
 }
 
 void Gomoku_Init(const Game_hardware* hardware) {
@@ -307,10 +291,6 @@ Game_result Gomoku_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == gomoku_state_over) {
-        if (g_old_state != (uint8_t)g_state) {
-            g_old_state = (uint8_t)g_state;
-            render_status();
-        }
         if (input->confirm_pressed) { restart_game(); }
         return game_result_running;
     }
@@ -394,8 +374,6 @@ Game_result Gomoku_Update(const Game_input* input) {
                 g_state = gomoku_state_ai;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_gomoku_place);
             }
-            g_old_state = (uint8_t)g_state;
-            render_status();
         }
     } else if (g_state == gomoku_state_ai) {
         /* Erase cursor while AI "thinks" */
@@ -404,8 +382,6 @@ Game_result Gomoku_Update(const Game_input* input) {
             render_stone_at(g_cursor_x, g_cursor_y, g_board[g_cursor_y][g_cursor_x]);
         }
         ai_move();
-        g_old_state = (uint8_t)g_state;
-        render_status();
         /* ai_move() may set g_state to over; only switch back if still playing */
         if (g_state == gomoku_state_ai) {
             g_state = gomoku_state_player;

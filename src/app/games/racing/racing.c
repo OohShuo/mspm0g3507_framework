@@ -10,7 +10,7 @@
 #define SCREEN_HEIGHT    320
 
 #define ROAD_X           35
-#define ROAD_Y           48
+#define ROAD_Y           GAME_AREA_Y
 #define ROAD_WIDTH       170
 #define ROAD_HEIGHT      244
 #define LANE_COUNT       3
@@ -107,7 +107,8 @@ static void clear_car(int8_t lane, int16_t y) {
 }
 
 static void draw_road(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_GRASS);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, GAME_AREA_Y, SCREEN_WIDTH, GAME_AREA_H, COLOR_GRASS);
     Game_Graphics_Fill_Rect(g_hardware.lcd, ROAD_X, ROAD_Y, ROAD_WIDTH, ROAD_HEIGHT, COLOR_ROAD);
     Game_Graphics_Fill_Rect(g_hardware.lcd, ROAD_X - 3, ROAD_Y, 3, ROAD_HEIGHT, COLOR_WHITE);
     Game_Graphics_Fill_Rect(g_hardware.lcd, ROAD_X + ROAD_WIDTH, ROAD_Y, 3, ROAD_HEIGHT, COLOR_WHITE);
@@ -121,15 +122,10 @@ static void draw_road(void) {
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, 42, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 8, 10, "SCORE", 2, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 88, 10, g_score, 5, 2, COLOR_PLAYER);
-
-    if (g_state == racing_state_over) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 61, 300, "PRESS RESTART", 1, COLOR_GAME_OVER);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 58, 300, "HOLD FOR MENU", 1, COLOR_WHITE);
-    }
+    /* "SC:12345"=48px → x=185 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 185, 4, 53, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 190, 4, "SC:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 210, 4, g_score, 5, 1, COLOR_PLAYER);
 }
 
 static void spawn_obstacle(uint32_t index) {

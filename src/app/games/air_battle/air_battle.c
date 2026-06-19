@@ -12,7 +12,8 @@
 
 #define SCREEN_WIDTH             240
 #define SCREEN_HEIGHT            320
-#define HUD_HEIGHT               30
+#define HUD_HEIGHT               GAME_TOP_BAR_H
+#define GAME_BOTTOM              GAME_AREA_BOTTOM
 
 #define MAX_ENEMIES              7
 #define MAX_PLAYER_BULLETS       18
@@ -23,7 +24,7 @@
 #define MAX_DIRTY_RECTS          36
 #define NORMAL_ENEMIES           18
 
-#define PLAYER_MOVE_STEP         4
+#define PLAYER_MOVE_STEP         12
 #define WORLD_STEP_MS            50u
 #define PLAYER_FIRE_STEPS        4u
 #define ENEMY_SPAWN_MS           720u
@@ -172,15 +173,15 @@ static Dirty_rect rect_union(const Dirty_rect* a, const Dirty_rect* b) {
 }
 
 static void mark_dirty(int16_t x, int16_t y, int16_t width, int16_t height) {
-    if (width <= 0 || height <= 0 || x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT || x + width <= 0 ||
+    if (width <= 0 || height <= 0 || x >= SCREEN_WIDTH || y >= GAME_BOTTOM || x + width <= 0 ||
         y + height <= HUD_HEIGHT) {
         return;
     }
 
     const int16_t x1 = clamp_i16(x, 0, SCREEN_WIDTH);
-    const int16_t y1 = clamp_i16(y, HUD_HEIGHT, SCREEN_HEIGHT);
+    const int16_t y1 = clamp_i16(y, HUD_HEIGHT, GAME_BOTTOM);
     const int16_t x2 = clamp_i16((int16_t)(x + width), 0, SCREEN_WIDTH);
-    const int16_t y2 = clamp_i16((int16_t)(y + height), HUD_HEIGHT, SCREEN_HEIGHT);
+    const int16_t y2 = clamp_i16((int16_t)(y + height), HUD_HEIGHT, GAME_BOTTOM);
     Dirty_rect incoming = {x1, y1, (int16_t)(x2 - x1), (int16_t)(y2 - y1)};
 
     for (uint8_t i = 0; i < g_dirty_count;) {
@@ -301,7 +302,7 @@ static void render_region(const Dirty_rect* rect) {
 
 static void flush_dirty(void) {
     Dirty_span spans[MAX_DIRTY_RECTS];
-    for (int16_t y = HUD_HEIGHT; y < SCREEN_HEIGHT; y++) {
+    for (int16_t y = HUD_HEIGHT; y < GAME_BOTTOM; y++) {
         uint8_t span_count = 0;
         for (uint8_t i = 0; i < g_dirty_count; i++) {
             const Dirty_rect* rect = &g_dirty[i];
@@ -360,24 +361,25 @@ static void flush_dirty(void) {
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, HUD_HEIGHT, COLOR_BLUE_DARK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 5, 4, "SCORE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 47, 4, g_score, 5, 1, COLOR_CYAN);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 112, 4, "LIFE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 154, 4, g_lives, 1, 1, COLOR_GREEN);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 175, 4, "BOMB", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 217, 4, g_bombs, 1, 1, COLOR_YELLOW);
-
+    /* Row1: "S:12345"=48px → x=185 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 185, 3, 53, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 190, 3, "S:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 204, 3, g_score, 5, 1, COLOR_CYAN);
+    /* Row2: "L:3 B:2"=54px → x=179 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 179, 16, 59, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 184, 16, "L:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 198, 16, g_lives, 1, 1, COLOR_GREEN);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 214, 16, "B:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 228, 16, g_bombs, 1, 1, COLOR_YELLOW);
+    /* Boss HP bar at bottom of top bar */
     if (g_boss_hp > 0 && g_boss_max_hp > 0) {
-        Game_Graphics_Fill_Rect(g_hardware.lcd, 5, 19, 230, 6, COLOR_BLACK);
-        Game_Graphics_Fill_Rect(g_hardware.lcd, 7, 21, (226 * g_boss_hp) / g_boss_max_hp, 2, COLOR_RED);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 73, 19, "SKY FORCE", 1, COLOR_CYAN);
+        Game_Graphics_Fill_Rect(g_hardware.lcd, 179, 25, 59, 4, GAME_BAR_COLOR_BG);
+        Game_Graphics_Fill_Rect(g_hardware.lcd, 186, 26, (52 * g_boss_hp) / g_boss_max_hp, 2, COLOR_RED);
     }
 }
 
 static void render_full(void) {
-    const Dirty_rect full = {0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT};
+    const Dirty_rect full = {0, HUD_HEIGHT, SCREEN_WIDTH, GAME_BOTTOM - HUD_HEIGHT};
     render_region(&full);
     render_hud();
 }
@@ -584,7 +586,7 @@ static void move_player(Game_direction direction) {
         g_player_y += PLAYER_MOVE_STEP;
     }
     g_player_x = clamp_i16(g_player_x, 0, SCREEN_WIDTH - air_sprite_hero.width);
-    g_player_y = clamp_i16(g_player_y, HUD_HEIGHT + 4, SCREEN_HEIGHT - air_sprite_hero.height);
+    g_player_y = clamp_i16(g_player_y, HUD_HEIGHT + 4, GAME_BOTTOM - air_sprite_hero.height);
     if (old_x != g_player_x || old_y != g_player_y) {
         mark_sprite(old_x, old_y, &air_sprite_hero);
         mark_sprite(g_player_x, g_player_y, &air_sprite_hero);
@@ -615,7 +617,7 @@ static void update_pickups(void) {
         const Air_sprite* sprite = pickup_sprite(pickup->kind);
         mark_sprite(pickup->x, pickup->y, sprite);
         pickup->y += 2;
-        if (pickup->y >= SCREEN_HEIGHT) {
+        if (pickup->y >= GAME_BOTTOM) {
             pickup->active = 0;
             continue;
         }
@@ -676,7 +678,7 @@ static void update_enemies(uint32_t now) {
             }
         }
 
-        if (enemy->y >= SCREEN_HEIGHT) {
+        if (enemy->y >= GAME_BOTTOM) {
             enemy->active = 0;
             hit_player(now);
             if (g_state != air_state_playing) { return; }
@@ -709,7 +711,7 @@ static void update_bullets(uint32_t now) {
         bullet->x += bullet->dx;
         bullet->y += bullet->dy;
 
-        if (bullet->y + sprite->height < HUD_HEIGHT || bullet->y >= SCREEN_HEIGHT ||
+        if (bullet->y + sprite->height < HUD_HEIGHT || bullet->y >= GAME_BOTTOM ||
             bullet->x + sprite->width < 0 || bullet->x >= SCREEN_WIDTH) {
             bullet->active = 0;
             continue;
@@ -759,7 +761,7 @@ static void restart_game(void) {
     memset(g_pickups, 0, sizeof(g_pickups));
     memset(g_explosions, 0, sizeof(g_explosions));
     g_player_x = (SCREEN_WIDTH - air_sprite_hero.width) / 2;
-    g_player_y = SCREEN_HEIGHT - air_sprite_hero.height - 8;
+    g_player_y = GAME_BOTTOM - air_sprite_hero.height - 8;
     g_lives = 3;
     g_bombs = 2;
     g_shot_level = 1;
@@ -798,7 +800,6 @@ Game_result Air_Battle_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    if (input->direction != game_direction_none) { move_player(input->direction); }
     if (input->confirm_pressed) { use_bomb(); }
     if (g_state != air_state_playing) { return game_result_running; }
 
@@ -811,6 +812,7 @@ Game_result Air_Battle_Update(const Game_input* input) {
 
     if (now - g_last_world_step >= WORLD_STEP_MS) {
         g_last_world_step = now;
+        if (input->direction != game_direction_none) { move_player(input->direction); }
         update_bullets(now);
         if (g_state != air_state_playing) { return game_result_running; }
         update_enemies(now);

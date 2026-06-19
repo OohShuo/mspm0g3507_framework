@@ -13,7 +13,7 @@
 #define GAP_X         8
 #define GAP_Y         8
 #define GRID_X0       8
-#define GRID_Y0       82
+#define GRID_Y0       59
 #define ROWS          5
 #define COLS          4
 
@@ -154,27 +154,24 @@ static uint8_t float_to_str(float val, char* buf, uint8_t max_len) {
 
 /* ── Full display render ── */
 static void render_display(void) {
-    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, GRID_Y0 - 2, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_lcd, 78, 5, "CALCULATOR", 1, COLOR_CYAN);
-
-    if (g_error) {
-        Game_Graphics_Draw_Text(g_lcd, 10, 32, "Error", 2, COLOR_RED);
-    } else if (g_expr_len > 0) {
+    /* Expression in top bar right side ("CALC" ends ~80px, 5px margin) */
+    Game_Graphics_Fill_Rect(g_lcd, 77, 4, 161, 22, GAME_BAR_COLOR_BG);
+    if (g_expr_len > 0) {
         const char* show = g_expr;
-        if (g_expr_len > 36) { show = g_expr + g_expr_len - 36; }
-        Game_Graphics_Draw_Text(g_lcd, 10, 22, show, 1, COLOR_CYAN);
+        if (g_expr_len > 26) { show = g_expr + g_expr_len - 26; }
+        Game_Graphics_Draw_Text(g_lcd, 84, 6, show, 1, COLOR_CYAN);
     }
 
-    if (!g_error && g_just_evaluated) {
-        Game_Graphics_Fill_Rect(g_lcd, 10, 40, SCREEN_WIDTH - 20, 18, COLOR_BLACK);
+    /* Error / result in game area */
+    Game_Graphics_Fill_Rect(g_lcd, 10, GAME_AREA_Y + 2, SCREEN_WIDTH - 20, 18, COLOR_BLACK);
+    if (g_error) {
+        Game_Graphics_Draw_Text(g_lcd, 10, GAME_AREA_Y + 4, "Error", 2, COLOR_RED);
+    } else if (g_just_evaluated) {
         char result_str[32];
         float_to_str(g_last_result, result_str, sizeof(result_str));
-        Game_Graphics_Draw_Text(g_lcd, 10, 42, "= ", 2, COLOR_GREEN);
-        Game_Graphics_Draw_Text(g_lcd, 34, 42, result_str, 2, COLOR_WHITE);
+        Game_Graphics_Draw_Text(g_lcd, 10, GAME_AREA_Y + 4, "= ", 2, COLOR_GREEN);
+        Game_Graphics_Draw_Text(g_lcd, 34, GAME_AREA_Y + 4, result_str, 2, COLOR_WHITE);
     }
-
-    Game_Graphics_Fill_Rect(g_lcd, 10, 62, SCREEN_WIDTH - 20, 1, COLOR_DARK);
-    Game_Graphics_Fill_Rect(g_lcd, 10, GRID_Y0 - 2, SCREEN_WIDTH - 20, 1, COLOR_DARK);
 }
 
 static void render_grid(void) {
@@ -184,10 +181,9 @@ static void render_grid(void) {
 }
 
 static void render_all(void) {
-    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_lcd);
     render_display();
     render_grid();
-    Game_Graphics_Draw_Text(g_lcd, 64, 300, "HOLD TO BACK", 1, COLOR_GRAY);
 }
 
 /* ── Recursive-descent expression evaluator (all float) ── */

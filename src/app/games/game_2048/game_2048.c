@@ -8,14 +8,14 @@
 
 #define SCREEN_WIDTH   240
 #define SCREEN_HEIGHT  320
-#define HUD_HEIGHT     48
+#define HUD_HEIGHT     GAME_TOP_BAR_H
 
 #define GRID_SIZE      4
 #define CELL_SIZE      44
 #define GAP            4
 #define BOARD_W        (GRID_SIZE * CELL_SIZE + (GRID_SIZE - 1) * GAP)
 #define BOARD_X        ((SCREEN_WIDTH - BOARD_W) / 2)
-#define BOARD_Y        60
+#define BOARD_Y        57
 
 #define COLOR_BLACK    0x0000u
 #define COLOR_WHITE    0xffffu
@@ -88,26 +88,17 @@ static void render_tile(uint8_t r, uint8_t c) {
 
 static void render_board(void) {
     Game_Graphics_Fill_Rect(
-        g_hardware.lcd, 0, HUD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - HUD_HEIGHT, COLOR_BG);
+        g_hardware.lcd, 0, HUD_HEIGHT, SCREEN_WIDTH, GAME_AREA_BOTTOM - HUD_HEIGHT, COLOR_BG);
     for (uint8_t r = 0; r < GRID_SIZE; r++) {
         for (uint8_t c = 0; c < GRID_SIZE; c++) { render_tile(r, c); }
     }
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, HUD_HEIGHT, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 8, 8, "2048", 3, COLOR_CYAN);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 110, 8, "SCORE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 158, 8, g_score, 6, 1, COLOR_WIN);
-
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 300, SCREEN_WIDTH, 7, COLOR_BLACK);
-    if (g_state == state_over) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 51, 300, "PRESS RESTART", 1, COLOR_GAMEOVER);
-    } else if (g_state == state_win) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 55, 300, "2048! KEEP GOING", 1, COLOR_WIN);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 58, 300, "HOLD FOR MENU", 1, COLOR_WHITE);
-    }
+    /* "SC:012345"=54px */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 174, 4, 64, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 179, 4, "SC:", 1, COLOR_WHITE);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 199, 4, g_score, 6, 1, COLOR_WIN);
 }
 
 static uint8_t spawn_tile(void) {
@@ -267,7 +258,7 @@ static void restart_game(void) {
     g_moved = 0;
     spawn_tile();
     spawn_tile();
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     render_board();
     render_hud();
 }

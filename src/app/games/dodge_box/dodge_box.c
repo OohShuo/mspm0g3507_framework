@@ -14,7 +14,7 @@
 #define ARENA_W                120
 #define ARENA_H                180
 #define ARENA_X                ((SCREEN_WIDTH - ARENA_W) / 2)
-#define ARENA_Y                66
+#define ARENA_Y                (GAME_TOP_BAR_H + (GAME_AREA_H - ARENA_H) / 2)
 
 #define PLAYER_SIZE            5
 #define PLAYER_SPEED_PX_S      50u
@@ -1478,22 +1478,12 @@ static void update_attack_finish_scan(uint32_t now_rel) {
 }
 
 static void render_static_screen(void) {
-    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-    draw_text_centered(14, "DODGE BOX", 2, COLOR_CYAN);
+    Game_Graphics_Clear_Game_Area(g_lcd);
     Game_Graphics_Draw_Text(g_lcd, 24, 42, "MOVE: JOYSTICK", 1, COLOR_GRAY);
     Game_Graphics_Draw_Text(g_lcd, 144, 42, "HOLD: BACK", 1, COLOR_GRAY);
     arena_fill(0, 0, ARENA_W, ARENA_H, COLOR_BLACK);
     arena_border();
 }
-
-static void draw_status(uint32_t now_rel) {
-    Game_Graphics_Fill_Rect(g_lcd, 0, 253, SCREEN_WIDTH, 35, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_lcd, 60, 257, "TIME", 1, COLOR_GRAY);
-    Game_Graphics_Draw_U32(g_lcd, 96, 257, now_rel / 1000u, 2, 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 112, 257, "s", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 64, 274, "SURVIVE TO CLEAR", 1, COLOR_DARK);
-}
-
 static void reset_game(void) {
     g_state = game_state_playing;
     g_finished = 0;
@@ -1515,7 +1505,6 @@ static void reset_game(void) {
     dirty_all_layers_clear();
     g_clip_enabled = 0;
     render_static_screen();
-    draw_status(0);
     draw_player(COLOR_WHITE);
 }
 
@@ -1577,22 +1566,21 @@ Game_result Dodge_Box_Update(const Game_input* input) {
         g_state = game_state_failed;
         g_finished = 1;
         render_dirty_scene(now_rel, COLOR_RED);
-        Game_Graphics_Fill_Rect(g_lcd, 0, 253, SCREEN_WIDTH, 35, COLOR_BLACK);
-        draw_text_centered(258, "FAILED - PRESS", 1, COLOR_RED);
+        Game_Graphics_Fill_Rect(g_lcd, 0, 258, SCREEN_WIDTH, 14, COLOR_BLACK);
+        draw_text_centered(260, "FAILED - PRESS", 1, COLOR_RED);
         return game_result_running;
     }
 #endif
 
     render_dirty_scene(now_rel, COLOR_WHITE);
 
-    if ((now_rel / 1000u) != (g_survive_ms / 1000u)) { draw_status(now_rel); }
     g_survive_ms = now_rel;
 
     if (g_all_attacks_done && (now_rel - g_all_attacks_done_ms >= 2000u)) {
         g_state = game_state_clear;
         g_finished = 1;
-        Game_Graphics_Fill_Rect(g_lcd, 0, 253, SCREEN_WIDTH, 35, COLOR_BLACK);
-        draw_text_centered(258, "CLEAR - PRESS", 1, COLOR_GREEN);
+        Game_Graphics_Fill_Rect(g_lcd, 0, 258, SCREEN_WIDTH, 14, COLOR_BLACK);
+        draw_text_centered(260, "CLEAR - PRESS", 1, COLOR_GREEN);
     }
 
     return game_result_running;

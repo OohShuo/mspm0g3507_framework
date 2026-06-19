@@ -15,7 +15,7 @@
 #define COLOR_GREEN   0x07e0u
 
 #define BAR_X         20
-#define BAR_Y         160
+#define BAR_Y         153
 #define BAR_W         200
 #define BAR_H         24
 #define BAR_BORDER    2
@@ -24,20 +24,20 @@
 #define BAR_FILL_X    (BAR_X + BAR_BORDER)
 #define BAR_FILL_W    (BAR_W - BAR_BORDER * 2)
 
-/* Percentage text area (large enough for "100%" at scale 3: 4 chars × 18px × 21px) */
-#define TEXT_X        84
-#define TEXT_Y        70
-#define TEXT_W        72
-#define TEXT_H        21
+/* Percentage text area in top bar (scale 1) */
+#define TEXT_X        170
+#define TEXT_Y        6
+#define TEXT_W        65
+#define TEXT_H        10
 
 /* Arrow bounding boxes */
 #define ARROW_UP_X    116
-#define ARROW_UP_Y    126
+#define ARROW_UP_Y    119
 #define ARROW_UP_W    13
 #define ARROW_UP_H    15
 
 #define ARROW_DN_X    116
-#define ARROW_DN_Y    209
+#define ARROW_DN_Y    202
 #define ARROW_DN_W    13
 #define ARROW_DN_H    9
 
@@ -82,14 +82,15 @@ static void update_bar_fill(uint8_t old_vol, uint8_t new_vol) {
 /* ── Incremental text update ── */
 static void update_text(uint8_t old_vol, uint8_t new_vol) {
     (void)old_vol;
-    /* Clear text area */
-    Game_Graphics_Fill_Rect(g_lcd, TEXT_X, TEXT_Y, TEXT_W, TEXT_H, COLOR_BLACK);
-    /* Draw new percentage */
+    /* Clear text area with bar color so it blends in top bar */
+    Game_Graphics_Fill_Rect(g_lcd, TEXT_X, TEXT_Y, TEXT_W, TEXT_H, GAME_BAR_COLOR_BG);
+    /* Draw new percentage right-aligned, scale 1 */
     const uint8_t digits = new_vol >= 100 ? 3 : (new_vol >= 10 ? 2 : 1);
-    const int32_t text_w = (int32_t)(digits + 1) * 6 * 3;
-    Game_Graphics_Draw_U32(g_lcd, (SCREEN_WIDTH - text_w) / 2, TEXT_Y, new_vol, digits, 3, COLOR_WHITE);
+    const int32_t text_w = (int32_t)(digits + 1) * 6; /* scale 1 */
+    const int32_t text_x = TEXT_X + TEXT_W - text_w; /* right-align */
+    Game_Graphics_Draw_U32(g_lcd, text_x, TEXT_Y, new_vol, digits, 1, COLOR_WHITE);
     Game_Graphics_Draw_Text(
-        g_lcd, (SCREEN_WIDTH - text_w) / 2 + (int32_t)digits * 6 * 3, TEXT_Y, "%", 3, COLOR_WHITE);
+        g_lcd, text_x + (int32_t)digits * 6, TEXT_Y, "%", 1, COLOR_WHITE);
 }
 
 /* ── Incremental arrow update ── */
@@ -111,11 +112,10 @@ static void update_arrows(uint8_t old_vol, uint8_t new_vol) {
 
 /* ── Full screen render (called once on init) ── */
 static void render_screen(void) {
-    Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_lcd);
 
-    /* Title */
-    Game_Graphics_Draw_Text(g_lcd, 76, 10, "VOLUME", 2, COLOR_CYAN);
-    Game_Graphics_Fill_Rect(g_lcd, 10, 34, SCREEN_WIDTH - 20, 1, COLOR_DARK);
+    /* Volume text in top bar */
+    update_text(0, g_volume);
 
     /* Bar frame */
     draw_bar_frame();
@@ -123,23 +123,9 @@ static void render_screen(void) {
     /* Initial fill */
     update_bar_fill(0, g_volume);
 
-    /* Initial text */
-    {
-        const uint8_t digits = g_volume >= 100 ? 3 : (g_volume >= 10 ? 2 : 1);
-        const int32_t text_w = (int32_t)(digits + 1) * 6 * 3;
-        Game_Graphics_Draw_U32(g_lcd, (SCREEN_WIDTH - text_w) / 2, TEXT_Y, g_volume, digits, 3, COLOR_WHITE);
-        Game_Graphics_Draw_Text(
-            g_lcd, (SCREEN_WIDTH - text_w) / 2 + (int32_t)digits * 6 * 3, TEXT_Y, "%", 3, COLOR_WHITE);
-    }
-
     /* Arrows: up = can increase, down = can decrease */
     if (g_volume < 100) { draw_up_arrow(); }
     if (g_volume > 0) { draw_down_arrow(); }
-
-    /* Hints at bottom */
-    Game_Graphics_Draw_Text(g_lcd, 20, 276, "< > ^ v to adjust", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_lcd, 130, 276, "press to mute", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_lcd, 68, 300, "hold to back", 1, COLOR_GRAY);
 }
 
 /* ── Game lifecycle ── */

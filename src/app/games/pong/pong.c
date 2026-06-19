@@ -8,7 +8,7 @@
 
 #define SCREEN_WIDTH    240
 #define SCREEN_HEIGHT   320
-#define PLAY_AREA_TOP   44
+#define PLAY_AREA_TOP   GAME_TOP_BAR_H
 
 #define PADDLE_WIDTH    6
 #define PADDLE_HEIGHT   48
@@ -21,7 +21,7 @@
 
 #define WIN_SCORE       5
 
-#define CENTER_LINE_Y   (PLAY_AREA_TOP + (SCREEN_HEIGHT - PLAY_AREA_TOP) / 2)
+#define CENTER_LINE_Y   (PLAY_AREA_TOP + (GAME_AREA_BOTTOM - PLAY_AREA_TOP) / 2)
 
 #define COLOR_BLACK     0x0000u
 #define COLOR_WHITE     0xffffu
@@ -60,14 +60,14 @@ static int32_t g_ai_y256 = 0;
 
 static void serve_ball(uint8_t toward_player) {
     g_ball_x = SCREEN_WIDTH / 2 - BALL_SIZE / 2;
-    g_ball_y = PLAY_AREA_TOP + (SCREEN_HEIGHT - PLAY_AREA_TOP) / 2 - BALL_SIZE / 2;
+    g_ball_y = PLAY_AREA_TOP + (GAME_AREA_BOTTOM - PLAY_AREA_TOP) / 2 - BALL_SIZE / 2;
     g_ball_dx = toward_player ? (int8_t)-BALL_SPEED : BALL_SPEED;
     g_ball_dy = 0;
 }
 
 static int16_t clamp_paddle(int16_t y) {
     if (y < PLAY_AREA_TOP) { return PLAY_AREA_TOP; }
-    if (y > SCREEN_HEIGHT - PADDLE_HEIGHT) { return (int16_t)(SCREEN_HEIGHT - PADDLE_HEIGHT); }
+    if (y > GAME_AREA_BOTTOM - PADDLE_HEIGHT) { return (int16_t)(GAME_AREA_BOTTOM - PADDLE_HEIGHT); }
     return y;
 }
 
@@ -79,7 +79,7 @@ static void render_paddle(int16_t x, int16_t old_y, int16_t new_y, uint16_t colo
         g_hardware.lcd, x, erase_start, PADDLE_WIDTH, (int32_t)(erase_end - erase_start), COLOR_BLACK);
     /* Redraw center line in erased area if needed */
     for (int16_t yy = erase_start; yy < erase_end; yy++) {
-        if (yy >= PLAY_AREA_TOP && yy < SCREEN_HEIGHT && (yy / 8) % 2 == 0) {
+        if (yy >= PLAY_AREA_TOP && yy < GAME_AREA_BOTTOM && (yy / 8) % 2 == 0) {
             Game_Graphics_Fill_Rect(g_hardware.lcd, SCREEN_WIDTH / 2 - 1, yy, 2, 1, COLOR_WHITE);
         }
     }
@@ -93,14 +93,14 @@ static void render_paddle(int16_t x, int16_t old_y, int16_t new_y, uint16_t colo
 static void render_ball(int16_t old_x, int16_t old_y) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, old_x, old_y, BALL_SIZE, BALL_SIZE, COLOR_BLACK);
     /* Redraw center line behind erased ball */
-    if (old_y >= PLAY_AREA_TOP && old_y < SCREEN_HEIGHT && (old_y / 8) % 2 == 0) {
+    if (old_y >= PLAY_AREA_TOP && old_y < GAME_AREA_BOTTOM && (old_y / 8) % 2 == 0) {
         Game_Graphics_Fill_Rect(g_hardware.lcd, SCREEN_WIDTH / 2 - 1, old_y, 2, 1, COLOR_WHITE);
     }
     Game_Graphics_Fill_Rect(g_hardware.lcd, g_ball_x, g_ball_y, BALL_SIZE, BALL_SIZE, COLOR_WHITE);
 }
 
 static void draw_center_line(void) {
-    for (int16_t y = PLAY_AREA_TOP; y < SCREEN_HEIGHT; y++) {
+    for (int16_t y = PLAY_AREA_TOP; y < GAME_AREA_BOTTOM; y++) {
         if ((y / 8) % 2 == 0) {
             Game_Graphics_Fill_Rect(g_hardware.lcd, SCREEN_WIDTH / 2 - 1, y, 2, 1, COLOR_WHITE);
         }
@@ -108,29 +108,17 @@ static void draw_center_line(void) {
 }
 
 static void render_hud(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, PLAY_AREA_TOP, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 16, 10, "YOU", 2, COLOR_CYAN);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 90, 10, g_player_score, 1, 2, COLOR_CYAN);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 140, 10, "AI", 2, COLOR_YELLOW);
-    Game_Graphics_Draw_U32(g_hardware.lcd, 188, 10, g_ai_score, 1, 2, COLOR_YELLOW);
-
-    /* Clear status text rows (7px glyphs at y=284 and y=300) */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 284, SCREEN_WIDTH, 7, COLOR_BLACK);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 300, SCREEN_WIDTH, 7, COLOR_BLACK);
-    if (g_state == pong_state_serving) {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 53, 300, "PRESS TO SERVE", 1, COLOR_WHITE);
-    } else if (g_state == pong_state_over) {
-        const uint8_t won = g_player_score >= WIN_SCORE;
-        Game_Graphics_Draw_Text(g_hardware.lcd, won ? 79 : 55, 300, won ? "YOU WIN" : "AI WINS", 1,
-            won ? COLOR_WIN : COLOR_GAME_OVER);
-        Game_Graphics_Draw_Text(g_hardware.lcd, won ? 40 : 40, 284, "PRESS RESTART", 1, COLOR_WHITE);
-    } else {
-        Game_Graphics_Draw_Text(g_hardware.lcd, 58, 300, "HOLD FOR MENU", 1, COLOR_WHITE);
-    }
+    /* "YOU 0"=30px → x=203, "AI 0"=24px → x=209 (5px margin) */
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 203, 4, 35, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 208, 4, "YOU", 1, COLOR_CYAN);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 232, 4, g_player_score, 1, 1, COLOR_CYAN);
+    Game_Graphics_Fill_Rect(g_hardware.lcd, 209, 16, 29, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 214, 16, "AI", 1, COLOR_YELLOW);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 232, 16, g_ai_score, 1, 1, COLOR_YELLOW);
 }
 
 static void render_full(void) {
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
+    Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     draw_center_line();
     render_paddle(PADDLE_LEFT_X, g_player_y, g_player_y, COLOR_GREEN);
     render_paddle(PADDLE_RIGHT_X, g_ai_y, g_ai_y, COLOR_RED);
@@ -142,7 +130,7 @@ static void restart_game(void) {
     g_player_score = 0;
     g_ai_score = 0;
     g_state = pong_state_serving;
-    g_player_y = PLAY_AREA_TOP + (SCREEN_HEIGHT - PLAY_AREA_TOP) / 2 - PADDLE_HEIGHT / 2;
+    g_player_y = PLAY_AREA_TOP + (GAME_AREA_BOTTOM - PLAY_AREA_TOP) / 2 - PADDLE_HEIGHT / 2;
     g_ai_y = g_player_y;
     g_old_player_y = g_player_y;
     g_old_ai_y = g_ai_y;
@@ -245,8 +233,8 @@ Game_result Pong_Update(const Game_input* input) {
     if (g_ball_y <= PLAY_AREA_TOP) {
         g_ball_y = PLAY_AREA_TOP;
         g_ball_dy = (int8_t)-g_ball_dy;
-    } else if (g_ball_y + BALL_SIZE >= SCREEN_HEIGHT) {
-        g_ball_y = (int16_t)(SCREEN_HEIGHT - BALL_SIZE);
+    } else if (g_ball_y + BALL_SIZE >= GAME_AREA_BOTTOM) {
+        g_ball_y = (int16_t)(GAME_AREA_BOTTOM - BALL_SIZE);
         g_ball_dy = (int8_t)-g_ball_dy;
     }
 
