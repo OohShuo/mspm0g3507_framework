@@ -6,32 +6,32 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
-#define PLAY_TOP      GAME_TOP_BAR_H
-#define PLAY_BOT      GAME_AREA_BOTTOM
-#define GROUND_Y      200
-#define DINO_X        30
-#define DINO_W        20
-#define DINO_H        20
-#define DINO_CROUCH_H 9
+#define SCREEN_WIDTH       240
+#define SCREEN_HEIGHT      320
+#define PLAY_TOP           GAME_TOP_BAR_H
+#define PLAY_BOT           GAME_AREA_BOTTOM
+#define GROUND_Y           200
+#define DINO_X             30
+#define DINO_W             20
+#define DINO_H             20
+#define DINO_CROUCH_H      9
 
-#define GRAVITY       1
-#define JUMP_VELOCITY -8
+#define GRAVITY            1
+#define JUMP_VELOCITY      -8
 #define FAST_DROP_VELOCITY 8
-#define MAX_OBSTACLES 6
-#define PTERO_W       24
-#define PTERO_H       14
-#define PTERO_HIGH_Y  (GROUND_Y - 70)
-#define PTERO_LOW_Y   (GROUND_Y - 28)
+#define MAX_OBSTACLES      6
+#define PTERO_W            24
+#define PTERO_H            14
+#define PTERO_HIGH_Y       (GROUND_Y - 70)
+#define PTERO_LOW_Y        (GROUND_Y - 28)
 
-#define COLOR_BLACK   0x0000u
-#define COLOR_WHITE   0xffffu
-#define COLOR_GREEN   0x07e0u
-#define COLOR_CYAN    0x07ffu
-#define COLOR_DARK    0x4208u
-#define COLOR_RED     0xf800u
-#define COLOR_GRAY    0x8410u
+#define COLOR_BLACK        0x0000u
+#define COLOR_WHITE        0xffffu
+#define COLOR_GREEN        0x07e0u
+#define COLOR_CYAN         0x07ffu
+#define COLOR_DARK         0x4208u
+#define COLOR_RED          0xf800u
+#define COLOR_GRAY         0x8410u
 
 typedef enum { dino_state_ready, dino_state_running, dino_state_over } Dino_state;
 typedef enum { obs_cactus, obs_ptero_high, obs_ptero_low } Obs_type;

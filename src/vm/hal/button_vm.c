@@ -31,8 +31,8 @@ void Button_Update_All(void) {
     for (uint8_t i = 0; i < g_button_count; i++) {
         Button* button = g_buttons[i];
         const Bsp_gpio_state gpio = Bsp_Gpio_Read(button->config.gpio_idx);
-        const Button_state raw = gpio == button->config.gpio_state_when_pressed ? button_state_down
-                                                                                : button_state_up;
+        const Button_state raw =
+            gpio == button->config.gpio_state_when_pressed ? button_state_down : button_state_up;
         button->state = raw;
         button->last_state = raw;
     }

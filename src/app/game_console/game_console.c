@@ -22,8 +22,8 @@
 #include "st7789.h"
 #include "task.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
+#define SCREEN_WIDTH           240
+#define SCREEN_HEIGHT          320
 
 #define INPUT_HW_BTN_A_IDX     GPIO_BNT_DOWN_IDX
 #define INPUT_HW_BTN_B_IDX     GPIO_BNT_RIGHT_IDX
@@ -32,25 +32,25 @@
 #define INPUT_HW_BTN_START_IDX GPIO_SW_BTN_IDX
 
 /* ── 3×2 grid menu layout ── */
-#define MENU_COLS     3u
-#define MENU_ROWS     2u
-#define MENU_PER_PAGE (MENU_COLS * MENU_ROWS)
-#define CELL_W        68
-#define CELL_H        88
-#define CELL_GAP_X    8
-#define CELL_GAP_Y    10
-#define GRID_X0       10
-#define GRID_Y0       56
+#define MENU_COLS              3u
+#define MENU_ROWS              2u
+#define MENU_PER_PAGE          (MENU_COLS * MENU_ROWS)
+#define CELL_W                 68
+#define CELL_H                 88
+#define CELL_GAP_X             8
+#define CELL_GAP_Y             10
+#define GRID_X0                10
+#define GRID_Y0                56
 
-#define COLOR_BLACK   0x0000u
-#define COLOR_WHITE   0xffffu
-#define COLOR_CYAN    0x07ffu
-#define COLOR_BLUE    0x0010u
-#define COLOR_YELLOW  0xffe0u
-#define COLOR_GREEN   0x07e0u
-#define COLOR_RED     0xf800u
-#define COLOR_GRAY    0x8410u
-#define COLOR_DARK    0x4208u
+#define COLOR_BLACK            0x0000u
+#define COLOR_WHITE            0xffffu
+#define COLOR_CYAN             0x07ffu
+#define COLOR_BLUE             0x0010u
+#define COLOR_YELLOW           0xffe0u
+#define COLOR_GREEN            0x07e0u
+#define COLOR_RED              0xf800u
+#define COLOR_GRAY             0x8410u
+#define COLOR_DARK             0x4208u
 
 typedef enum {
     console_state_menu,
@@ -113,8 +113,8 @@ static Game_direction direction_from_axes(float x, float y) {
     return y < 0.0f ? game_direction_up : game_direction_down;
 }
 
-static void poll_button(Button* button, Button_state* last_state, uint8_t* down, uint8_t* pressed,
-    uint8_t* released) {
+static void poll_button(
+    Button* button, Button_state* last_state, uint8_t* down, uint8_t* pressed, uint8_t* released) {
     const Button_state state = Button_Get_State(button);
     *down = state == button_state_down;
     *pressed = state == button_state_down && *last_state == button_state_up;
@@ -141,8 +141,8 @@ static Game_input poll_input(void) {
     poll_button(g_b_button, &g_last_b_state, &input.b_down, &input.b_pressed, &input.b_released);
     poll_button(g_x_button, &g_last_x_state, &input.x_down, &input.x_pressed, &input.x_released);
     poll_button(g_y_button, &g_last_y_state, &input.y_down, &input.y_pressed, &input.y_released);
-    poll_button(g_start_button, &g_last_start_state, &input.start_down, &input.start_pressed,
-        &input.start_released);
+    poll_button(
+        g_start_button, &g_last_start_state, &input.start_down, &input.start_pressed, &input.start_released);
 
     input.confirm_pressed = input.a_pressed;
     input.back_requested = input.b_pressed;
@@ -931,7 +931,8 @@ static void console_task(void* arg) {
         Game_result result = game_result_running;
 
         /* ── idle tracking ── */
-        if (input.direction_pressed || input.a_pressed || input.b_pressed || input.x_pressed || input.y_pressed) {
+        if (input.direction_pressed || input.a_pressed || input.b_pressed || input.x_pressed ||
+            input.y_pressed) {
             g_last_input_tick = Bsp_Get_Tick_Ms();
         }
 
@@ -945,7 +946,8 @@ static void console_task(void* arg) {
 
         /* ── screensaver loop ── */
         if (Screensaver_Is_Active()) {
-            if (input.direction_pressed || input.a_pressed || input.b_pressed || input.x_pressed || input.y_pressed) {
+            if (input.direction_pressed || input.a_pressed || input.b_pressed || input.x_pressed ||
+                input.y_pressed) {
                 Screensaver_Exit();
                 g_last_input_tick = Bsp_Get_Tick_Ms();
                 /* redraw the screen that was underneath */

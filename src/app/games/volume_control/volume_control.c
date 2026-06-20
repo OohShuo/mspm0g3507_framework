@@ -87,10 +87,9 @@ static void update_text(uint8_t old_vol, uint8_t new_vol) {
     /* Draw new percentage right-aligned, scale 1 */
     const uint8_t digits = new_vol >= 100 ? 3 : (new_vol >= 10 ? 2 : 1);
     const int32_t text_w = (int32_t)(digits + 1) * 6; /* scale 1 */
-    const int32_t text_x = TEXT_X + TEXT_W - text_w; /* right-align */
+    const int32_t text_x = TEXT_X + TEXT_W - text_w;  /* right-align */
     Game_Graphics_Draw_U32(g_lcd, text_x, TEXT_Y, new_vol, digits, 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(
-        g_lcd, text_x + (int32_t)digits * 6, TEXT_Y, "%", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, text_x + (int32_t)digits * 6, TEXT_Y, "%", 1, COLOR_WHITE);
 }
 
 /* ── Incremental arrow update ── */

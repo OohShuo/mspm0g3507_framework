@@ -120,7 +120,8 @@ static void draw_full_page(void) {
     const uint8_t items = page_items();
 
     /* Clear list and page-indicator area */
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 0, LIST_TOP, SCREEN_WIDTH, GAME_AREA_BOTTOM - LIST_TOP, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(
+        g_hardware.lcd, 0, LIST_TOP, SCREEN_WIDTH, GAME_AREA_BOTTOM - LIST_TOP, COLOR_BLACK);
 
     for (uint8_t i = 0; i < items; i++) { draw_row(i, i == g_cursor); }
 

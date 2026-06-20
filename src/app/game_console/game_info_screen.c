@@ -11,18 +11,16 @@
 #define CARD_W       (SCREEN_WIDTH - CARD_X * 2)
 #define CARD_H       252
 
-#define COLOR_CARD    0x0842u
-#define COLOR_BORDER  0x4208u
-#define COLOR_CYAN    0x07ffu
-#define COLOR_TEXT    0xc618u
+#define COLOR_CARD   0x0842u
+#define COLOR_BORDER 0x4208u
+#define COLOR_CYAN   0x07ffu
+#define COLOR_TEXT   0xc618u
 
 static uint8_t is_heading(const char* line) {
-    return strcmp(line, "DESCRIPTION") == 0 || strcmp(line, "GOAL") == 0 ||
-           strcmp(line, "CONTROLS") == 0;
+    return strcmp(line, "DESCRIPTION") == 0 || strcmp(line, "GOAL") == 0 || strcmp(line, "CONTROLS") == 0;
 }
 
-void Game_Info_Screen_Draw(
-    St7789* lcd, const char* name, const char* info_text, uint16_t fps) {
+void Game_Info_Screen_Draw(St7789* lcd, const char* name, const char* info_text, uint16_t fps) {
     if (lcd == NULL || name == NULL || info_text == NULL) { return; }
 
     Game_Graphics_Draw_Top_Bar(lcd, name);

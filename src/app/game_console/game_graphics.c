@@ -283,9 +283,7 @@ void Game_Graphics_Draw_Pal4_Bitmap(
 
 void Game_Graphics_Draw_Top_Bar(St7789* lcd, const char* game_name) {
     Game_Graphics_Fill_Rect(lcd, 0, 0, SCREEN_WIDTH, GAME_TOP_BAR_H, GAME_BAR_COLOR_BG);
-    if (game_name != NULL) {
-        Game_Graphics_Draw_Text(lcd, 8, 3, game_name, 3, 0xffffu);
-    }
+    if (game_name != NULL) { Game_Graphics_Draw_Text(lcd, 8, 3, game_name, 3, 0xffffu); }
     Game_Graphics_Fill_Rect(lcd, 4, GAME_TOP_BAR_H - 1, SCREEN_WIDTH - 8, 1, GAME_BAR_COLOR_LINE);
 }
 
@@ -293,8 +291,8 @@ void Game_Graphics_Draw_Bottom_Bar(St7789* lcd, const char* hint_text, uint16_t 
     /* Separator line at top of bottom bar */
     Game_Graphics_Fill_Rect(lcd, 4, GAME_AREA_BOTTOM, SCREEN_WIDTH - 8, 1, GAME_BAR_COLOR_LINE);
     /* Bar background */
-    Game_Graphics_Fill_Rect(lcd, 0, GAME_AREA_BOTTOM + 1, SCREEN_WIDTH,
-        GAME_BOTTOM_BAR_H - 1, GAME_BAR_COLOR_BG);
+    Game_Graphics_Fill_Rect(
+        lcd, 0, GAME_AREA_BOTTOM + 1, SCREEN_WIDTH, GAME_BOTTOM_BAR_H - 1, GAME_BAR_COLOR_BG);
     /* Hint text on the left */
     if (hint_text != NULL) {
         Game_Graphics_Draw_Text(lcd, 6, GAME_AREA_BOTTOM + 3, hint_text, 1, 0x8410u /* gray */);
