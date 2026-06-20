@@ -8,33 +8,33 @@
 #include "game_graphics.h"
 
 /* ── 屏幕常量 ── */
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
+#define SCREEN_WIDTH      240
+#define SCREEN_HEIGHT     320
 /* ── 圆盘参数 ── */
-#define DISK_CX       120
-#define DISK_CY       145
-#define TIP_R         55
-#define TIP_SIZE      4
-#define FLY_SPEED     5
-#define MAX_NEEDLES   80
-#define COLLIDE_ANGLE 7 /* 碰撞角度阈值，越小越宽松 */
-#define LAUNCH_Y      GAME_AREA_BOTTOM
+#define DISK_CX           120
+#define DISK_CY           145
+#define TIP_R             55
+#define TIP_SIZE          4
+#define FLY_SPEED         5
+#define MAX_NEEDLES       80
+#define COLLIDE_ANGLE     7 /* 碰撞角度阈值，越小越宽松 */
+#define LAUNCH_Y          GAME_AREA_BOTTOM
 
 /* 转速参数：定点 1/256 单位/帧，线性从 4 针到 20 针 */
-#define ANG_VEL_INIT  341 /* 341/256 ≈ 1.33（原 2 的 2/3） */
-#define ANG_VEL_MAX   512 /* 512/256 = 2 */
-#define NEEDLE_FULL   20  /* 到达最大转速的针数 */
+#define ANG_VEL_INIT      341 /* 341/256 ≈ 1.33（原 2 的 2/3） */
+#define ANG_VEL_MAX       512 /* 512/256 = 2 */
+#define NEEDLE_FULL       20  /* 到达最大转速的针数 */
 #define QUICK_STICK_COUNT 3u
 
 /* ── 颜色 ── */
-#define COLOR_BLACK   0x0000u
-#define COLOR_WHITE   0xffffu
-#define COLOR_CYAN    0x07ffu
-#define COLOR_YELLOW  0xffe0u
-#define COLOR_RED     0xf800u
-#define COLOR_GRAY    0x8410u
-#define COLOR_DARK    0x4208u
-#define COLOR_LIGHT   0xc618u
+#define COLOR_BLACK       0x0000u
+#define COLOR_WHITE       0xffffu
+#define COLOR_CYAN        0x07ffu
+#define COLOR_YELLOW      0xffe0u
+#define COLOR_RED         0xf800u
+#define COLOR_GRAY        0x8410u
+#define COLOR_DARK        0x4208u
+#define COLOR_LIGHT       0xc618u
 
 /* ── sin 表 64 等分 0-90°，缩放 128 ── */
 static const uint8_t g_sin_table[65] = {0, 3, 6, 9, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52,
@@ -312,8 +312,8 @@ static void resolve_impact(uint8_t angle) {
     if (g_needle_count >= NEEDLE_FULL) {
         g_ang_vel = ANG_VEL_MAX;
     } else {
-        g_ang_vel = ANG_VEL_INIT + (uint16_t)((g_needle_count - 4) * (ANG_VEL_MAX - ANG_VEL_INIT) /
-                                              (NEEDLE_FULL - 4));
+        g_ang_vel = ANG_VEL_INIT +
+                    (uint16_t)((g_needle_count - 4) * (ANG_VEL_MAX - ANG_VEL_INIT) / (NEEDLE_FULL - 4));
     }
 
     g_state = needle_state_ready;

@@ -6,33 +6,33 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH  240
-#define SCREEN_HEIGHT 320
-#define PLAY_TOP      GAME_TOP_BAR_H
-#define PLAY_BOT      GAME_AREA_BOTTOM
-#define PLAY_H        (PLAY_BOT - PLAY_TOP)
+#define SCREEN_WIDTH      240
+#define SCREEN_HEIGHT     320
+#define PLAY_TOP          GAME_TOP_BAR_H
+#define PLAY_BOT          GAME_AREA_BOTTOM
+#define PLAY_H            (PLAY_BOT - PLAY_TOP)
 
-#define BIRD_X        50
-#define BIRD_W        16
-#define BIRD_H        10
-#define GROUND_Y      290
-#define FLAP_VELOCITY -5
-#define PIPE_W        20
-#define PIPE_GAP      56
-#define PIPE_SPACING  150
-#define MAX_PIPES     4
+#define BIRD_X            50
+#define BIRD_W            16
+#define BIRD_H            10
+#define GROUND_Y          290
+#define FLAP_VELOCITY     -5
+#define PIPE_W            20
+#define PIPE_GAP          56
+#define PIPE_SPACING      150
+#define MAX_PIPES         4
 #define GLIDE_DURATION_MS 3000u
 #define GLIDE_COOLDOWN_MS 5000u
 #define GLIDE_FALL_TICKS  3u
 
-#define COLOR_BLACK   0x0000u
-#define COLOR_WHITE   0xffffu
-#define COLOR_GREEN   0x07e0u
-#define COLOR_CYAN    0x07ffu
-#define COLOR_YELLOW  0xffe0u
-#define COLOR_RED     0xf800u
-#define COLOR_DARK    0x4208u
-#define COLOR_GRAY    0x8410u
+#define COLOR_BLACK       0x0000u
+#define COLOR_WHITE       0xffffu
+#define COLOR_GREEN       0x07e0u
+#define COLOR_CYAN        0x07ffu
+#define COLOR_YELLOW      0xffe0u
+#define COLOR_RED         0xf800u
+#define COLOR_DARK        0x4208u
+#define COLOR_GRAY        0x8410u
 
 typedef enum { flappy_state_ready, flappy_state_playing, flappy_state_over } Flappy_state;
 typedef struct {

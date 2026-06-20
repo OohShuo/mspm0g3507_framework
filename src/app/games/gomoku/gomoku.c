@@ -282,7 +282,6 @@ static void render_hud_top(void) {
     Game_Graphics_Fill_Rect(g_hardware.lcd, 213, 18, 4, 4, COLOR_AI);
 }
 
-
 static void restart_game(void) {
     for (int8_t y = 0; y < BOARD_SIZE; y++) {
         for (int8_t x = 0; x < BOARD_SIZE; x++) { g_board[y][x] = 0; }

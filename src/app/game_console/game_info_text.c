@@ -2,8 +2,7 @@
 
 #include <stddef.h>
 
-uint8_t Game_Info_Text_Next_Line(
-    const char** cursor, char line[GAME_INFO_LINE_BUFFER_SIZE]) {
+uint8_t Game_Info_Text_Next_Line(const char** cursor, char line[GAME_INFO_LINE_BUFFER_SIZE]) {
     if (cursor == NULL || *cursor == NULL || line == NULL) { return 0u; }
 
     const char* text = *cursor;

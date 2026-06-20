@@ -6,29 +6,29 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH    240
-#define SCREEN_HEIGHT   320
+#define SCREEN_WIDTH     240
+#define SCREEN_HEIGHT    320
 
-#define BOARD_COLS      10
-#define BOARD_ROWS      20
+#define BOARD_COLS       10
+#define BOARD_ROWS       20
 #define PIECE_KIND_COUNT 7u
-#define CELL_SIZE       10
-#define BOARD_X         ((SCREEN_WIDTH - BOARD_COLS * CELL_SIZE) / 2)
-#define BOARD_Y         65
-#define PREVIEW_X       178
-#define PREVIEW_Y       69
-#define PREVIEW_CELL    8
+#define CELL_SIZE        10
+#define BOARD_X          ((SCREEN_WIDTH - BOARD_COLS * CELL_SIZE) / 2)
+#define BOARD_Y          65
+#define PREVIEW_X        178
+#define PREVIEW_Y        69
+#define PREVIEW_CELL     8
 
-#define START_DROP_MS   600u
-#define MIN_DROP_MS     80u
-#define DAS_INITIAL_MS  180u
-#define DAS_REPEAT_MS   50u
+#define START_DROP_MS    600u
+#define MIN_DROP_MS      80u
+#define DAS_INITIAL_MS   180u
+#define DAS_REPEAT_MS    50u
 
-#define COLOR_BLACK     0x0000u
-#define COLOR_WHITE     0xffffu
-#define COLOR_BORDER    0x07ffu
-#define COLOR_GHOST     0x2124u
-#define COLOR_GAME_OVER 0xf81fu
+#define COLOR_BLACK      0x0000u
+#define COLOR_WHITE      0xffffu
+#define COLOR_BORDER     0x07ffu
+#define COLOR_GHOST      0x2124u
+#define COLOR_GAME_OVER  0xf81fu
 
 /* clang-format off */
 static const uint16_t g_piece_colors[] = {

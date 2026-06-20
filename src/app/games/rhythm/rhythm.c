@@ -6,23 +6,23 @@
 #include "bsp_time.h"
 #include "game_graphics.h"
 
-#define SCREEN_WIDTH       240
-#define SCREEN_HEIGHT      320
-#define PLAY_TOP           GAME_TOP_BAR_H
-#define PLAY_BOT           GAME_AREA_BOTTOM
-#define HIT_Y              248
-#define NOTE_SPAWN_Y       66
-#define NOTE_COUNT         5u
-#define LOOP_CHART_LEN     32u
+#define SCREEN_WIDTH   240
+#define SCREEN_HEIGHT  320
+#define PLAY_TOP       GAME_TOP_BAR_H
+#define PLAY_BOT       GAME_AREA_BOTTOM
+#define HIT_Y          248
+#define NOTE_SPAWN_Y   66
+#define NOTE_COUNT     5u
+#define LOOP_CHART_LEN 32u
 
-#define COLOR_BLACK   0x0000u
-#define COLOR_WHITE   0xffffu
-#define COLOR_CYAN    0x07ffu
-#define COLOR_YELLOW  0xffe0u
-#define COLOR_GREEN   0x07e0u
-#define COLOR_RED     0xf800u
-#define COLOR_GRAY    0x8410u
-#define COLOR_DARK    0x4208u
+#define COLOR_BLACK    0x0000u
+#define COLOR_WHITE    0xffffu
+#define COLOR_CYAN     0x07ffu
+#define COLOR_YELLOW   0xffe0u
+#define COLOR_GREEN    0x07e0u
+#define COLOR_RED      0xf800u
+#define COLOR_GRAY     0x8410u
+#define COLOR_DARK     0x4208u
 
 typedef enum { rhythm_state_ready, rhythm_state_playing, rhythm_state_over } Rhythm_state;
 typedef struct {
@@ -57,24 +57,17 @@ static Buzzer_note g_tone_notes[3];
 static Music g_tone_music = {g_tone_notes, 0};
 static const int16_t g_lane_x[4] = {42, 94, 146, 198};
 static const uint16_t g_dir_tone[5] = {0, 659, 392, 523, 784};
-static const uint8_t g_loop_chart[LOOP_CHART_LEN] = {
-    game_direction_up, game_direction_right, game_direction_down, game_direction_left,
-    game_direction_up, game_direction_down, game_direction_right, game_direction_up,
-    game_direction_left, game_direction_down, game_direction_up, game_direction_right,
-    game_direction_down, game_direction_left, game_direction_right, game_direction_up,
-    game_direction_up, game_direction_left, game_direction_down, game_direction_right,
-    game_direction_left, game_direction_up, game_direction_right, game_direction_down,
-    game_direction_right, game_direction_down, game_direction_left, game_direction_up,
-    game_direction_down, game_direction_right, game_direction_up, game_direction_left,
-};
-static const uint16_t g_loop_tone[LOOP_CHART_LEN] = {
-    523, 587, 659, 587, 523, 392, 440, 523, 587, 659, 784, 659, 587, 523, 440, 392,
-    440, 523, 587, 659, 784, 659, 587, 523, 523, 587, 659, 784, 659, 587, 523, 440,
-};
-static const uint16_t g_loop_gap[LOOP_CHART_LEN] = {
-    480, 480, 720, 240, 480, 960, 480, 480, 720, 240, 480, 480, 960, 480, 240, 240,
-    480, 720, 240, 480, 960, 480, 480, 720, 240, 480, 480, 960, 720, 240, 480, 960,
-};
+static const uint8_t g_loop_chart[LOOP_CHART_LEN] = {game_direction_up, game_direction_right,
+    game_direction_down, game_direction_left, game_direction_up, game_direction_down, game_direction_right,
+    game_direction_up, game_direction_left, game_direction_down, game_direction_up, game_direction_right,
+    game_direction_down, game_direction_left, game_direction_right, game_direction_up, game_direction_up,
+    game_direction_left, game_direction_down, game_direction_right, game_direction_left, game_direction_up,
+    game_direction_right, game_direction_down, game_direction_right, game_direction_down, game_direction_left,
+    game_direction_up, game_direction_down, game_direction_right, game_direction_up, game_direction_left};
+static const uint16_t g_loop_tone[LOOP_CHART_LEN] = {523, 587, 659, 587, 523, 392, 440, 523, 587, 659, 784,
+    659, 587, 523, 440, 392, 440, 523, 587, 659, 784, 659, 587, 523, 523, 587, 659, 784, 659, 587, 523, 440};
+static const uint16_t g_loop_gap[LOOP_CHART_LEN] = {480, 480, 720, 240, 480, 960, 480, 480, 720, 240, 480,
+    480, 960, 480, 240, 240, 480, 720, 240, 480, 960, 480, 480, 720, 240, 480, 480, 960, 720, 240, 480, 960};
 
 static uint32_t fast_rand(void) {
     g_rand_state = g_rand_state * 1103515245u + 12345u;
