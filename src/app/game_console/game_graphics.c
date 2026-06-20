@@ -304,6 +304,11 @@ void Game_Graphics_Draw_Bottom_Bar(St7789* lcd, const char* hint_text, uint16_t 
     Game_Graphics_Draw_U32(lcd, SCREEN_WIDTH - 28, GAME_AREA_BOTTOM + 3, (uint32_t)fps, 3, 1, 0xffffu);
 }
 
+void Game_Graphics_Draw_Pause_Bottom_Bar(St7789* lcd, uint16_t fps) {
+    Game_Graphics_Draw_Bottom_Bar(lcd, "A/X RESUME B MENU", fps);
+    Game_Graphics_Draw_Text(lcd, 114, GAME_AREA_BOTTOM + 3, "PAUSED", 1, 0xffe0u);
+}
+
 void Game_Graphics_Clear_Game_Area(St7789* lcd) {
     Game_Graphics_Fill_Rect(lcd, 0, GAME_AREA_Y, SCREEN_WIDTH, GAME_AREA_H, 0x0000u);
 }

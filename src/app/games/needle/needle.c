@@ -24,11 +24,13 @@
 #define ANG_VEL_INIT  341 /* 341/256 ≈ 1.33（原 2 的 2/3） */
 #define ANG_VEL_MAX   512 /* 512/256 = 2 */
 #define NEEDLE_FULL   20  /* 到达最大转速的针数 */
+#define QUICK_STICK_COUNT 3u
 
 /* ── 颜色 ── */
 #define COLOR_BLACK   0x0000u
 #define COLOR_WHITE   0xffffu
 #define COLOR_CYAN    0x07ffu
+#define COLOR_YELLOW  0xffe0u
 #define COLOR_RED     0xf800u
 #define COLOR_GRAY    0x8410u
 #define COLOR_DARK    0x4208u
@@ -58,6 +60,7 @@ static int16_t g_fly_x, g_fly_y, g_fly_dx, g_fly_dy;
 static int16_t g_launch_x;
 static uint32_t g_score;
 static uint32_t g_last_update_ms;
+static uint8_t g_quick_sticks;
 
 #define BASE_TICK_MS 20u
 
@@ -208,6 +211,12 @@ static void draw_score(void) {
     Game_Graphics_Draw_U32(g_hardware.lcd, 203, 2, g_score, 5, 1, COLOR_CYAN);
 }
 
+static void draw_quick_sticks(void) {
+    bar_fill(159, 16, 42, 8, GAME_BAR_COLOR_BG);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 164, 16, "Y:", 1, COLOR_YELLOW);
+    Game_Graphics_Draw_U32(g_hardware.lcd, 176, 16, g_quick_sticks, 1, 1, COLOR_WHITE);
+}
+
 static void draw_bottom_text(const char* s, uint16_t color) {
     bar_fill(0, LAUNCH_Y, SCREEN_WIDTH, SCREEN_HEIGHT - LAUNCH_Y, GAME_BAR_COLOR_BG);
     Game_Graphics_Draw_Text(g_hardware.lcd, 40, LAUNCH_Y + 3, s, 1, color);
@@ -226,7 +235,8 @@ static void restart_game(void) {
     g_launch_x = DISK_CX;
     g_old_launch_x = 0;
     g_score = 0;
-    g_last_update_ms = Bsp_Get_Tick_Ms();
+    g_quick_sticks = QUICK_STICK_COUNT;
+    g_last_update_ms = Game_Runtime_Get_Tick_Ms();
 
     g_needle_angles[0] = 0;
     g_needle_angles[1] = 64;
@@ -240,8 +250,9 @@ static void restart_game(void) {
     /* 初态直接画针，不做擦除 */
     for (i = 0; i < g_needle_count; i++) { draw_tip_at_angle(g_prev_angles[i], g_needle_colors[i % 7]); }
     draw_score();
+    draw_quick_sticks();
     draw_aim_guide();
-    draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
+    draw_bottom_text("A LAUNCH  Y QUICK", COLOR_WHITE);
 }
 
 /* ── Init ── */
@@ -271,6 +282,46 @@ static void launch_needle(void) {
     draw_bottom_text("", COLOR_BLACK);
 }
 
+static uint8_t impact_collides(uint8_t angle) {
+    for (uint8_t i = 0; i < g_needle_count; i++) {
+        const uint8_t needle_abs = (uint8_t)(g_needle_angles[i] + g_disk_angle);
+        int16_t diff = (int16_t)angle - (int16_t)needle_abs;
+        if (diff < 0) { diff = (int16_t)(-diff); }
+        if (diff > 128) { diff = (int16_t)(256 - diff); }
+        if (diff < COLLIDE_ANGLE) { return 1; }
+    }
+    return 0;
+}
+
+static void resolve_impact(uint8_t angle) {
+    if (impact_collides(angle) || g_needle_count >= MAX_NEEDLES) {
+        g_state = needle_state_over;
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+        draw_bottom_text("GAME OVER  A RESTART", COLOR_RED);
+        return;
+    }
+
+    g_needle_angles[g_needle_count] = (uint8_t)(angle - g_disk_angle);
+    g_prev_angles[g_needle_count] = angle;
+    draw_tip_at_angle(angle, g_needle_colors[g_needle_count % 7]);
+    g_needle_count++;
+    g_score++;
+    draw_score();
+
+    if (g_needle_count >= NEEDLE_FULL) {
+        g_ang_vel = ANG_VEL_MAX;
+    } else {
+        g_ang_vel = ANG_VEL_INIT + (uint16_t)((g_needle_count - 4) * (ANG_VEL_MAX - ANG_VEL_INIT) /
+                                              (NEEDLE_FULL - 4));
+    }
+
+    g_state = needle_state_ready;
+    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_needle_stick);
+    draw_aim_guide();
+    draw_bottom_text("A LAUNCH  Y QUICK", COLOR_WHITE);
+}
+
 /* ── Update ── */
 
 Game_result Needle_Update(const Game_input* input) {
@@ -278,7 +329,7 @@ Game_result Needle_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     /* ══ 时间驱动的 dt 计算（旋转 + 飞行共用） ══ */
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     uint32_t dt = now - g_last_update_ms;
     if (dt > 100u) { dt = 100u; }
     g_last_update_ms = now;
@@ -293,7 +344,7 @@ Game_result Needle_Update(const Game_input* input) {
 
     /* ── Game Over ── */
     if (g_state == needle_state_over) {
-        if (input->direction_pressed) { restart_game(); }
+        if (input->a_pressed) { restart_game(); }
         return game_result_running;
     }
 
@@ -314,53 +365,9 @@ Game_result Needle_Update(const Game_input* input) {
 
         if (dist2 <= (TIP_R + 6) * (TIP_R + 6)) {
             const uint8_t fly_angle = atan2_approx(dx, dy);
-            uint8_t collision = 0;
-            uint8_t i;
-
-            for (i = 0; i < g_needle_count; i++) {
-                const uint8_t needle_abs = (uint8_t)(g_needle_angles[i] + g_disk_angle);
-                int16_t diff = (int16_t)fly_angle - (int16_t)needle_abs;
-                if (diff < 0) { diff = (int16_t)(-diff); }
-                if (diff > 128) { diff = (int16_t)(256 - diff); }
-                if (diff < COLLIDE_ANGLE) {
-                    collision = 1;
-                    break;
-                }
-            }
-
-            if (collision || g_needle_count >= MAX_NEEDLES) {
-                /* 擦除最后一帧的白色方块，修复残留 */
-                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
-                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
-                g_state = needle_state_over;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-                draw_bottom_text("GAME OVER  PUSH RESTART", COLOR_RED);
-            } else {
-                /* 擦除最后一帧的白色方块，修复残留 */
-                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
-                Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
-                /* ── 插入新针，立即绘制到实际位置 ── */
-                g_needle_angles[g_needle_count] = (uint8_t)((fly_angle - g_disk_angle) & 0xFFu);
-                g_prev_angles[g_needle_count] = fly_angle;
-                draw_tip_at_angle(fly_angle, g_needle_colors[g_needle_count % 7]);
-                g_needle_count++;
-                g_score++;
-                draw_score();
-
-                /* 线性增速：针越多转越快，20 针封顶 */
-                if (g_needle_count >= NEEDLE_FULL) {
-                    g_ang_vel = ANG_VEL_MAX;
-                } else {
-                    g_ang_vel = ANG_VEL_INIT + (uint16_t)((g_needle_count - 4) *
-                                                          (ANG_VEL_MAX - ANG_VEL_INIT) / (NEEDLE_FULL - 4));
-                }
-
-                g_state = needle_state_ready;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_needle_stick);
-                draw_aim_guide();
-                draw_bottom_text("PRESS TO LAUNCH", COLOR_WHITE);
-            }
+            Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
+            Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
+            resolve_impact(fly_angle);
         }
         return game_result_running;
     }
@@ -378,6 +385,11 @@ Game_result Needle_Update(const Game_input* input) {
             /* 擦除瞄准线 */
             g_old_launch_x = 0;
             launch_needle();
+        } else if (input->y_pressed && g_quick_sticks > 0u) {
+            g_quick_sticks--;
+            draw_quick_sticks();
+            const uint8_t angle = atan2_approx(g_launch_x - DISK_CX, LAUNCH_Y - DISK_CY);
+            resolve_impact(angle);
         }
     }
 

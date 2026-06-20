@@ -225,7 +225,7 @@ static void start_game(void) {
     g_feedback_kind = 0;
     g_chart_index = 0;
     g_spawn_count = 0;
-    g_last_tick_ms = Bsp_Get_Tick_Ms();
+    g_last_tick_ms = Game_Runtime_Get_Tick_Ms();
     for (uint8_t i = 0; i < NOTE_COUNT; i++) { g_notes[i].active = 0; }
     draw_static_scene();
     draw_hud();
@@ -233,7 +233,7 @@ static void start_game(void) {
 
 static void restart_game(void) {
     g_state = rhythm_state_ready;
-    g_rand_state = Bsp_Get_Tick_Ms();
+    g_rand_state = Game_Runtime_Get_Tick_Ms();
     draw_static_scene();
     Game_Graphics_Draw_Text(g_hardware.lcd, 52, 140, "^/v START", 1, COLOR_WHITE);
     Game_Graphics_Draw_Text(g_hardware.lcd, 46, 158, "< > MODE", 1, COLOR_GRAY);
@@ -303,7 +303,7 @@ Game_result Rhythm_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     uint32_t elapsed = now - g_last_tick_ms;
     if (elapsed > 60u) { elapsed = 60u; }
     g_last_tick_ms = now;

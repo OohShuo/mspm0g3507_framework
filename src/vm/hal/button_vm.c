@@ -4,18 +4,22 @@
 #include "button.h"
 #include "input_vm.h"
 
-static Button* g_btn = NULL;
+#define VM_BUTTON_COUNT 10u
+
+static Button* g_buttons[VM_BUTTON_COUNT];
+static uint8_t g_button_count;
 
 void Button_Init(void) {}
 
 Button* Button_Create(const Button_config* c) {
-    if (!c || g_btn) return NULL;
-    g_btn = calloc(1, sizeof(Button));
-    if (!g_btn) return NULL;
-    g_btn->config = *c;
-    g_btn->state = button_state_up;
-    g_btn->last_state = button_state_up;
-    return g_btn;
+    if (!c || g_button_count >= VM_BUTTON_COUNT) return NULL;
+    Button* button = calloc(1, sizeof(Button));
+    if (!button) return NULL;
+    button->config = *c;
+    button->state = button_state_up;
+    button->last_state = button_state_up;
+    g_buttons[g_button_count++] = button;
+    return button;
 }
 
 Button_state Button_Get_State(Button* o) {
@@ -24,11 +28,12 @@ Button_state Button_Get_State(Button* o) {
 }
 
 void Button_Update_All(void) {
-    if (!g_btn) return;
-    uint8_t pressed = Vm_Input_Get_Button();
-    Button_state raw = pressed ? button_state_down : button_state_up;
-
-    // Simple debounce: state changes immediately (VM doesn't need real debounce)
-    if (raw != g_btn->last_state) { g_btn->state = raw; }
-    g_btn->last_state = raw;
+    for (uint8_t i = 0; i < g_button_count; i++) {
+        Button* button = g_buttons[i];
+        const Bsp_gpio_state gpio = Bsp_Gpio_Read(button->config.gpio_idx);
+        const Button_state raw = gpio == button->config.gpio_state_when_pressed ? button_state_down
+                                                                                : button_state_up;
+        button->state = raw;
+        button->last_state = raw;
+    }
 }

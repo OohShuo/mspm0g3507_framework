@@ -12,4 +12,8 @@ void Vm_Input_Poll(void);
 float Vm_Input_Get_X(void);
 float Vm_Input_Get_Y(void);
 uint8_t Vm_Input_Get_Button(void);
+uint8_t Vm_Input_Get_A(void);
+uint8_t Vm_Input_Get_B(void);
+uint8_t Vm_Input_Get_X_Button(void);
+uint8_t Vm_Input_Get_Y_Button(void);
 int Vm_Input_Quit_Requested(void);

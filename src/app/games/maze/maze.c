@@ -396,7 +396,7 @@ static void draw_prompt(const char* text) {
 static void restart_game(void) {
     g_state = maze_state_ready;
 
-    g_seed = Bsp_Get_Tick_Ms();
+    g_seed = Game_Runtime_Get_Tick_Ms();
     g_rand_state = g_seed;
 
     generate_maze();

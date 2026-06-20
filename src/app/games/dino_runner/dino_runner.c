@@ -14,9 +14,11 @@
 #define DINO_X        30
 #define DINO_W        20
 #define DINO_H        20
+#define DINO_CROUCH_H 9
 
 #define GRAVITY       1
 #define JUMP_VELOCITY -8
+#define FAST_DROP_VELOCITY 8
 #define MAX_OBSTACLES 6
 #define PTERO_W       24
 #define PTERO_H       14
@@ -45,7 +47,7 @@ typedef struct {
 static Game_hardware g_hardware;
 static Dino_state g_state;
 static int16_t g_dino_y, g_old_dino_y, g_dino_vy;
-static uint8_t g_dino_in_air, g_jump_held, g_gravity_acc, g_up_prev;
+static uint8_t g_dino_in_air, g_jump_held, g_gravity_acc, g_up_prev, g_crouching;
 static Obstacle g_obstacles[MAX_OBSTACLES];
 static uint16_t g_move_acc;
 static uint32_t g_score, g_old_score, g_spawn_countdown, g_rand_state;
@@ -108,10 +110,18 @@ static void update_score(void) {
 
 /* ── Dino ── */
 
-static void draw_dino(int16_t y, uint16_t color) {
+static void draw_dino(int16_t y, uint8_t crouching, uint16_t color) {
     int32_t dx = DINO_X, dy = y;
     play_fill(dx, dy, DINO_W, DINO_H, COLOR_BLACK);
     if (color == COLOR_BLACK) { return; }
+    if (crouching) {
+        dy += DINO_H - DINO_CROUCH_H;
+        play_fill(dx + 3, dy + 2, 15, 7, color);
+        play_fill(dx + 14, dy, 6, 6, color);
+        play_fill(dx, dy + 5, 6, 3, color);
+        play_fill(dx + 17, dy + 1, 2, 2, COLOR_WHITE);
+        return;
+    }
     play_fill(dx + 8, dy, 12, 10, color);
     play_fill(dx + 4, dy + 4, 9, 12, color);
     play_fill(dx, dy + 7, 6, 5, color);
@@ -261,7 +271,8 @@ static void spawn_obstacle(void) {
 
 static uint8_t check_collision(void) {
     int16_t dl = DINO_X + 3, dr = DINO_X + DINO_W - 3;
-    int16_t dt = g_dino_y + 2, db = g_dino_y + DINO_H - 2;
+    int16_t dt = g_crouching ? GROUND_Y - DINO_CROUCH_H + 1 : g_dino_y + 2;
+    int16_t db = g_dino_y + DINO_H - 2;
     for (uint8_t i = 0; i < MAX_OBSTACLES; i++) {
         if (!g_obstacles[i].active) { continue; }
         int16_t ol = g_obstacles[i].x + 3, orr = g_obstacles[i].x + g_obstacles[i].w - 3;
@@ -282,19 +293,20 @@ static void restart_game(void) {
     g_jump_held = 0;
     g_gravity_acc = 0;
     g_up_prev = 0;
+    g_crouching = 0;
     g_move_acc = 0;
     g_score = 0;
     g_old_score = 0;
     g_spawn_countdown = 60;
-    g_rand_state = Bsp_Get_Tick_Ms();
+    g_rand_state = Game_Runtime_Get_Tick_Ms();
     g_last_tick = 0;
     g_ptero_wing = 0;
     for (uint8_t i = 0; i < MAX_OBSTACLES; i++) { g_obstacles[i].active = 0; }
 
     Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     draw_ground();
-    draw_dino(g_dino_y, COLOR_GREEN);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 40, 140, "PUSH UP TO START", 1, COLOR_WHITE);
+    draw_dino(g_dino_y, 0, COLOR_GREEN);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 58, 140, "A TO START", 1, COLOR_WHITE);
 }
 
 void Dino_Runner_Init(const Game_hardware* hardware) {
@@ -311,26 +323,27 @@ Game_result Dino_Runner_Update(const Game_input* input) {
     St7789* lcd = g_hardware.lcd;
 
     if (g_state == dino_state_over) {
-        if (input->direction_pressed) { restart_game(); }
+        if (input->a_pressed) { restart_game(); }
         return game_result_running;
     }
 
     if (g_state == dino_state_ready) {
-        if (input->direction == game_direction_up) {
+        if (input->a_pressed) {
             g_state = dino_state_running;
-            g_start_ms = Bsp_Get_Tick_Ms();
+            g_start_ms = Game_Runtime_Get_Tick_Ms();
             g_last_tick = 0;
             play_fill(20, 130, SCREEN_WIDTH - 40, 20, COLOR_BLACK);
             update_score();
         }
-        g_up_prev = (input->direction == game_direction_up);
+        g_up_prev = input->a_down;
         return game_result_running;
     }
 
     /* ── Input (once per real call, applied to upcoming tick) ── */
     {
-        uint8_t up = (input->direction == game_direction_up);
+        uint8_t up = input->a_down;
         if (!g_dino_in_air && up && !g_up_prev) {
+            g_crouching = 0;
             g_dino_vy = JUMP_VELOCITY;
             g_dino_in_air = 1;
             g_jump_held = 1;
@@ -338,11 +351,17 @@ Game_result Dino_Runner_Update(const Game_input* input) {
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_dino_jump);
         }
         if (!up || g_dino_vy >= 0) { g_jump_held = 0; }
+        if (g_dino_in_air && input->y_down) {
+            g_jump_held = 0;
+            if (g_dino_vy < FAST_DROP_VELOCITY) { g_dino_vy = FAST_DROP_VELOCITY; }
+        } else if (!g_dino_in_air) {
+            g_crouching = input->y_down;
+        }
         g_up_prev = up;
     }
 
     /* ── Tick-accumulator: run one logic tick per 20 ms of elapsed time ── */
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     const uint32_t elapsed = now - g_start_ms;
     uint32_t effective_ticks = elapsed / BASE_TICK_MS;
     if (effective_ticks - g_last_tick > 5u) { effective_ticks = g_last_tick + 5u; }
@@ -367,9 +386,9 @@ Game_result Dino_Runner_Update(const Game_input* input) {
             }
         }
 
-        if (g_dino_y != g_old_dino_y) { draw_dino(g_old_dino_y, COLOR_BLACK); }
+        if (g_dino_y != g_old_dino_y) { draw_dino(g_old_dino_y, 0, COLOR_BLACK); }
         move_obstacles(g_last_tick * BASE_TICK_MS);
-        draw_dino(g_dino_y, COLOR_GREEN);
+        draw_dino(g_dino_y, g_crouching, COLOR_GREEN);
 
         /* Spawn */
         if (g_spawn_countdown == 0) {
@@ -390,12 +409,12 @@ Game_result Dino_Runner_Update(const Game_input* input) {
         g_state = dino_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        draw_dino(g_dino_y, COLOR_RED);
+        draw_dino(g_dino_y, g_crouching, COLOR_RED);
         update_score();
         play_fill(50, 148, 140, 9, COLOR_BLACK);
         Game_Graphics_Draw_Text(lcd, 60, 150, "GAME OVER", 1, COLOR_RED);
         play_fill(25, 168, 190, 9, COLOR_BLACK);
-        Game_Graphics_Draw_Text(lcd, 30, 170, "PUSH TO RESTART", 1, COLOR_WHITE);
+        Game_Graphics_Draw_Text(lcd, 48, 170, "A TO RESTART", 1, COLOR_WHITE);
     }
 
     return game_result_running;

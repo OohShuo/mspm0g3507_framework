@@ -159,7 +159,7 @@ static void restart_game(void) {
     for (uint16_t i = 0; i < g_length; i++) { g_body[i] = (Snake_position){(int8_t)(start_x - i), start_y}; }
 
     place_food();
-    g_last_move = Bsp_Get_Tick_Ms();
+    g_last_move = Game_Runtime_Get_Tick_Ms();
     render_full();
 }
 
@@ -231,7 +231,7 @@ Game_result Snake_Update(const Game_input* input) {
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_snake_turn);
     }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (now - g_last_move >= move_interval()) {
         g_last_move = now;
         move_snake();

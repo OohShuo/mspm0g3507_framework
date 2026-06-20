@@ -136,7 +136,7 @@ static void restart_game(void) {
     g_old_ai_y = g_ai_y;
     g_player_y256 = (int32_t)g_player_y * 256;
     g_ai_y256 = (int32_t)g_ai_y * 256;
-    g_last_move = Bsp_Get_Tick_Ms();
+    g_last_move = Game_Runtime_Get_Tick_Ms();
     g_last_paddle_ms = g_last_move;
     g_serve_at = g_last_move + 800u;
     serve_ball(0);
@@ -159,7 +159,7 @@ Game_result Pong_Update(const Game_input* input) {
     }
 
     /* ── Paddle dt (shared by player + AI) ── */
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     uint32_t dt = now - g_last_paddle_ms;
     if (dt > 100u) { dt = 100u; }
     g_last_paddle_ms = now;
@@ -175,19 +175,21 @@ Game_result Pong_Update(const Game_input* input) {
             new_y256 += dt_step256;
         }
 
+        const int32_t min_y256 = PLAY_AREA_TOP * 256;
+        const int32_t max_y256 = (GAME_AREA_BOTTOM - PADDLE_HEIGHT) * 256;
+        if (new_y256 < min_y256) { new_y256 = min_y256; }
+        if (new_y256 > max_y256) { new_y256 = max_y256; }
         const int16_t new_y = clamp_paddle((int16_t)(new_y256 / 256));
         if (new_y != g_player_y) {
             render_paddle(PADDLE_LEFT_X, g_old_player_y, new_y, COLOR_GREEN);
             g_player_y = new_y;
-            g_player_y256 = (int32_t)new_y * 256;
-        } else {
-            g_player_y256 = new_y256;
         }
+        g_player_y256 = new_y256;
     }
 
     /* Serve */
     if (g_state == pong_state_serving) {
-        const uint32_t now = Bsp_Get_Tick_Ms();
+        const uint32_t now = Game_Runtime_Get_Tick_Ms();
         if (input->confirm_pressed || now >= g_serve_at) {
             g_state = pong_state_playing;
             render_hud();
@@ -209,18 +211,20 @@ Game_result Pong_Update(const Game_input* input) {
             new_y256 += ai_step256;
         }
 
+        const int32_t min_y256 = PLAY_AREA_TOP * 256;
+        const int32_t max_y256 = (GAME_AREA_BOTTOM - PADDLE_HEIGHT) * 256;
+        if (new_y256 < min_y256) { new_y256 = min_y256; }
+        if (new_y256 > max_y256) { new_y256 = max_y256; }
         const int16_t new_y = clamp_paddle((int16_t)(new_y256 / 256));
         if (new_y != g_ai_y) {
             render_paddle(PADDLE_RIGHT_X, g_old_ai_y, new_y, COLOR_RED);
             g_ai_y = new_y;
-            g_ai_y256 = (int32_t)new_y * 256;
-        } else {
-            g_ai_y256 = new_y256;
         }
+        g_ai_y256 = new_y256;
     }
 
     /* Move ball */
-    const uint32_t now2 = Bsp_Get_Tick_Ms();
+    const uint32_t now2 = Game_Runtime_Get_Tick_Ms();
     if (now2 - g_last_move < 18u) { return game_result_running; }
     g_last_move = now2;
 

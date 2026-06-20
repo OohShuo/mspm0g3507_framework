@@ -17,9 +17,9 @@ Joystick* Joystick_Create(const Joystick_config* c) {
     g_joy->x_center_voltage = (c->x_min_voltage + c->x_max_voltage) * 0.5f;
     g_joy->y_center_voltage = (c->y_min_voltage + c->y_max_voltage) * 0.5f;
 
-    // VM: override hardware-specific config for intuitive WASD mapping
-    g_joy->config.y_reverse = 0;  // W=up, S=down (no physical inversion)
-    g_joy->config.x_reverse = 0;  // A=left, D=right
+    // VM axes come from arrow keys and use positive Y for up before runtime conversion.
+    g_joy->config.y_reverse = 0;
+    g_joy->config.x_reverse = 0;
 
     // Start the virtual ADC thread that calls Vm_Joystick_Update() every 10ms
     Bsp_Adc_Start(c->adc_idx);

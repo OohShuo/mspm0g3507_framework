@@ -279,7 +279,7 @@ static void compose_line(int16_t x, int16_t y, int16_t width) {
         }
     }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (now >= g_invincible_until || ((now / 100u) & 1u) == 0) {
         draw_sprite_line(&air_sprite_hero, g_player_x, g_player_y, y, x, width);
     }
@@ -775,7 +775,7 @@ static void restart_game(void) {
     g_state = air_state_playing;
     g_dirty_count = 0;
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     g_last_world_step = now;
     g_last_spawn = now - ENEMY_SPAWN_MS;
     g_fire_step_count = 0;
@@ -803,7 +803,7 @@ Game_result Air_Battle_Update(const Game_input* input) {
     if (input->confirm_pressed) { use_bomb(); }
     if (g_state != air_state_playing) { return game_result_running; }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (now - g_last_spawn >= ENEMY_SPAWN_MS && g_spawned < NORMAL_ENEMIES) {
         g_last_spawn = now;
         spawn_enemy(now);

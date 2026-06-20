@@ -335,7 +335,7 @@ static void restart_game(void) {
     g_score = 0;
     g_state = tank_state_playing;
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     g_last_player_move = now;
     g_last_enemy_move = now;
     g_last_bullet_move = now;
@@ -552,7 +552,7 @@ Game_result Tank_Battle_Update(const Game_input* input) {
     if (input->direction != game_direction_none) { g_player.direction = (uint8_t)input->direction; }
     if (input->confirm_pressed) { fire_bullet(&g_player, 1); }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (input->direction != game_direction_none && now - g_last_player_move >= PLAYER_MOVE_MS) {
         g_last_player_move = now;
         move_actor(&g_player, input->direction);
