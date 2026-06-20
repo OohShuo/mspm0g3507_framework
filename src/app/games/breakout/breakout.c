@@ -170,7 +170,7 @@ static void restart_game(void) {
     g_paddle_x = (SCREEN_WIDTH - PADDLE_WIDTH) / 2;
     g_paddle_x256 = (int32_t)g_paddle_x * 256;
     serve_ball();
-    g_last_move = Bsp_Get_Tick_Ms();
+    g_last_move = Game_Runtime_Get_Tick_Ms();
     g_last_paddle_ms = g_last_move;
     render_full();
 }
@@ -192,7 +192,7 @@ Game_result Breakout_Update(const Game_input* input) {
 
     /* Paddle movement — dt-scaled, independent of task frequency */
     {
-        const uint32_t now = Bsp_Get_Tick_Ms();
+        const uint32_t now = Game_Runtime_Get_Tick_Ms();
         uint32_t dt = now - g_last_paddle_ms;
         if (dt > 100u) { dt = 100u; }
         g_last_paddle_ms = now;
@@ -204,17 +204,18 @@ Game_result Breakout_Update(const Game_input* input) {
             new_x256 += (int32_t)PADDLE_STEP * 256 * (int32_t)dt / (int32_t)BASE_TICK_MS;
         }
 
+        const int32_t max_x256 = (SCREEN_WIDTH - PADDLE_WIDTH) * 256;
+        if (new_x256 < 0) { new_x256 = 0; }
+        if (new_x256 > max_x256) { new_x256 = max_x256; }
         const int16_t new_x = clamp_paddle((int16_t)(new_x256 / 256));
         if (new_x != g_paddle_x) {
             render_paddle(g_paddle_x, new_x);
             g_paddle_x = new_x;
-            g_paddle_x256 = (int32_t)new_x * 256; /* reset accum on clamp */
             if (g_state == breakout_state_serving) {
                 g_ball_x = (int16_t)(g_paddle_x + PADDLE_WIDTH / 2 - BALL_SIZE / 2);
             }
-        } else {
-            g_paddle_x256 = new_x256; /* preserve sub-pixel remainder */
         }
+        g_paddle_x256 = new_x256;
     }
 
     /* Launch ball */
@@ -228,7 +229,7 @@ Game_result Breakout_Update(const Game_input* input) {
     }
 
     /* Move ball */
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (now - g_last_move < 20u) { return game_result_running; }
     g_last_move = now;
 

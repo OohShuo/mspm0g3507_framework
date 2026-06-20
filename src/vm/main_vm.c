@@ -38,7 +38,7 @@ int main(void) {
     Hal_Task_Def();
     App_Task_Def();
 
-    printf("[VM] Controls: WASD/Arrow = joystick, Space = button, ESC = quit\n");
+    printf("[VM] Controls: Arrows = joystick, W/A/S/D = X/Y/A/B, Space = START, ESC = quit\n");
 
     while (g_run) {
         SDL_Event e;

@@ -9,6 +9,7 @@
 #include "bsp_time.h"
 #include "button.h"
 #include "buzzer.h"
+#include "game_control_hint.h"
 #include "game_graphics.h"
 #include "game_over_menu.h"
 #include "game_registry.h"
@@ -23,7 +24,11 @@
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
 
-#define BACK_HOLD_MS  1000u
+#define INPUT_HW_BTN_A_IDX     GPIO_BNT_DOWN_IDX
+#define INPUT_HW_BTN_B_IDX     GPIO_BNT_RIGHT_IDX
+#define INPUT_HW_BTN_X_IDX     GPIO_BNT_UP_IDX
+#define INPUT_HW_BTN_Y_IDX     GPIO_BNT_LEFT_IDX
+#define INPUT_HW_BTN_START_IDX GPIO_SW_BTN_IDX
 
 /* ── 3×2 grid menu layout ── */
 #define MENU_COLS     3u
@@ -49,19 +54,26 @@
 typedef enum {
     console_state_menu,
     console_state_game,
+    console_state_paused,
     console_state_game_over,
 } Console_state;
 
 static St7789* g_lcd = NULL;
 static Joystick* g_joystick = NULL;
-static Button* g_confirm_button = NULL;
+static Button* g_a_button = NULL;
+static Button* g_b_button = NULL;
+static Button* g_x_button = NULL;
+static Button* g_y_button = NULL;
+static Button* g_start_button = NULL;
 static Buzzer* g_buzzer = NULL;
 
 static Console_state g_console_state = console_state_menu;
 static Game_direction g_last_direction = game_direction_none;
-static Button_state g_last_button_state = button_state_up;
-static uint32_t g_button_down_time = 0;
-static uint8_t g_back_sent = 0;
+static Button_state g_last_a_state = button_state_up;
+static Button_state g_last_b_state = button_state_up;
+static Button_state g_last_x_state = button_state_up;
+static Button_state g_last_y_state = button_state_up;
+static Button_state g_last_start_state = button_state_up;
 static uint8_t g_menu_selection = 0;
 static uint8_t g_current_page = 0;
 #if GAME_RUNTIME_MONITOR_ENABLE
@@ -74,12 +86,15 @@ static uint32_t g_fps_frame_count = 0;
 static uint32_t g_last_fps_time = 0;
 static uint32_t g_current_fps = 0;
 static uint32_t g_last_fps_draw_ms = 0;
+static char g_running_bottom_hint[GAME_CONTROL_HINT_TEXT_MAX];
 
-static Game_direction read_direction(void) {
-    if (g_joystick == NULL) { return game_direction_none; }
+static void draw_running_bottom_bar(const Game_descriptor* game) {
+    if (game == NULL) { return; }
+    Game_Control_Hint_Format(game->control_hint, game->is_game, g_running_bottom_hint);
+    Game_Graphics_Draw_Bottom_Bar(g_lcd, g_running_bottom_hint, g_current_fps);
+}
 
-    const float x = g_joystick->x_value;
-    const float y = g_joystick->y_value;
+static Game_direction direction_from_axes(float x, float y) {
     const float abs_x = x < 0.0f ? -x : x;
     const float abs_y = y < 0.0f ? -y : y;
 
@@ -87,30 +102,44 @@ static Game_direction read_direction(void) {
         return game_direction_none;
     }
     if (abs_x > abs_y) { return x < 0.0f ? game_direction_left : game_direction_right; }
-    return y < 0.0f ? game_direction_down : game_direction_up;
+    return y < 0.0f ? game_direction_up : game_direction_down;
+}
+
+static void poll_button(Button* button, Button_state* last_state, uint8_t* down, uint8_t* pressed,
+    uint8_t* released) {
+    const Button_state state = Button_Get_State(button);
+    *down = state == button_state_down;
+    *pressed = state == button_state_down && *last_state == button_state_up;
+    *released = state == button_state_up && *last_state == button_state_down;
+    *last_state = state;
 }
 
 static Game_input poll_input(void) {
     Game_input input = {0};
-    const uint32_t now = Bsp_Get_Tick_Ms();
-    const Button_state button_state = Button_Get_State(g_confirm_button);
-
-    input.direction = read_direction();
-    input.direction_pressed = input.direction != game_direction_none && input.direction != g_last_direction;
-
-    if (button_state == button_state_down && g_last_button_state == button_state_up) {
-        g_button_down_time = now;
-        g_back_sent = 0;
-    } else if (button_state == button_state_down && !g_back_sent &&
-               now - g_button_down_time >= BACK_HOLD_MS) {
-        input.back_requested = 1;
-        g_back_sent = 1;
-    } else if (button_state == button_state_up && g_last_button_state == button_state_down) {
-        if (!g_back_sent) { input.confirm_pressed = 1; }
+    if (g_joystick != NULL) {
+        input.axis_x = g_joystick->x_value;
+        input.axis_y = -g_joystick->y_value;
+        if (input.axis_x != 0.0f && input.axis_y != 0.0f) {
+            input.axis_x *= 0.7071f;
+            input.axis_y *= 0.7071f;
+        }
+        input.stick_active = input.axis_x != 0.0f || input.axis_y != 0.0f;
     }
 
+    input.direction = direction_from_axes(input.axis_x, input.axis_y);
+    input.direction_pressed = input.direction != game_direction_none && input.direction != g_last_direction;
+
+    poll_button(g_a_button, &g_last_a_state, &input.a_down, &input.a_pressed, &input.a_released);
+    poll_button(g_b_button, &g_last_b_state, &input.b_down, &input.b_pressed, &input.b_released);
+    poll_button(g_x_button, &g_last_x_state, &input.x_down, &input.x_pressed, &input.x_released);
+    poll_button(g_y_button, &g_last_y_state, &input.y_down, &input.y_pressed, &input.y_released);
+    poll_button(g_start_button, &g_last_start_state, &input.start_down, &input.start_pressed,
+        &input.start_released);
+
+    input.confirm_pressed = input.a_pressed;
+    input.back_requested = input.b_pressed;
+
     g_last_direction = input.direction;
-    g_last_button_state = button_state;
     return input;
 }
 
@@ -571,7 +600,8 @@ static void draw_fps(void) {
     g_last_fps_draw_ms = now;
 
     /* Menu / game: lightweight FPS update inside unified bottom bar */
-    if (g_console_state == console_state_game || g_console_state == console_state_menu) {
+    if (g_console_state == console_state_game || g_console_state == console_state_paused ||
+        g_console_state == console_state_menu) {
         Game_Graphics_Update_Bottom_Fps(g_lcd, g_current_fps);
         return;
     }
@@ -607,13 +637,11 @@ static void render_menu(void) {
     draw_page_indicator();
 
     /* Navigation hints above bottom bar */
-    Game_Graphics_Draw_Text(g_lcd, 14, 276, "< > ^ v", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 60, 276, "to select", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_lcd, 135, 276, "PRESS", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 170, 276, "to pick", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 14, 276, "JOY: MOVE", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 135, 276, "A: OK", 1, COLOR_WHITE);
 
     /* Unified bottom bar */
-    Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
+    Game_Graphics_Draw_Bottom_Bar(g_lcd, "A OK  B BACK", g_current_fps);
 }
 
 static void enter_menu(void) {
@@ -735,7 +763,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
         Game_Graphics_Draw_Top_Bar(g_lcd, game->name);
         Game_Graphics_Clear_Game_Area(g_lcd);
         game->init(hardware);
-        Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
+        draw_running_bottom_bar(game);
     }
 }
 
@@ -755,6 +783,13 @@ static Game_result update_active_game(const Game_input* input) {
     const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
     if (game == NULL) { return game_result_exit; }
 
+    if (game->is_game && (input->x_pressed || input->b_pressed)) {
+        g_console_state = console_state_paused;
+        Game_Runtime_Pause_Time();
+        Game_Graphics_Draw_Pause_Bottom_Bar(g_lcd, g_current_fps);
+        return game_result_running;
+    }
+
     const Game_result result = game->update(input);
     if (result == game_result_exit) { return result; }
     if (game->is_finished()) {
@@ -762,6 +797,20 @@ static Game_result update_active_game(const Game_input* input) {
         Game_Over_Menu_Open(g_lcd, g_buzzer, game->id, game->name, game->get_score());
     }
     return game_result_running;
+}
+
+static void update_paused_game(const Game_input* input) {
+    if (input->b_pressed) {
+        Game_Runtime_Resume_Time();
+        enter_menu();
+        return;
+    }
+    if (input->a_pressed || input->x_pressed) {
+        const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
+        Game_Runtime_Resume_Time();
+        g_console_state = console_state_game;
+        draw_running_bottom_bar(game);
+    }
 }
 
 static void update_game_over(const Game_input* input, const Game_hardware* hardware) {
@@ -778,7 +827,7 @@ static void update_game_over(const Game_input* input, const Game_hardware* hardw
         Game_Graphics_Draw_Top_Bar(g_lcd, game->name);
         Game_Graphics_Clear_Game_Area(g_lcd);
         game->init(hardware);
-        Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
+        draw_running_bottom_bar(game);
     }
 }
 
@@ -803,11 +852,21 @@ static void console_init(void) {
     Joystick_Calibrate_Center(g_joystick, JOYSTICK_CALIBRATION_SAMPLES, JOYSTICK_CALIBRATION_INTERVAL_MS);
 
     const Button_config button_config = {
-        .gpio_idx = GPIO_SW_BTN_IDX,
+        .gpio_idx = INPUT_HW_BTN_A_IDX,
         .gpio_state_when_pressed = bsp_gpio_state_reset,
     };
-    g_confirm_button = Button_Create(&button_config);
-    configASSERT(g_confirm_button != NULL);
+    Button_config config = button_config;
+    g_a_button = Button_Create(&config);
+    config.gpio_idx = INPUT_HW_BTN_B_IDX;
+    g_b_button = Button_Create(&config);
+    config.gpio_idx = INPUT_HW_BTN_X_IDX;
+    g_x_button = Button_Create(&config);
+    config.gpio_idx = INPUT_HW_BTN_Y_IDX;
+    g_y_button = Button_Create(&config);
+    config.gpio_idx = INPUT_HW_BTN_START_IDX;
+    g_start_button = Button_Create(&config);
+    configASSERT(g_a_button != NULL && g_b_button != NULL && g_x_button != NULL && g_y_button != NULL &&
+                 g_start_button != NULL);
 
     const Buzzer_config buzzer_config = {.pwm_idx = PWM_BUZZER_IDX};
     g_buzzer = Buzzer_Create(&buzzer_config);
@@ -850,20 +909,21 @@ static void console_task(void* arg) {
         Game_result result = game_result_running;
 
         /* ── idle tracking ── */
-        if (input.direction_pressed || input.confirm_pressed || input.back_requested) {
+        if (input.direction_pressed || input.a_pressed || input.b_pressed || input.x_pressed || input.y_pressed) {
             g_last_input_tick = Bsp_Get_Tick_Ms();
         }
 
         /* ── screensaver activation ── */
         if (!Screensaver_Is_Active()) {
-            if (g_console_state != console_state_game && Bsp_Get_Tick_Ms() - g_last_input_tick > 30000u) {
+            if (g_console_state != console_state_game && g_console_state != console_state_paused &&
+                Bsp_Get_Tick_Ms() - g_last_input_tick > 30000u) {
                 Screensaver_Init(g_lcd);
             }
         }
 
         /* ── screensaver loop ── */
         if (Screensaver_Is_Active()) {
-            if (input.direction_pressed || input.confirm_pressed || input.back_requested) {
+            if (input.direction_pressed || input.a_pressed || input.b_pressed || input.x_pressed || input.y_pressed) {
                 Screensaver_Exit();
                 g_last_input_tick = Bsp_Get_Tick_Ms();
                 /* redraw the screen that was underneath */
@@ -875,7 +935,7 @@ static void console_task(void* arg) {
                     const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
                     if (game != NULL) {
                         Game_Graphics_Draw_Top_Bar(g_lcd, game->name);
-                        Game_Graphics_Draw_Bottom_Bar(g_lcd, "HOLD TO BACK", g_current_fps);
+                        draw_running_bottom_bar(game);
                     }
                 }
             } else {
@@ -891,6 +951,8 @@ static void console_task(void* arg) {
             update_menu(&input, &hardware);
         } else if (g_console_state == console_state_game) {
             result = update_active_game(&input);
+        } else if (g_console_state == console_state_paused) {
+            update_paused_game(&input);
         } else {
             update_game_over(&input, &hardware);
         }

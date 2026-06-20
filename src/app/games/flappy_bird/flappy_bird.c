@@ -21,6 +21,9 @@
 #define PIPE_GAP      56
 #define PIPE_SPACING  150
 #define MAX_PIPES     4
+#define GLIDE_DURATION_MS 3000u
+#define GLIDE_COOLDOWN_MS 5000u
+#define GLIDE_FALL_TICKS  3u
 
 #define COLOR_BLACK   0x0000u
 #define COLOR_WHITE   0xffffu
@@ -49,6 +52,12 @@ static uint16_t g_speed_acc;
 static uint32_t g_rand_state;
 static uint32_t g_start_ms;
 static uint32_t g_last_tick;
+static uint32_t g_glide_end_ms;
+static uint32_t g_glide_ready_ms;
+static uint8_t g_gliding;
+static uint8_t g_glide_fall_acc;
+static uint8_t g_glide_ui_state;
+static uint8_t g_glide_ui_seconds;
 
 static uint32_t fast_rand(void) {
     g_rand_state = g_rand_state * 1103515245 + 12345;
@@ -102,6 +111,32 @@ static void update_score(void) {
     /* 3 digits = 18px → x=215 (5px margin) */
     bar_fill(215, 2, 23, 8, GAME_BAR_COLOR_BG);
     Game_Graphics_Draw_U32(g_hardware.lcd, 220, 2, g_score, 3, 1, COLOR_CYAN);
+}
+
+static void update_glide_status(uint32_t now) {
+    uint8_t state = 0;
+    uint8_t seconds = 0;
+    if (g_gliding) {
+        state = 1;
+        seconds = (uint8_t)((g_glide_end_ms - now + 999u) / 1000u);
+    } else if (now < g_glide_ready_ms) {
+        state = 2;
+        seconds = (uint8_t)((g_glide_ready_ms - now + 999u) / 1000u);
+    }
+    if (state == g_glide_ui_state && seconds == g_glide_ui_seconds) { return; }
+
+    g_glide_ui_state = state;
+    g_glide_ui_seconds = seconds;
+    bar_fill(148, 16, 61, 8, GAME_BAR_COLOR_BG);
+    if (state == 1) {
+        Game_Graphics_Draw_Text(g_hardware.lcd, 153, 16, "GLD:", 1, COLOR_YELLOW);
+        Game_Graphics_Draw_U32(g_hardware.lcd, 177, 16, seconds, 1, 1, COLOR_WHITE);
+    } else if (state == 2) {
+        Game_Graphics_Draw_Text(g_hardware.lcd, 153, 16, "CD:", 1, COLOR_GRAY);
+        Game_Graphics_Draw_U32(g_hardware.lcd, 171, 16, seconds, 1, 1, COLOR_WHITE);
+    } else {
+        Game_Graphics_Draw_Text(g_hardware.lcd, 153, 16, "Y:READY", 1, COLOR_CYAN);
+    }
 }
 
 /* ── Bird ── */
@@ -180,20 +215,28 @@ static void restart_game(void) {
     g_bird_vy = 0;
     g_old_bird_y = g_bird_y;
     g_gravity_acc = 0;
-    g_up_prev = 0;
+    /* Require A to be released after entering/replaying before it can start the run. */
+    g_up_prev = 1;
     g_ground_offset = 0;
     g_score = 0;
     g_old_score = 0;
     g_pipe_timer = 0;
     g_speed_acc = 0;
     g_last_tick = 0;
-    g_rand_state = Bsp_Get_Tick_Ms();
+    g_glide_end_ms = 0;
+    g_glide_ready_ms = 0;
+    g_gliding = 0;
+    g_glide_fall_acc = 0;
+    g_glide_ui_state = 0xffu;
+    g_glide_ui_seconds = 0xffu;
+    g_rand_state = Game_Runtime_Get_Tick_Ms();
     for (uint8_t i = 0; i < MAX_PIPES; i++) { g_pipes[i].active = 0; }
 
     Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     draw_ground();
     draw_bird(g_bird_y);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 28, 140, "PUSH UP TO START", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_hardware.lcd, 58, 140, "A TO START", 1, COLOR_WHITE);
+    update_glide_status(Game_Runtime_Get_Tick_Ms());
 }
 
 void Flappy_Bird_Init(const Game_hardware* hardware) {
@@ -210,21 +253,21 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
     St7789* lcd = g_hardware.lcd;
 
     if (g_state == flappy_state_over) {
-        if (input->direction_pressed) { restart_game(); }
+        if (input->a_pressed) { restart_game(); }
         return game_result_running;
     }
 
     if (g_state == flappy_state_ready) {
-        int16_t bob = (int16_t)((Bsp_Get_Tick_Ms() / 300u) % 2u);
+        int16_t bob = (int16_t)((Game_Runtime_Get_Tick_Ms() / 300u) % 2u);
         int16_t by = (int16_t)(160 + bob * 4 - 2);
         if (g_bird_y != by) { play_fill(BIRD_X - 1, g_old_bird_y - 1, BIRD_W + 3, BIRD_H + 2, COLOR_BLACK); }
         g_old_bird_y = g_bird_y;
         g_bird_y = by;
         if (g_bird_y != g_old_bird_y) { draw_bird(g_bird_y); }
-        uint8_t up = (input->direction == game_direction_up);
+        uint8_t up = input->a_down;
         if (up && !g_up_prev) {
             g_state = flappy_state_playing;
-            g_start_ms = Bsp_Get_Tick_Ms();
+            g_start_ms = Game_Runtime_Get_Tick_Ms();
             g_last_tick = 0;
             g_bird_vy = FLAP_VELOCITY;
             g_gravity_acc = 0;
@@ -237,10 +280,27 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
 
     /* ═══ Playing ═══ */
 
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
+    if (g_gliding && (!input->y_down || now >= g_glide_end_ms)) {
+        const uint32_t glide_stop_ms = now >= g_glide_end_ms ? g_glide_end_ms : now;
+        g_gliding = 0;
+        g_glide_ready_ms = glide_stop_ms + GLIDE_COOLDOWN_MS;
+        g_bird_vy = 0;
+        g_gravity_acc = 0;
+    }
+    if (input->y_pressed && !g_gliding && now >= g_glide_ready_ms) {
+        g_gliding = 1;
+        g_glide_end_ms = now + GLIDE_DURATION_MS;
+        g_glide_fall_acc = 0;
+        g_bird_vy = 0;
+        g_gravity_acc = 0;
+    }
+    update_glide_status(now);
+
     /* ── Input (once per real call, applied to upcoming tick) ── */
     {
-        uint8_t up = (input->direction == game_direction_up);
-        if (up && !g_up_prev) {
+        uint8_t up = input->a_down;
+        if (!g_gliding && up && !g_up_prev) {
             g_bird_vy = FLAP_VELOCITY;
             g_gravity_acc = 0;
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_flappy_flap);
@@ -249,7 +309,6 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
     }
 
     /* ── Tick-accumulator: run one logic tick per 20 ms of elapsed time ── */
-    const uint32_t now = Bsp_Get_Tick_Ms();
     const uint32_t elapsed = now - g_start_ms;
     uint32_t effective_ticks = elapsed / BASE_TICK_MS;
     /* Cap catch-up to prevent spiral on stall */
@@ -261,13 +320,20 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         g_last_tick++;
         const uint32_t tick_ms = g_last_tick * BASE_TICK_MS;
 
-        /* Gravity */
-        g_gravity_acc += 1u;
-        if (g_gravity_acc >= 2u) {
-            g_gravity_acc -= 2u;
-            g_bird_vy++;
+        /* Gravity / glide */
+        if (g_gliding) {
+            if (++g_glide_fall_acc >= GLIDE_FALL_TICKS) {
+                g_glide_fall_acc = 0;
+                g_bird_y++;
+            }
+        } else {
+            g_gravity_acc += 1u;
+            if (g_gravity_acc >= 2u) {
+                g_gravity_acc -= 2u;
+                g_bird_vy++;
+            }
+            g_bird_y += g_bird_vy;
         }
-        g_bird_y += g_bird_vy;
         if (g_bird_y < PLAY_TOP) { g_bird_y = PLAY_TOP; }
 
         /* Pipe movement */
@@ -328,7 +394,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         play_fill(50, 148, 140, 9, COLOR_BLACK);
         Game_Graphics_Draw_Text(lcd, 60, 150, "GAME OVER", 1, COLOR_RED);
         play_fill(25, 168, 190, 9, COLOR_BLACK);
-        Game_Graphics_Draw_Text(lcd, 30, 170, "PUSH TO RESTART", 1, COLOR_WHITE);
+        Game_Graphics_Draw_Text(lcd, 48, 170, "A TO RESTART", 1, COLOR_WHITE);
     }
 
     return game_result_running;

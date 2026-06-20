@@ -197,7 +197,7 @@ Game_result Sfx_Lib_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     uint8_t full_redraw = 0;
     uint8_t local_dirty = 0;
     uint8_t old_cursor = g_cursor;

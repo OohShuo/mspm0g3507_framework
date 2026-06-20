@@ -23,5 +23,6 @@ void Game_Graphics_Draw_Pal4_Bitmap(
 
 void Game_Graphics_Draw_Top_Bar(St7789* lcd, const char* game_name);
 void Game_Graphics_Draw_Bottom_Bar(St7789* lcd, const char* hint_text, uint16_t fps);
+void Game_Graphics_Draw_Pause_Bottom_Bar(St7789* lcd, uint16_t fps);
 void Game_Graphics_Update_Bottom_Fps(St7789* lcd, uint16_t fps);
 void Game_Graphics_Clear_Game_Area(St7789* lcd);

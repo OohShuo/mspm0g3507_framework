@@ -57,10 +57,12 @@ typedef struct {
     const char* name;
     Game_icon icon;
     Game_id id;
+    const char* control_hint;
     void (*init)(const Game_hardware* hardware);
     Game_result (*update)(const Game_input* input);
     uint32_t (*get_score)(void);
     uint8_t (*is_finished)(void);
+    uint8_t is_game;
 } Game_descriptor;
 
 uint8_t Game_Registry_Count(void);

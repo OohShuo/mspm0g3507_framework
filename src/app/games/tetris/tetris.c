@@ -11,6 +11,7 @@
 
 #define BOARD_COLS      10
 #define BOARD_ROWS      20
+#define PIECE_KIND_COUNT 7u
 #define CELL_SIZE       10
 #define BOARD_X         ((SCREEN_WIDTH - BOARD_COLS * CELL_SIZE) / 2)
 #define BOARD_Y         65
@@ -79,28 +80,17 @@ static uint8_t g_das_direction = 0;
 static uint32_t g_last_das_down = 0;
 static uint8_t g_das_down_fired = 0;
 static uint32_t g_random_state = 0x2e71b864u;
-static int8_t g_bag[7];
-static uint8_t g_bag_idx = 7; /* 7 = need refill */
 
 static uint32_t random_next(void) {
     g_random_state = g_random_state * 1664525u + 1013904223u;
     return g_random_state;
 }
 
-/* 7-bag randomizer: shuffle all 7 pieces, deal one at a time — no long droughts */
-static int8_t bag_next(void) {
-    if (g_bag_idx >= 7) {
-        for (uint8_t i = 0; i < 7; i++) { g_bag[i] = (int8_t)i; }
-        /* Fisher-Yates shuffle */
-        for (uint8_t i = 7; i > 1; i--) {
-            const uint8_t j = (uint8_t)(random_next() % i);
-            const int8_t tmp = g_bag[i - 1];
-            g_bag[i - 1] = g_bag[j];
-            g_bag[j] = tmp;
-        }
-        g_bag_idx = 0;
-    }
-    return g_bag[g_bag_idx++];
+static int8_t random_piece_kind(void) {
+    const uint32_t limit = UINT32_MAX - (UINT32_MAX % PIECE_KIND_COUNT);
+    uint32_t value;
+    do { value = random_next(); } while (value >= limit);
+    return (int8_t)(value % PIECE_KIND_COUNT);
 }
 
 static uint8_t collides(int8_t px, int8_t py, int8_t kind, int8_t rotation) {
@@ -161,11 +151,11 @@ static void new_piece(void) {
     g_piece = g_next;
     g_piece.x = (int8_t)(BOARD_COLS / 2 - 1);
     g_piece.y = -2;
-    g_next.kind = bag_next();
+    g_next.kind = random_piece_kind();
     g_next.rotation = 0;
     g_next.x = 0;
     g_next.y = 0;
-    g_last_drop = Bsp_Get_Tick_Ms();
+    g_last_drop = Game_Runtime_Get_Tick_Ms();
 }
 
 static void render_cell(int32_t screen_x, int32_t screen_y, uint8_t color_index) {
@@ -285,8 +275,8 @@ static void restart_game(void) {
     g_das_fired = 0;
     g_das_down_fired = 0;
 
-    g_bag_idx = 7; /* refill bag on restart */
-    g_next.kind = bag_next();
+    g_random_state = Game_Runtime_Get_Tick_Ms() ^ 0x2e71b864u;
+    g_next.kind = random_piece_kind();
     g_next.rotation = 0;
     new_piece();
     render_full();
@@ -295,6 +285,31 @@ static void restart_game(void) {
 static uint32_t drop_interval(void) {
     const uint32_t reduction = g_level * 45u;
     return reduction >= START_DROP_MS - MIN_DROP_MS ? MIN_DROP_MS : START_DROP_MS - reduction;
+}
+
+static void settle_piece(void) {
+    if (g_piece.y < 0) {
+        g_state = tetris_state_over;
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+        render_hud();
+        return;
+    }
+
+    lock_piece();
+    clear_lines();
+    render_board();
+    g_old_ghost_y = -99;
+    new_piece();
+    render_preview();
+    draw_ghost();
+    render_piece(&g_piece, -1);
+    render_hud();
+
+    if (collides(g_piece.x, g_piece.y, g_piece.kind, g_piece.rotation)) {
+        g_state = tetris_state_over;
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+        render_hud();
+    }
 }
 
 void Tetris_Init(const Game_hardware* hardware) {
@@ -312,7 +327,7 @@ Game_result Tetris_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
 
     /* Directional movement with DAS (Delayed Auto Shift) */
     if (input->direction == game_direction_left || input->direction == game_direction_right) {
@@ -409,6 +424,18 @@ Game_result Tetris_Update(const Game_input* input) {
         }
     }
 
+    if (input->y_pressed) {
+        const int8_t landing_y = ghost_y();
+        const uint8_t rows = landing_y > g_piece.y ? (uint8_t)(landing_y - g_piece.y) : 0u;
+        render_piece(&g_piece, COLOR_BLACK);
+        erase_ghost();
+        g_piece.y = landing_y;
+        g_score += (uint32_t)rows * 2u;
+        render_piece(&g_piece, -1);
+        settle_piece();
+        return game_result_running;
+    }
+
     /* Gravity */
     if (now - g_last_drop >= drop_interval()) {
         g_last_drop = now;
@@ -421,30 +448,7 @@ Game_result Tetris_Update(const Game_input* input) {
             return game_result_running;
         }
 
-        /* Lock piece */
-        if (g_piece.y < 0) {
-            g_state = tetris_state_over;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-            render_hud();
-            return game_result_running;
-        }
-
-        lock_piece();
-        clear_lines();
-        render_board();
-        g_old_ghost_y = -99;
-        new_piece();
-        render_preview();
-        draw_ghost();
-        render_piece(&g_piece, -1);
-        render_hud();
-
-        /* Check if new piece immediately collides */
-        if (collides(g_piece.x, g_piece.y, g_piece.kind, g_piece.rotation)) {
-            g_state = tetris_state_over;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-            render_hud();
-        }
+        settle_piece();
     }
     return game_result_running;
 }

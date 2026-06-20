@@ -50,6 +50,8 @@ static uint8_t g_move_count = 0;
 static uint8_t g_das_dir = 0;
 static uint32_t g_das_time = 0;
 static uint8_t g_das_fired = 0;
+static int8_t g_last_move_x = -1;
+static int8_t g_last_move_y = -1;
 
 /* ---- helpers ---- */
 
@@ -172,6 +174,7 @@ static int32_t score_position(int8_t x, int8_t y, uint8_t stone) {
 }
 
 static void render_stone_at(int8_t col, int8_t row, uint8_t stone);
+static void set_last_move(int8_t col, int8_t row);
 
 static void ai_move(void) {
     int32_t best_score = -1;
@@ -188,7 +191,7 @@ static void ai_move(void) {
     }
     if (best_score >= 0) {
         g_board[best_y][best_x] = 2;
-        render_stone_at(best_x, best_y, 2);
+        set_last_move(best_x, best_y);
         if (check_win_at(best_x, best_y)) {
             g_winner = 2;
             g_state = gomoku_state_over;
@@ -214,6 +217,28 @@ static void render_stone_at(int8_t col, int8_t row, uint8_t stone) {
     }
 }
 
+static void draw_last_move_marker(int8_t col, int8_t row) {
+    const int32_t cx = cell_x(col) + CELL_SIZE / 2;
+    const int32_t cy = cell_y(row) + CELL_SIZE / 2;
+    Game_Graphics_Fill_Rect(g_hardware.lcd, cx - 1, cy - 1, 3, 3, COLOR_HIGHLIGHT);
+}
+
+static void render_cell_contents(int8_t col, int8_t row) {
+    restore_cell(col, row);
+    if (g_board[row][col] != 0) { render_stone_at(col, row, g_board[row][col]); }
+    if (col == g_last_move_x && row == g_last_move_y) { draw_last_move_marker(col, row); }
+}
+
+static void set_last_move(int8_t col, int8_t row) {
+    const int8_t old_x = g_last_move_x;
+    const int8_t old_y = g_last_move_y;
+    g_last_move_x = col;
+    g_last_move_y = row;
+
+    if (in_bounds(old_x, old_y)) { render_cell_contents(old_x, old_y); }
+    render_cell_contents(col, row);
+}
+
 static void draw_cursor_at(int8_t col, int8_t row) {
     const int32_t cx = cell_x(col);
     const int32_t cy = cell_y(row);
@@ -226,11 +251,7 @@ static void draw_cursor_at(int8_t col, int8_t row) {
 static void move_cursor(int8_t nx, int8_t ny) {
     if (nx == g_cursor_x && ny == g_cursor_y) { return; }
     /* Erase old cursor: restore the cell (grid + board background) */
-    restore_cell(g_cursor_x, g_cursor_y);
-    /* If there was a stone here, redraw it */
-    if (g_board[g_cursor_y][g_cursor_x] != 0) {
-        render_stone_at(g_cursor_x, g_cursor_y, g_board[g_cursor_y][g_cursor_x]);
-    }
+    render_cell_contents(g_cursor_x, g_cursor_y);
     g_cursor_x = nx;
     g_cursor_y = ny;
     draw_cursor_at(nx, ny);
@@ -274,6 +295,8 @@ static void restart_game(void) {
     g_move_count = 0;
     g_das_dir = 0;
     g_das_fired = 0;
+    g_last_move_x = -1;
+    g_last_move_y = -1;
     Game_Graphics_Clear_Game_Area(g_hardware.lcd);
     render_hud_top();
     render_board_bg();
@@ -296,7 +319,7 @@ Game_result Gomoku_Update(const Game_input* input) {
     }
 
     if (g_state == gomoku_state_player) {
-        const uint32_t now = Bsp_Get_Tick_Ms();
+        const uint32_t now = Game_Runtime_Get_Tick_Ms();
         int8_t nx = g_cursor_x, ny = g_cursor_y;
 
         /* DAS cursor movement — works while direction is held */
@@ -346,7 +369,7 @@ Game_result Gomoku_Update(const Game_input* input) {
             /* Erase cursor before placing stone */
             restore_cell(g_cursor_x, g_cursor_y);
             g_board[g_cursor_y][g_cursor_x] = 1;
-            render_stone_at(g_cursor_x, g_cursor_y, 1);
+            set_last_move(g_cursor_x, g_cursor_y);
             draw_cursor_at(g_cursor_x, g_cursor_y); /* redraw cursor on top for visual feedback */
             g_move_count++;                         /* count player stones */
 
@@ -377,10 +400,7 @@ Game_result Gomoku_Update(const Game_input* input) {
         }
     } else if (g_state == gomoku_state_ai) {
         /* Erase cursor while AI "thinks" */
-        restore_cell(g_cursor_x, g_cursor_y);
-        if (g_board[g_cursor_y][g_cursor_x] != 0) {
-            render_stone_at(g_cursor_x, g_cursor_y, g_board[g_cursor_y][g_cursor_x]);
-        }
+        render_cell_contents(g_cursor_x, g_cursor_y);
         ai_move();
         /* ai_move() may set g_state to over; only switch back if still playing */
         if (g_state == gomoku_state_ai) {

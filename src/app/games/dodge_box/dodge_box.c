@@ -1480,7 +1480,7 @@ static void update_attack_finish_scan(uint32_t now_rel) {
 static void render_static_screen(void) {
     Game_Graphics_Clear_Game_Area(g_lcd);
     Game_Graphics_Draw_Text(g_lcd, 24, 42, "MOVE: JOYSTICK", 1, COLOR_GRAY);
-    Game_Graphics_Draw_Text(g_lcd, 144, 42, "HOLD: BACK", 1, COLOR_GRAY);
+    Game_Graphics_Draw_Text(g_lcd, 156, 42, "X/B: PAUSE", 1, COLOR_GRAY);
     arena_fill(0, 0, ARENA_W, ARENA_H, COLOR_BLACK);
     arena_border();
 }
@@ -1490,7 +1490,7 @@ static void reset_game(void) {
     g_attack_scan_index = 0;
     g_all_attacks_done = 0;
     g_all_attacks_done_ms = 0;
-    g_start_ms = Bsp_Get_Tick_Ms();
+    g_start_ms = Game_Runtime_Get_Tick_Ms();
     g_rng_state = 0x4d595df4u ^ g_start_ms;
     g_last_ms = g_start_ms;
     g_survive_ms = 0;
@@ -1514,23 +1514,11 @@ void Dodge_Box_Init(const Game_hardware* hardware) {
 }
 
 static void move_player(const Game_input* input, uint32_t dt_ms) {
-    int16_t dx = 0;
-    int16_t dy = 0;
-    if (input->direction == game_direction_left) {
-        dx = -1;
-    } else if (input->direction == game_direction_right) {
-        dx = 1;
-    } else if (input->direction == game_direction_up) {
-        dy = -1;
-    } else if (input->direction == game_direction_down) {
-        dy = 1;
-    }
-
-    if (dx == 0 && dy == 0) { return; }
+    if (!input->stick_active) { return; }
 
     const int32_t step256 = (int32_t)PLAYER_SPEED_PX_S * 256 * (int32_t)dt_ms / 1000;
-    g_player_x256 += (int32_t)dx * step256;
-    g_player_y256 += (int32_t)dy * step256;
+    g_player_x256 += (int32_t)(input->axis_x * (float)step256);
+    g_player_y256 += (int32_t)(input->axis_y * (float)step256);
 
     if (g_player_x256 < 0) { g_player_x256 = 0; }
     if (g_player_y256 < 0) { g_player_y256 = 0; }
@@ -1543,11 +1531,11 @@ Game_result Dodge_Box_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == game_state_failed || g_state == game_state_clear) {
-        if (input->confirm_pressed || input->direction_pressed) { reset_game(); }
+        if (input->a_pressed) { reset_game(); }
         return game_result_running;
     }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     const uint32_t prev_rel = g_survive_ms;
     uint32_t dt_ms = now - g_last_ms;
     if (dt_ms > MAX_DT_MS) { dt_ms = MAX_DT_MS; }

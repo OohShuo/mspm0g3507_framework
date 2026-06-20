@@ -14,8 +14,30 @@ typedef enum {
 } Game_direction;
 
 typedef struct {
+    float axis_x;
+    float axis_y;
+    uint8_t stick_active;
+
     Game_direction direction;
     uint8_t direction_pressed;
+
+    uint8_t a_down;
+    uint8_t a_pressed;
+    uint8_t a_released;
+    uint8_t b_down;
+    uint8_t b_pressed;
+    uint8_t b_released;
+    uint8_t x_down;
+    uint8_t x_pressed;
+    uint8_t x_released;
+    uint8_t y_down;
+    uint8_t y_pressed;
+    uint8_t y_released;
+    uint8_t start_down;
+    uint8_t start_pressed;
+    uint8_t start_released;
+
+    /* Compatibility aliases for existing game code. */
     uint8_t confirm_pressed;
     uint8_t back_requested;
 } Game_input;
@@ -36,3 +58,7 @@ typedef enum {
 #define GAME_AREA_Y       GAME_TOP_BAR_H
 #define GAME_AREA_BOTTOM  300
 #define GAME_AREA_H       (GAME_AREA_BOTTOM - GAME_AREA_Y)
+
+uint32_t Game_Runtime_Get_Tick_Ms(void);
+void Game_Runtime_Pause_Time(void);
+void Game_Runtime_Resume_Time(void);

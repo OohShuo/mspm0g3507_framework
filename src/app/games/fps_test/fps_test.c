@@ -101,7 +101,7 @@ void Fps_Test_Init(const Game_hardware* hardware) {
 Game_result Fps_Test_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
 
     if (g_state == fps_state_idle) {
         if (input->confirm_pressed) {

@@ -139,7 +139,7 @@ static uint8_t can_move(Position pos, Direction direction) {
     return !map_is_wall(pos.x + g_dir_x[direction], pos.y + g_dir_y[direction]);
 }
 
-static uint8_t power_active(void) { return (int32_t)(g_power_until - Bsp_Get_Tick_Ms()) > 0; }
+static uint8_t power_active(void) { return (int32_t)(g_power_until - Game_Runtime_Get_Tick_Ms()) > 0; }
 
 static uint32_t random_next(void) {
     g_random_state = g_random_state * 1664525u + 1013904223u;
@@ -294,7 +294,7 @@ static void load_level(void) {
     reset_actor_positions();
     g_power_until = 0;
     g_game_state = game_state_playing;
-    g_last_player_move = Bsp_Get_Tick_Ms();
+    g_last_player_move = Game_Runtime_Get_Tick_Ms();
     g_last_ghost_move = g_last_player_move;
 }
 
@@ -314,7 +314,7 @@ static void collect_pellet(void) {
     g_pellets_left--;
     g_score += pellet == 2 ? 50u : 10u;
     if (pellet == 2) {
-        g_power_until = Bsp_Get_Tick_Ms() + POWER_TIME_MS;
+        g_power_until = Game_Runtime_Get_Tick_Ms() + POWER_TIME_MS;
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_power);
     } else {
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_pellet);
@@ -340,7 +340,7 @@ static void lose_life(void) {
 
     Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_life_lost);
     reset_actor_positions();
-    g_last_player_move = Bsp_Get_Tick_Ms();
+    g_last_player_move = Game_Runtime_Get_Tick_Ms();
     g_last_ghost_move = g_last_player_move;
     render_full_map();
 }
@@ -486,7 +486,7 @@ Game_result Pacman_Update(const Game_input* input) {
         return game_result_running;
     }
 
-    const uint32_t now = Bsp_Get_Tick_Ms();
+    const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (now - g_last_player_move >= PLAYER_MOVE_MS) {
         g_last_player_move = now;
         move_player();
