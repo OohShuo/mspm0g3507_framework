@@ -11,6 +11,7 @@
 #include "buzzer.h"
 #include "game_control_hint.h"
 #include "game_graphics.h"
+#include "game_info_screen.h"
 #include "game_over_menu.h"
 #include "game_registry.h"
 #include "game_runtime.h"
@@ -53,6 +54,7 @@
 
 typedef enum {
     console_state_menu,
+    console_state_game_info,
     console_state_game,
     console_state_paused,
     console_state_game_over,
@@ -92,6 +94,12 @@ static void draw_running_bottom_bar(const Game_descriptor* game) {
     if (game == NULL) { return; }
     Game_Control_Hint_Format(game->control_hint, game->is_game, g_running_bottom_hint);
     Game_Graphics_Draw_Bottom_Bar(g_lcd, g_running_bottom_hint, g_current_fps);
+}
+
+static void render_game_info(void) {
+    const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
+    if (game == NULL) { return; }
+    Game_Info_Screen_Draw(g_lcd, game->name, game->info_text, g_current_fps);
 }
 
 static Game_direction direction_from_axes(float x, float y) {
@@ -601,7 +609,7 @@ static void draw_fps(void) {
 
     /* Menu / game: lightweight FPS update inside unified bottom bar */
     if (g_console_state == console_state_game || g_console_state == console_state_paused ||
-        g_console_state == console_state_menu) {
+        g_console_state == console_state_menu || g_console_state == console_state_game_info) {
         Game_Graphics_Update_Bottom_Fps(g_lcd, g_current_fps);
         return;
     }
@@ -638,10 +646,11 @@ static void render_menu(void) {
 
     /* Navigation hints above bottom bar */
     Game_Graphics_Draw_Text(g_lcd, 14, 276, "JOY: MOVE", 1, COLOR_WHITE);
-    Game_Graphics_Draw_Text(g_lcd, 135, 276, "A: OK", 1, COLOR_WHITE);
+    Game_Graphics_Draw_Text(g_lcd, 112, 276, "X: INFO", 1, COLOR_CYAN);
+    Game_Graphics_Draw_Text(g_lcd, 174, 276, "A: OK", 1, COLOR_WHITE);
 
     /* Unified bottom bar */
-    Game_Graphics_Draw_Bottom_Bar(g_lcd, "A OK  B BACK", g_current_fps);
+    Game_Graphics_Draw_Bottom_Bar(g_lcd, "A OK  X INFO  B BACK", g_current_fps);
 }
 
 static void enter_menu(void) {
@@ -754,6 +763,13 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
         }
     }
 
+    if (input->x_pressed) {
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
+        g_console_state = console_state_game_info;
+        render_game_info();
+        return;
+    }
+
     if (!input->confirm_pressed) { return; }
 
     const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
@@ -765,6 +781,12 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
         game->init(hardware);
         draw_running_bottom_bar(game);
     }
+}
+
+static void update_game_info(const Game_input* input) {
+    if (!input->b_pressed) { return; }
+    Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
+    enter_menu();
 }
 
 static void monitor_resources(void) {
@@ -929,6 +951,8 @@ static void console_task(void* arg) {
                 /* redraw the screen that was underneath */
                 if (g_console_state == console_state_menu) {
                     render_menu();
+                } else if (g_console_state == console_state_game_info) {
+                    render_game_info();
                 } else if (g_console_state == console_state_game_over) {
                     Game_Over_Menu_Redraw();
                 } else if (g_console_state == console_state_game) {
@@ -949,6 +973,8 @@ static void console_task(void* arg) {
         /* ── normal dispatch ── */
         if (g_console_state == console_state_menu) {
             update_menu(&input, &hardware);
+        } else if (g_console_state == console_state_game_info) {
+            update_game_info(&input);
         } else if (g_console_state == console_state_game) {
             result = update_active_game(&input);
         } else if (g_console_state == console_state_paused) {
