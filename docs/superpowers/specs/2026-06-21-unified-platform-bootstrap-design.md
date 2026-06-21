@@ -116,25 +116,25 @@ VM 兼容层调整为：
 - 提供 `platform.h` 的平台头文件接口目标；
 - 由 `platform_arm.c` 构建的 ARM 平台实现目标；
 - 由 `platform_vm.c` 构建的 VM 平台实现目标；
-- 统一且仅选择一个实现的 `framework_platform` 接口目标。
+- 统一且仅选择一个实现的 `platform` 接口目标。
 
 所选平台接口的概念链接关系如下：
 
 ```text
 VM：
-framework_platform
+platform
 └── platform_vm
     └── vm + 公共库
 
 ARM：
-framework_platform
+platform
 └── platform_arm
     └── hal + bsp + syscall + freertos + ti + 公共库
 ```
 
 HAL、BSP、syscall、FreeRTOS、配置和平台头文件分别通过专用 `INTERFACE` 目标发布。使用方通过 CMake 目标的 usage requirements 获得声明，不再重复手工维护 include 目录列表。
 
-根构建文件只保留必须在 `project()` 之前完成的少量平台设置，例如选择 ARM 工具链和启用的语言。之后添加公共子目录，使用 `src/main.c` 构建可执行文件，并链接 `framework_platform`。
+根构建文件只保留必须在 `project()` 之前完成的少量平台设置，例如选择 ARM 工具链和启用的语言。之后添加公共子目录，使用 `src/main.c` 构建可执行文件，并链接 `platform`。
 
 ## 依赖规则
 
