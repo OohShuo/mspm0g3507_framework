@@ -13,7 +13,7 @@
 #define TEST_RTT_ENABLE           0
 #define TEST_SLIP_RECV_ENABLE     0
 #define TEST_ST7789_IMG_ENABLE    0
-#define TEST_VIB_MOTOR_ENABLE     1
+#define TEST_VIB_MOTOR_ENABLE     0
 #define TEST_W25Q32_ENABLE        0
 
 #define TEST_ANY_ENABLE                                                                  \
