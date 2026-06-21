@@ -9,6 +9,7 @@
 #include "haptics_vm.h"
 #include "input_vm.h"
 #include "local_lib.h"
+#include "task_vm.h"
 
 static volatile int g_run = 1;
 
@@ -39,6 +40,14 @@ int main(void) {
     App_Init();
     Hal_Task_Def();
     App_Task_Def();
+
+    if (Vm_Freertos_Start_Tasks() != pdPASS) {
+        fprintf(stderr, "[VM] Failed to start virtual tasks\n");
+        Vm_Haptics_Deinit();
+        Vm_Display_Deinit();
+        SDL_Quit();
+        return 1;
+    }
 
     printf("[VM] Controls: Arrows = joystick, W/A/S/D = X/Y/A/B, Space = START, ESC = quit\n");
 
