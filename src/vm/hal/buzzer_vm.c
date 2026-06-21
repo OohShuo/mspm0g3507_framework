@@ -1,9 +1,8 @@
-#include "buzzer.h"
-
 #include <SDL2/SDL.h>
 #include <stdio.h>
 
 #include "audio_synth_vm.h"
+#include "buzzer.h"
 
 #define VM_AUDIO_SAMPLE_RATE 48000
 

@@ -1,8 +1,7 @@
 #pragma once
 
-#include <stdint.h>
-
 #include <SDL2/SDL.h>
+#include <stdint.h>
 
 void Vm_Haptics_Init(void);
 void Vm_Haptics_Deinit(void);

@@ -1,5 +1,3 @@
-#include "vib_motor.h"
-
 #include <stddef.h>
 #include <string.h>
 
@@ -7,6 +5,7 @@
 #include "bsp_time.h"
 #include "haptics_vm.h"
 #include "task.h"
+#include "vib_motor.h"
 
 static Vib_motor g_motor;
 
