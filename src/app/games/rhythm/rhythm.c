@@ -22,7 +22,7 @@
 #define COLOR_GREEN    0x07e0u
 #define COLOR_RED      0xf800u
 #define COLOR_GRAY     0x8410u
-#define COLOR_DARK     0x4208u
+#define COLOR_DARK     0xA514u
 
 typedef enum { rhythm_state_ready, rhythm_state_playing, rhythm_state_over } Rhythm_state;
 typedef struct {

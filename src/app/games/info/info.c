@@ -16,7 +16,7 @@
 #define COLOR_CYAN    0x07ffu
 #define COLOR_BLUE    0x053fu
 #define COLOR_GRAY    0x8410u
-#define COLOR_DARK    0x4208u
+#define COLOR_DARK    0xA514u
 
 #define TOTAL_PAGES   2
 

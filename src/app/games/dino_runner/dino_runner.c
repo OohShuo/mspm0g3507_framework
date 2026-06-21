@@ -29,7 +29,7 @@
 #define COLOR_WHITE        0xffffu
 #define COLOR_GREEN        0x07e0u
 #define COLOR_CYAN         0x07ffu
-#define COLOR_DARK         0x4208u
+#define COLOR_DARK         0xA514u
 #define COLOR_RED          0xf800u
 #define COLOR_GRAY         0x8410u
 

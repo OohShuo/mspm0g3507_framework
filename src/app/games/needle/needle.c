@@ -33,7 +33,7 @@
 #define COLOR_YELLOW      0xffe0u
 #define COLOR_RED         0xf800u
 #define COLOR_GRAY        0x8410u
-#define COLOR_DARK        0x4208u
+#define COLOR_DARK        0xA514u
 #define COLOR_LIGHT       0xc618u
 
 /* ── sin 表 64 等分 0-90°，缩放 128 ── */

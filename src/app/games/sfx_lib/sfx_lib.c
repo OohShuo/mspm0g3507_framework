@@ -21,7 +21,7 @@
 #define COLOR_CYAN     0x07ffu
 #define COLOR_GREEN    0x07e0u
 #define COLOR_GRAY     0x8410u
-#define COLOR_DARK     0x4208u
+#define COLOR_DARK     0xA514u
 #define COLOR_HILITE   0xc618u
 
 /* ── SFX 名称，顺序必须与 Buzzer_sfx_idx 一致 ── */

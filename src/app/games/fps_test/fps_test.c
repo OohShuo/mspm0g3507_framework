@@ -26,7 +26,7 @@
 #define COLOR_YELLOW     0xffe0u
 #define COLOR_MAGENTA    0xf81fu
 #define COLOR_ORANGE     0xfd20u
-#define COLOR_DARK       0x4208u
+#define COLOR_DARK       0xA514u
 #define COLOR_GRAY       0x8410u
 
 typedef enum {

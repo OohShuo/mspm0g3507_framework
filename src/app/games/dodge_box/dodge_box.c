@@ -63,7 +63,7 @@ static uint16_t light_color(uint16_t c) {
 #define COLOR_YELLOW         0xffe0u
 #define COLOR_MAGENTA        0xf81fu
 #define COLOR_GRAY           0x8410u
-#define COLOR_DARK           0x2104u
+#define COLOR_DARK           0xA514u
 #define COLOR_DIM_RED        0x6000u
 #define COLOR_DIM_CYAN       0x0339u
 #define COLOR_DIM_YELLOW     0x6300u
