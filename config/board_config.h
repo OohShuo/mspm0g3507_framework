@@ -132,6 +132,7 @@
 #define JOYSTICK_X_DEAD_ZONE         0.18f
 #define JOYSTICK_Y_DEAD_ZONE         0.18f
 #define JOYSTICK_DIRECTION_THRESHOLD 0.42f
+#define JOYSTICK_DIRECTION_HYSTERESIS 0.05f
 
 /* Keep the joystick released while startup center calibration is running. */
 #define JOYSTICK_CALIBRATION_SAMPLES     32u
