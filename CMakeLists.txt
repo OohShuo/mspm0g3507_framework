@@ -34,7 +34,7 @@ if(BUILD_PLATFORM STREQUAL "VM")
     set(ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
 
     file(GLOB ASSETS_C "${ASSETS_DIR}/*.c")
-    set(ENTRANCE_MAIN_C "${SRC_DIR}/vm/main_vm.c")
+    set(ENTRANCE_MAIN_C "${SRC_DIR}/main.c")
 
     add_compile_options(-fdiagnostics-color=always -Wall)
 
@@ -55,11 +55,12 @@ if(BUILD_PLATFORM STREQUAL "VM")
     add_subdirectory(lib)
     add_subdirectory(src/app)
     add_subdirectory(src/vm)
+    add_subdirectory(src/platform)
 
     # app inherits VM's PUBLIC include paths (hal, bsp, freertos headers)
     target_link_libraries(app PRIVATE vm)
 
-    target_link_libraries(${PROJECT_NAME}_vm PRIVATE vm app lib)
+    target_link_libraries(${PROJECT_NAME}_vm PRIVATE vm app lib platform)
     target_link_libraries(${PROJECT_NAME}_vm PRIVATE ${SDL2_LIBRARIES})
     target_include_directories(${PROJECT_NAME}_vm PRIVATE ${SDL2_INCLUDE_DIRS})
 
@@ -128,6 +129,7 @@ else()
     add_subdirectory(src/bsp)
     add_subdirectory(src/syscall)
     add_subdirectory(src/test)
+    add_subdirectory(src/platform)
 
     target_link_options(${PROJECT_NAME}.elf PRIVATE
         ${CPU_FLAGS}
@@ -142,7 +144,7 @@ else()
         "-Wl,--print-memory-usage"
     )
 
-    target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib syscall test)
+    target_link_libraries(${PROJECT_NAME}.elf PRIVATE ti app hal bsp lib syscall test platform)
 
     add_custom_command(
         TARGET ${PROJECT_NAME}.elf POST_BUILD
