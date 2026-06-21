@@ -202,6 +202,7 @@ Game_result Sfx_Lib_Update(const Game_input* input) {
     uint8_t full_redraw = 0;
     uint8_t local_dirty = 0;
     uint8_t old_cursor = g_cursor;
+    const uint8_t old_page = g_page;
 
     /* ── 方向键 + DAS ── */
     if (input->direction == game_direction_up || input->direction == game_direction_down ||
@@ -244,6 +245,9 @@ Game_result Sfx_Lib_Update(const Game_input* input) {
 
     if (input->confirm_pressed) {
         Buzzer_Play_Sfx(g_hardware.buzzer, (Buzzer_sfx_idx)(page_start() + g_cursor));
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_menu_select);
+    } else if (g_page != old_page || g_cursor != old_cursor) {
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_menu_tick);
     }
 
     return game_result_running;

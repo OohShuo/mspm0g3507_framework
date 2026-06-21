@@ -21,6 +21,7 @@
 #define TOTAL_PAGES   2
 
 static St7789* g_lcd = NULL;
+static Vib_motor* g_vib_motor = NULL;
 static uint8_t g_current_page = 0;
 
 /* ── Page indicator bar at bottom ── */
@@ -105,6 +106,7 @@ static void render_info_screen(void) {
 
 void Info_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
+    g_vib_motor = hardware->vib_motor;
     g_current_page = 0;
     render_info_screen();
 }
@@ -116,9 +118,11 @@ Game_result Info_Update(const Game_input* input) {
         if (input->direction == game_direction_left) {
             g_current_page = (g_current_page + TOTAL_PAGES - 1) % TOTAL_PAGES;
             render_info_screen();
+            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
         } else if (input->direction == game_direction_right) {
             g_current_page = (g_current_page + 1) % TOTAL_PAGES;
             render_info_screen();
+            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
         }
     }
 

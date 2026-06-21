@@ -89,6 +89,7 @@ static const int8_t g_dir_y[] = {0, -1, 0, 1, 0};
 
 static St7789* g_lcd = NULL;
 static Buzzer* g_buzzer = NULL;
+static Game_hardware g_hardware;
 
 static uint16_t g_tile_buffer[TILE_SIZE * TILE_SIZE];
 static uint16_t* g_line_buffer = NULL;
@@ -324,7 +325,10 @@ static void collect_pellet(void) {
     if (g_pellets_left == 0) {
         g_game_state = game_state_level_clear;
         if (g_buzzer != NULL) { Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_victory); }
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
         render_hud();
+    } else if (pellet == 2) {
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_pickup);
     }
 }
 
@@ -334,11 +338,13 @@ static void lose_life(void) {
     if (g_lives == 0) {
         g_game_state = game_state_over;
         if (g_buzzer != NULL) { Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_defeat); }
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         render_hud();
         return;
     }
 
     Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_life_lost);
+    Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_life_lost);
     reset_actor_positions();
     g_last_player_move = Game_Runtime_Get_Tick_Ms();
     g_last_ghost_move = g_last_player_move;
@@ -354,6 +360,7 @@ static uint8_t check_collisions(void) {
             g_ghosts[i].pos = g_ghosts[i].home;
             g_score += 200u;
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_ghost);
+            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
             render_cell(old.x, old.y);
             render_cell(g_ghosts[i].pos.x, g_ghosts[i].pos.y);
             render_hud();
@@ -460,6 +467,7 @@ static Direction convert_direction(Game_direction direction) {
 
 void Pacman_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
+    g_hardware = *hardware;
     g_lcd = hardware->lcd;
     g_buzzer = hardware->buzzer;
     g_line_buffer = Game_Graphics_Get_Line_Buffer();

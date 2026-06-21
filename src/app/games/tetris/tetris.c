@@ -113,7 +113,7 @@ static void lock_piece(void) {
     }
 }
 
-static void clear_lines(void) {
+static uint8_t clear_lines(void) {
     uint8_t cleared = 0;
     for (int8_t row = BOARD_ROWS - 1; row >= 0; row--) {
         uint8_t full = 1;
@@ -139,6 +139,7 @@ static void clear_lines(void) {
         g_level = g_lines / 10u;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tetris_line_clear);
     }
+    return cleared;
 }
 
 static int8_t ghost_y(void) {
@@ -291,12 +292,13 @@ static void settle_piece(void) {
     if (g_piece.y < 0) {
         g_state = tetris_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         render_hud();
         return;
     }
 
     lock_piece();
-    clear_lines();
+    const uint8_t cleared = clear_lines();
     render_board();
     g_old_ghost_y = -99;
     new_piece();
@@ -308,7 +310,12 @@ static void settle_piece(void) {
     if (collides(g_piece.x, g_piece.y, g_piece.kind, g_piece.rotation)) {
         g_state = tetris_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         render_hud();
+    } else if (cleared > 0) {
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_merge);
+    } else {
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
     }
 }
 
@@ -421,6 +428,7 @@ Game_result Tetris_Update(const Game_input* input) {
             draw_ghost();
             render_piece(&g_piece, -1);
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tetris_rotate); /* rotate */
+            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_action_light);
         }
     }
 
