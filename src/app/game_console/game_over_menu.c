@@ -24,7 +24,7 @@
 #define COLOR_YELLOW  0xffe0u
 #define COLOR_RED     0xf800u
 #define COLOR_GRAY    0x8410u
-#define COLOR_DARK    0x2104u
+#define COLOR_DARK    0xA514u
 
 typedef enum {
     end_stage_prompt,

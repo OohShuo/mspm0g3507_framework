@@ -31,7 +31,7 @@
 #define COLOR_CYAN        0x07ffu
 #define COLOR_YELLOW      0xffe0u
 #define COLOR_RED         0xf800u
-#define COLOR_DARK        0x4208u
+#define COLOR_DARK        0xA514u
 #define COLOR_GRAY        0x8410u
 
 typedef enum { flappy_state_ready, flappy_state_playing, flappy_state_over } Flappy_state;
