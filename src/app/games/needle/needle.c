@@ -279,6 +279,7 @@ static void launch_needle(void) {
     g_fly_y = LAUNCH_Y;
     g_state = needle_state_flying;
     Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_needle_launch);
+    Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_shot);
     draw_bottom_text("", COLOR_BLACK);
 }
 
@@ -298,6 +299,7 @@ static void resolve_impact(uint8_t angle) {
         g_state = needle_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         draw_bottom_text("GAME OVER  A RESTART", COLOR_RED);
         return;
     }
@@ -318,6 +320,7 @@ static void resolve_impact(uint8_t angle) {
 
     g_state = needle_state_ready;
     Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_needle_stick);
+    Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
     draw_aim_guide();
     draw_bottom_text("A LAUNCH  Y QUICK", COLOR_WHITE);
 }

@@ -318,6 +318,7 @@ void Dino_Runner_Init(const Game_hardware* hardware) {
 /* ── Update ── */
 
 Game_result Dino_Runner_Update(const Game_input* input) {
+    uint8_t jumped = 0;
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
     St7789* lcd = g_hardware.lcd;
@@ -349,6 +350,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
             g_jump_held = 1;
             g_gravity_acc = 0;
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_dino_jump);
+            jumped = 1;
         }
         if (!up || g_dino_vy >= 0) { g_jump_held = 0; }
         if (g_dino_in_air && input->y_down) {
@@ -409,12 +411,15 @@ Game_result Dino_Runner_Update(const Game_input* input) {
         g_state = dino_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         draw_dino(g_dino_y, g_crouching, COLOR_RED);
         update_score();
         play_fill(50, 148, 140, 9, COLOR_BLACK);
         Game_Graphics_Draw_Text(lcd, 60, 150, "GAME OVER", 1, COLOR_RED);
         play_fill(25, 168, 190, 9, COLOR_BLACK);
         Game_Graphics_Draw_Text(lcd, 48, 170, "A TO RESTART", 1, COLOR_WHITE);
+    } else if (jumped) {
+        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
     }
 
     return game_result_running;

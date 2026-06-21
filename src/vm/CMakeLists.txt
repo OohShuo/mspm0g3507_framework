@@ -24,6 +24,7 @@ target_include_directories(vm PUBLIC
     "${CMAKE_SOURCE_DIR}/src/hal/button"
     "${CMAKE_SOURCE_DIR}/src/hal/joystick"
     "${CMAKE_SOURCE_DIR}/src/hal/buzzer"
+    "${CMAKE_SOURCE_DIR}/src/hal/vib_motor"
     "${CMAKE_SOURCE_DIR}/src/hal/led_simple"
     "${CMAKE_SOURCE_DIR}/src/hal/led_breath"
     "${CMAKE_SOURCE_DIR}/src/hal/com_uart"
