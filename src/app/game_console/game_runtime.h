@@ -4,6 +4,7 @@
 
 #include "buzzer.h"
 #include "st7789.h"
+#include "vib_motor.h"
 
 typedef enum {
     game_direction_none,
@@ -45,6 +46,7 @@ typedef struct {
 typedef struct {
     St7789* lcd;
     Buzzer* buzzer;
+    Vib_motor* vib_motor;
 } Game_hardware;
 
 typedef enum {

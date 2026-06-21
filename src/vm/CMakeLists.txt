@@ -4,6 +4,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 # Compile all .c files under src/vm (hal stubs, bsp stubs, freertos stubs, main, display, input)
 file(GLOB_RECURSE VM_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
 add_library(vm STATIC ${VM_SRC})
+target_sources(vm PRIVATE "${CMAKE_SOURCE_DIR}/src/hal/buzzer/buzzer_def.c")
 
 # --- Include paths (order matters for shadowing) ---
 
@@ -24,6 +25,7 @@ target_include_directories(vm PUBLIC
     "${CMAKE_SOURCE_DIR}/src/hal/button"
     "${CMAKE_SOURCE_DIR}/src/hal/joystick"
     "${CMAKE_SOURCE_DIR}/src/hal/buzzer"
+    "${CMAKE_SOURCE_DIR}/src/hal/vib_motor"
     "${CMAKE_SOURCE_DIR}/src/hal/led_simple"
     "${CMAKE_SOURCE_DIR}/src/hal/led_breath"
     "${CMAKE_SOURCE_DIR}/src/hal/com_uart"

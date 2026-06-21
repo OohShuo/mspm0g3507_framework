@@ -270,7 +270,9 @@ Game_result Pong_Update(const Game_input* input) {
         if (g_ai_score >= WIN_SCORE) {
             g_state = pong_state_over;
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         } else {
+            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_score);
             g_state = pong_state_serving;
             g_serve_at = now2 + 1000u;
             serve_ball(0);
@@ -286,7 +288,9 @@ Game_result Pong_Update(const Game_input* input) {
         if (g_player_score >= WIN_SCORE) {
             g_state = pong_state_over;
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
+            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
         } else {
+            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_score);
             g_state = pong_state_serving;
             g_serve_at = now2 + 1000u;
             serve_ball(1);
