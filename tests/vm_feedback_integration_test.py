@@ -3,10 +3,10 @@ from pathlib import Path
 
 
 class VmFeedbackIntegrationTest(unittest.TestCase):
-    def test_main_loop_routes_haptics_lifecycle(self):
-        source = Path("src/vm/main_vm.c").read_text()
+    def test_platform_loop_routes_haptics_lifecycle(self):
+        source = Path("src/platform/platform_vm.c").read_text()
         self.assertIn("Vm_Haptics_Init();", source)
-        self.assertIn("Vm_Haptics_Handle_Event(&e);", source)
+        self.assertIn("Vm_Haptics_Handle_Event(&event);", source)
         self.assertIn("Vm_Haptics_Update();", source)
         self.assertIn("Vm_Haptics_Deinit();", source)
 

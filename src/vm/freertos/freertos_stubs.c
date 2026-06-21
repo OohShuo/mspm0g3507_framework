@@ -7,6 +7,7 @@
 #include "queue.h"
 #include "semphr.h"
 #include "task.h"
+#include "task_vm.h"
 
 #define MAX_TASKS 16
 typedef struct {
@@ -17,6 +18,8 @@ typedef struct {
 } VmTask;
 static VmTask g_tasks[MAX_TASKS];
 static int g_n = 0;
+static int g_started = 0;
+static pthread_mutex_t g_tasks_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void* wrap(void* a) {
     VmTask* td = (VmTask*)a;
@@ -24,23 +27,51 @@ static void* wrap(void* a) {
     return NULL;
 }
 
+static BaseType_t start_task(VmTask* task) {
+    if (pthread_create(&task->t, NULL, wrap, task) != 0) return pdFAIL;
+    pthread_detach(task->t);
+    return pdPASS;
+}
+
 BaseType_t xTaskCreate(
     TaskFunction_t f, const char* nm, unsigned short ss, void* p, unsigned int pri, TaskHandle_t* h) {
     (void)nm;
     (void)ss;
     (void)pri;
-    if (g_n >= MAX_TASKS) return pdFAIL;
+    pthread_mutex_lock(&g_tasks_mutex);
+    if (g_n >= MAX_TASKS) {
+        pthread_mutex_unlock(&g_tasks_mutex);
+        return pdFAIL;
+    }
     VmTask* td = &g_tasks[g_n++];
     td->f = f;
     td->p = p;
     td->used = 1;
-    if (pthread_create(&td->t, NULL, wrap, td) != 0) {
+    if (g_started && start_task(td) != pdPASS) {
         td->used = 0;
+        g_n--;
+        pthread_mutex_unlock(&g_tasks_mutex);
         return pdFAIL;
     }
-    pthread_detach(td->t);
     if (h) *h = (TaskHandle_t)td;
+    pthread_mutex_unlock(&g_tasks_mutex);
     return pdPASS;
+}
+
+BaseType_t Vm_Freertos_Start_Tasks(void) {
+    BaseType_t result = pdPASS;
+    pthread_mutex_lock(&g_tasks_mutex);
+    if (!g_started) {
+        g_started = 1;
+        for (int i = 0; i < g_n; ++i) {
+            if (g_tasks[i].used && start_task(&g_tasks[i]) != pdPASS) {
+                g_tasks[i].used = 0;
+                result = pdFAIL;
+            }
+        }
+    }
+    pthread_mutex_unlock(&g_tasks_mutex);
+    return result;
 }
 TickType_t xTaskGetTickCount(void) { return (TickType_t)SDL_GetTicks(); }
 void vTaskDelayUntil(TickType_t* prev, TickType_t inc) {

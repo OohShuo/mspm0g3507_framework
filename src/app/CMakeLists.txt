@@ -15,6 +15,6 @@ target_include_directories(app PUBLIC
     "${CFG_DIR}"
 )
 
-target_link_libraries(app PRIVATE hal bsp lib syscall)
+target_link_libraries(app PRIVATE platform lib)
 
 print_item("App" "library ${ColorBold}app${ColorReset} built")
