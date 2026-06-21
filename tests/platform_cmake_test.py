@@ -19,6 +19,12 @@ class PlatformCMakeTest(unittest.TestCase):
         self.assertIn("platform_add_executable", source)
         self.assertNotIn("ENTRANCE_MAIN_C", source)
 
+    def test_arm_interrupts_are_platform_owned_and_linked_directly(self):
+        source = Path("src/platform/CMakeLists.txt").read_text()
+        self.assertTrue(Path("src/platform/it_arm.c").exists())
+        self.assertFalse(Path("src/it.c").exists())
+        self.assertIn('"${PLATFORM_SOURCE_DIR}/it_arm.c"', source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 
 include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 
+set(PLATFORM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "Platform source directory")
+
 get_subdirs_and_self("${CMAKE_SOURCE_DIR}/src/hal" PLATFORM_HAL_INC)
 get_subdirs_and_self("${CMAKE_SOURCE_DIR}/src/bsp" PLATFORM_BSP_INC)
 
@@ -54,9 +56,12 @@ function(platform_add_executable main_source)
         add_executable(${PROJECT_NAME}_vm "${main_source}" ${ARGN})
         target_link_libraries(${PROJECT_NAME}_vm PRIVATE app platform lib)
     else()
-        file(GLOB IT_C "${CMAKE_SOURCE_DIR}/src/it.c")
         add_subdirectory("${CMAKE_SOURCE_DIR}/src/test" "${CMAKE_BINARY_DIR}/src/test")
-        add_executable(${PROJECT_NAME}.elf "${main_source}" "${IT_C}" ${ARGN})
+        add_executable(${PROJECT_NAME}.elf
+            "${main_source}"
+            "${PLATFORM_SOURCE_DIR}/it_arm.c"
+            ${ARGN}
+        )
         target_link_options(${PROJECT_NAME}.elf PRIVATE
             ${CPU_FLAGS}
             "-T${TI_LINKER_SCRIPTS}"
