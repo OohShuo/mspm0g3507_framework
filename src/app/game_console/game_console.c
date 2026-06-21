@@ -103,15 +103,20 @@ static void render_game_info(void) {
     Game_Info_Screen_Draw(g_lcd, game->name, game->info_text, g_current_fps);
 }
 
-static Game_direction direction_from_axes(float x, float y) {
+static Game_direction direction_from_axes(float x, float y, Game_direction prev) {
     const float abs_x = x < 0.0f ? -x : x;
     const float abs_y = y < 0.0f ? -y : y;
 
     if (abs_x < JOYSTICK_DIRECTION_THRESHOLD && abs_y < JOYSTICK_DIRECTION_THRESHOLD) {
         return game_direction_none;
     }
-    if (abs_x > abs_y) { return x < 0.0f ? game_direction_left : game_direction_right; }
-    return y < 0.0f ? game_direction_up : game_direction_down;
+
+    const float hysteresis = (prev != game_direction_none) ? JOYSTICK_DIRECTION_HYSTERESIS : 0.0f;
+
+    if (abs_x > abs_y + hysteresis) { return x < 0.0f ? game_direction_left : game_direction_right; }
+    if (abs_y > abs_x + hysteresis) { return y < 0.0f ? game_direction_up : game_direction_down; }
+
+    return prev;
 }
 
 static void poll_button(
@@ -135,7 +140,7 @@ static Game_input poll_input(void) {
         input.stick_active = input.axis_x != 0.0f || input.axis_y != 0.0f;
     }
 
-    input.direction = direction_from_axes(input.axis_x, input.axis_y);
+    input.direction = direction_from_axes(input.axis_x, input.axis_y, g_last_direction);
     input.direction_pressed = input.direction != game_direction_none && input.direction != g_last_direction;
 
     poll_button(g_a_button, &g_last_a_state, &input.a_down, &input.a_pressed, &input.a_released);
