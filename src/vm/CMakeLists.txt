@@ -4,6 +4,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/utils.cmake)
 # Compile all .c files under src/vm (hal stubs, bsp stubs, freertos stubs, main, display, input)
 file(GLOB_RECURSE VM_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
 add_library(vm STATIC ${VM_SRC})
+target_sources(vm PRIVATE "${CMAKE_SOURCE_DIR}/src/hal/buzzer/buzzer_def.c")
 
 # --- Include paths (order matters for shadowing) ---
 
