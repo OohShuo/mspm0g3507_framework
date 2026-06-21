@@ -50,6 +50,7 @@ static uint8_t g_move_count = 0;
 static uint8_t g_das_dir = 0;
 static uint32_t g_das_time = 0;
 static uint8_t g_das_fired = 0;
+static uint8_t g_place_feedback_pending = 0;
 static int8_t g_last_move_x = -1;
 static int8_t g_last_move_y = -1;
 
@@ -196,7 +197,9 @@ static void ai_move(void) {
             g_winner = 2;
             g_state = gomoku_state_over;
             g_score = 0;
+            g_place_feedback_pending = 0;
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         }
     }
 }
@@ -294,6 +297,7 @@ static void restart_game(void) {
     g_move_count = 0;
     g_das_dir = 0;
     g_das_fired = 0;
+    g_place_feedback_pending = 0;
     g_last_move_x = -1;
     g_last_move_y = -1;
     Game_Graphics_Clear_Game_Area(g_hardware.lcd);
@@ -392,8 +396,10 @@ Game_result Gomoku_Update(const Game_input* input) {
                     }
                 }
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
+                Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
             } else {
                 g_state = gomoku_state_ai;
+                g_place_feedback_pending = 1;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_gomoku_place);
             }
         }
@@ -405,6 +411,10 @@ Game_result Gomoku_Update(const Game_input* input) {
         if (g_state == gomoku_state_ai) {
             g_state = gomoku_state_player;
             draw_cursor_at(g_cursor_x, g_cursor_y);
+            if (g_place_feedback_pending) {
+                g_place_feedback_pending = 0;
+                Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_action_light);
+            }
         }
     }
     return game_result_running;

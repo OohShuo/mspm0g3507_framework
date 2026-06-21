@@ -6,6 +6,7 @@
 #include "app.h"
 #include "display_vm.h"
 #include "hal.h"
+#include "haptics_vm.h"
 #include "input_vm.h"
 #include "local_lib.h"
 
@@ -27,6 +28,7 @@ int main(void) {
 
     Vm_Display_Init();
     Vm_Input_Init();
+    Vm_Haptics_Init();
 
     printf("[VM] Starting virtual device...\n");
 
@@ -43,14 +45,17 @@ int main(void) {
     while (g_run) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
+            Vm_Haptics_Handle_Event(&e);
             if (e.type == SDL_QUIT || (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)) g_run = 0;
         }
         Vm_Input_Poll();  // snapshot keyboard → shared struct (main thread only)
+        Vm_Haptics_Update();
         Vm_Display_Render();
         SDL_Delay(5);
     }
 
     printf("[VM] Shutting down...\n");
+    Vm_Haptics_Deinit();
     Vm_Display_Deinit();
     SDL_Quit();
     return 0;

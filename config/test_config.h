@@ -13,6 +13,7 @@
 #define TEST_RTT_ENABLE           0
 #define TEST_SLIP_RECV_ENABLE     0
 #define TEST_ST7789_IMG_ENABLE    0
+#define TEST_VIB_MOTOR_ENABLE     0
 #define TEST_W25Q32_ENABLE        0
 
 #define TEST_ANY_ENABLE                                                                  \
@@ -20,4 +21,4 @@
         TEST_JOYSTICK_ENABLE || TEST_LCD_ENABLE || TEST_LED_BREATH_ENABLE ||             \
         TEST_LED_SIMPLE_ENABLE || TEST_LFS_ENABLE || TEST_LVGL_BALL_ENABLE ||            \
         TEST_LVGL_HELLO_ENABLE || TEST_RTT_ENABLE || TEST_SLIP_RECV_ENABLE ||            \
-        TEST_ST7789_IMG_ENABLE || TEST_W25Q32_ENABLE)
+        TEST_ST7789_IMG_ENABLE || TEST_VIB_MOTOR_ENABLE || TEST_W25Q32_ENABLE)

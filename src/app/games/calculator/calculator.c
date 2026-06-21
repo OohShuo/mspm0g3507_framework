@@ -41,6 +41,7 @@ typedef enum {
 
 /* ── Static state ── */
 static St7789* g_lcd = NULL;
+static Vib_motor* g_vib_motor = NULL;
 static char g_expr[MAX_EXPR];
 static uint8_t g_expr_len = 0;
 static uint8_t g_cursor_row = 2;
@@ -286,7 +287,7 @@ static int evaluate(const char* s, float* out) {
 }
 
 /* ── Button press handler ── */
-static void press_button(uint8_t row, uint8_t col) {
+static uint8_t press_button(uint8_t row, uint8_t col) {
     const char* label = g_buttons[row][col];
     g_error = 0;
 
@@ -295,7 +296,7 @@ static void press_button(uint8_t row, uint8_t col) {
         g_expr[0] = '\0';
         g_just_evaluated = 0;
         render_display();
-        return;
+        return 1;
     }
 
     if (label[0] == 'D' && label[1] == 'E') {
@@ -307,11 +308,11 @@ static void press_button(uint8_t row, uint8_t col) {
             g_expr[--g_expr_len] = '\0';
         }
         render_display();
-        return;
+        return 1;
     }
 
     if (label[0] == '=') {
-        if (g_expr_len == 0) return;
+        if (g_expr_len == 0) return 0;
         if (evaluate(g_expr, &g_last_result)) {
             g_just_evaluated = 1;
         } else {
@@ -319,7 +320,7 @@ static void press_button(uint8_t row, uint8_t col) {
             g_just_evaluated = 0;
         }
         render_display();
-        return;
+        return 1;
     }
 
     if (g_just_evaluated) {
@@ -337,15 +338,17 @@ static void press_button(uint8_t row, uint8_t col) {
     }
 
     uint8_t label_len = (uint8_t)strlen(label);
-    if (g_expr_len + label_len >= MAX_EXPR) return;
+    if (g_expr_len + label_len >= MAX_EXPR) return 0;
     for (uint8_t i = 0; i < label_len; i++) { g_expr[g_expr_len++] = label[i]; }
     g_expr[g_expr_len] = '\0';
     render_display();
+    return 1;
 }
 
 /* ── Public API ── */
 void Calc_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
+    g_vib_motor = hardware->vib_motor;
     g_expr_len = 0;
     g_expr[0] = '\0';
     g_cursor_row = 2;
@@ -358,6 +361,8 @@ void Calc_Init(const Game_hardware* hardware) {
 
 Game_result Calc_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
+
+    uint8_t cursor_changed = 0;
 
     if (input->direction_pressed) {
         const uint8_t old_row = g_cursor_row;
@@ -383,10 +388,15 @@ Game_result Calc_Update(const Game_input* input) {
         if (g_cursor_row != old_row || g_cursor_col != old_col) {
             redraw_button(old_row, old_col, 0);
             redraw_button(g_cursor_row, g_cursor_col, 1);
+            cursor_changed = 1;
         }
     }
 
-    if (input->confirm_pressed) { press_button(g_cursor_row, g_cursor_col); }
+    if (input->confirm_pressed && press_button(g_cursor_row, g_cursor_col)) {
+        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+    } else if (cursor_changed) {
+        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
+    }
 
     return game_result_running;
 }

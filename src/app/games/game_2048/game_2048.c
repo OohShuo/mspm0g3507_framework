@@ -47,6 +47,7 @@ static uint16_t g_grid[GRID_SIZE][GRID_SIZE];
 static Game_state g_state = state_playing;
 static uint32_t g_score = 0;
 static uint8_t g_moved = 0;
+static uint8_t g_merged = 0;
 static uint32_t g_random_state = 0x3c8bf915u;
 
 static uint32_t random_next(void) {
@@ -141,6 +142,7 @@ static uint8_t slide_row(uint8_t r) {
             g_score += g_grid[r][c];
             g_grid[r][c + 1] = 0;
             changed = 1;
+            g_merged = 1;
         }
     }
     /* Compact again after merge */
@@ -165,6 +167,7 @@ static void save_grid(void) {
 
 static uint8_t slide(uint8_t dir /* 0=L 1=R 2=U 3=D */) {
     save_grid();
+    g_merged = 0;
     uint8_t changed = 0;
     if (dir == 0) {
         for (uint8_t r = 0; r < GRID_SIZE; r++) changed |= slide_row(r);
@@ -256,6 +259,7 @@ static void restart_game(void) {
     g_state = state_playing;
     g_score = 0;
     g_moved = 0;
+    g_merged = 0;
     spawn_tile();
     spawn_tile();
     Game_Graphics_Clear_Game_Area(g_hardware.lcd);
@@ -305,7 +309,10 @@ Game_result Game_2048_Update(const Game_input* input) {
             if (!can_move()) {
                 g_state = state_over;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
+                Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
                 render_hud();
+            } else if (g_merged) {
+                Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_merge);
             }
         }
     }
