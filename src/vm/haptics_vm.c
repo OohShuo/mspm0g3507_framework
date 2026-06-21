@@ -13,9 +13,7 @@ void Vm_Haptics_Set_Strength(uint8_t strength_percent) {
     SDL_AtomicSet(&g_strength, clamp_percent(strength_percent));
 }
 
-uint8_t Vm_Haptics_Get_Strength(void) {
-    return (uint8_t)SDL_AtomicGet(&g_strength);
-}
+uint8_t Vm_Haptics_Get_Strength(void) { return (uint8_t)SDL_AtomicGet(&g_strength); }
 
 static void close_controller(void) {
     if (g_controller == NULL) { return; }

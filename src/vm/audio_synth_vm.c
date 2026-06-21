@@ -38,9 +38,7 @@ uint8_t Vm_Audio_Synth_Get_Volume(const Vm_audio_synth* synth) {
     return synth == NULL ? 0u : synth->master_volume;
 }
 
-uint8_t Vm_Audio_Synth_Is_Active(const Vm_audio_synth* synth) {
-    return synth != NULL && synth->active;
-}
+uint8_t Vm_Audio_Synth_Is_Active(const Vm_audio_synth* synth) { return synth != NULL && synth->active; }
 
 static uint16_t current_frequency(
     const Vm_audio_synth* synth, const Buzzer_note* note, uint32_t gate_samples) {
@@ -70,8 +68,7 @@ void Vm_Audio_Synth_Render(
         if (synth->sample_in_note < gate_samples && note->frequency_hz != 0u) {
             const uint16_t frequency = current_frequency(synth, note, gate_samples);
             const uint32_t phase_step = (uint32_t)(((uint64_t)frequency << 32u) / sample_rate);
-            const uint8_t volume =
-                (uint8_t)((uint16_t)note->volume_percent * synth->master_volume / 100u);
+            const uint8_t volume = (uint8_t)((uint16_t)note->volume_percent * synth->master_volume / 100u);
             const int16_t amplitude = (int16_t)(VM_AUDIO_AMPLITUDE * volume / 100u);
             synth->phase += phase_step;
             samples[frame] = (synth->phase & 0x80000000u) != 0u ? amplitude : (int16_t)-amplitude;
