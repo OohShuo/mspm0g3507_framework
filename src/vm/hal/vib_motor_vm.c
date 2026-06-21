@@ -58,7 +58,9 @@ static void output_strength(Vib_motor* motor, uint8_t requested_strength) {
 
 static uint8_t can_accept(Vib_motor* motor, uint8_t priority, uint32_t now) {
     if (!motor->enabled || (motor->active && priority < motor->priority)) { return 0u; }
-    if (motor->has_played && now - motor->last_play_at < VIB_MOTOR_MIN_RETRIGGER_MS) { return 0u; }
+    const uint8_t within_cooldown =
+        motor->has_played && now - motor->last_play_at < VIB_MOTOR_MIN_RETRIGGER_MS;
+    if (within_cooldown && (!motor->active || priority <= motor->priority)) { return 0u; }
     motor->has_played = 1u;
     motor->last_play_at = now;
     motor->priority = priority;
