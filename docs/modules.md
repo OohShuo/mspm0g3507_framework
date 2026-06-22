@@ -55,7 +55,7 @@ HAL 把硬件能力封装成对象，供 APP 使用。典型对象包括：
 | `st7789` | LCD 初始化、窗口设置、像素/矩形/图像绘制 |
 | `w25q32` | 外部 SPI Flash 读写擦除 |
 | `buzzer` | PWM 蜂鸣器、音效播放 |
-| `vib_motor` | PWM 振动马达、效果模式、优先级与冷却 |
+| `vib_motor_pwm/gpio` | 振动马达、效果模式、优先级与冷却 |
 | `led_simple` / `led_breath` | 普通 LED 和呼吸灯 |
 | `com_uart` | UART 通信封装，可由开关启用 |
 

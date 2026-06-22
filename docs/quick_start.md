@@ -33,11 +33,21 @@ build:
     platform: VM
     build_type: Release
     generator: ninja
+    graphviz: ON
 
+    FRAMEWORK_USE_FREERTOS: ON
+    
   - name: arm
     platform: ARM
-    build_type: MinSizeRel
-    generator: ninja
+    build_type: MinSizeRel # Debug | Release | RelWithDebInfo | MinSizeRel
+    generator: ninja       # ninja | make | auto
+    graphviz: ON           # ON | OFF
+
+    FRAMEWORK_USE_FREERTOS: ON
+    FRAMEWORK_USE_RTT: OFF
+    FRAMEWORK_USE_LVGL: OFF
+    FRAMEWORK_USE_LFS: ON
+    FRAMEWORK_USE_UART: OFF
 ```
 
 其中：

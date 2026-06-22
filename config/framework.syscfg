@@ -18,7 +18,6 @@ const GPIO2   = GPIO.addInstance();
 const GPIO3   = GPIO.addInstance();
 const PWM     = scripting.addModule("/ti/driverlib/PWM", {}, false);
 const PWM1    = PWM.addInstance();
-const PWM2    = PWM.addInstance();
 const SPI     = scripting.addModule("/ti/driverlib/SPI", {}, false);
 const SPI1    = SPI.addInstance();
 const SYSCTL  = scripting.addModule("/ti/driverlib/SYSCTL");
@@ -79,11 +78,15 @@ const Board = scripting.addModule("/ti/driverlib/Board", {}, false);
 
 GPIO1.$name                              = "GPIO_GRP_0";
 GPIO1.port                               = "PORTA";
+GPIO1.associatedPins.create(2);
 GPIO1.associatedPins[0].$name            = "PIN_0";
 GPIO1.associatedPins[0].assignedPin      = "25";
 GPIO1.associatedPins[0].direction        = "INPUT";
 GPIO1.associatedPins[0].internalResistor = "PULL_UP";
 GPIO1.associatedPins[0].pin.$assign      = "PA25";
+GPIO1.associatedPins[1].$name            = "PIN_1";
+GPIO1.associatedPins[1].assignedPin      = "13";
+GPIO1.associatedPins[1].pin.$assign      = "PA13";
 
 GPIO2.$name                              = "GPIO_GRP_1";
 GPIO2.port                               = "PORTB";
@@ -140,17 +143,6 @@ PWM1.peripheral.ccp3Pin.$assign = "PA12";
 PWM1.PWM_CHANNEL_3.$name        = "ti_driverlib_pwm_PWMTimerCC0";
 PWM1.PWM_CHANNEL_3.dutyCycle    = 50;
 PWM1.ccp3PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric0";
-
-PWM2.$name                      = "PWM_1";
-PWM2.timerCount                 = 4000;
-PWM2.ccIndex                    = [1];
-PWM2.pwmMode                    = "EDGE_ALIGN_UP";
-PWM2.clockPrescale              = 10;
-PWM2.ccp1PinConfig.$name        = "ti_driverlib_gpio_GPIOPinGeneric7";
-PWM2.peripheral.$assign         = "TIMG0";
-PWM2.peripheral.ccp1Pin.$assign = "PA13";
-PWM2.PWM_CHANNEL_1.$name        = "ti_driverlib_pwm_PWMTimerCC1";
-PWM2.PWM_CHANNEL_1.dutyCycle    = 50;
 
 SPI1.$name                                 = "SPI_0";
 SPI1.rxFifoThreshold                       = "DL_SPI_RX_FIFO_LEVEL_ONE_FRAME";
