@@ -42,11 +42,6 @@
 #define G(f, ms)      {(f), (ms), 96, 72, BUZZER_NOTE_GLISSANDO}
 #define R(ms)         {0, (ms), 0, 0, 0}
 
-/*
- *  SFX 库 — 所有音效，music_library 已删除
- *  每个 SFX 1~8 个音符，在玩家操作时一次性播放
- */
-
 /* ── 通用 / 菜单 ── */
 static const Buzzer_note sfx_menu_move[] = {S(C6, 35), S(E6, 45)};
 static const Buzzer_note sfx_menu_select[] = {S(C6, 45), S(G6, 55), N(C7, 90)};
