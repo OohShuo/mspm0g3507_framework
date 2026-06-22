@@ -138,6 +138,8 @@ nav:
       - 构建系统: build_system.md
       - 脚本说明: scripts.md
 
+  - Windows 环境配置: win_env.md
+
   - 开发者指南:
       - 开发者指南: developer_guide.md
 
