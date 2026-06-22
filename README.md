@@ -7,7 +7,7 @@
 
 ---
 
-> 建议在 Linux 下使用，跨平台不保证能够顺利运行。
+> 建议在 Linux 下使用，跨平台不保证能够顺利运行，Windows 环境配置详见 [Windows 环境配置](win_env.md)。
 
 ## 概览 · Overview
 
@@ -198,6 +198,7 @@ graph TD
 | 理解 CMake 和 target 配置 | [构建系统](build_system.md) |
 | 了解 scripts 工具目录 | [脚本说明](scripts.md) |
 | 新增模块、游戏或驱动 | [开发者指南](developer_guide.md) |
+| Windows 环境配置 | [Windows 环境配置](win_env.md) |
 
 ---
 
