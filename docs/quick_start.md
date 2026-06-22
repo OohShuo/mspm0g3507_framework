@@ -1,6 +1,6 @@
 # 快速开始
 
-> 建议在 Linux 下使用，跨平台不保证能够顺利运行。
+> 建议在 Linux 下使用，跨平台不保证能够顺利运行，Windows 环境配置详见 [Windows 环境配置](win_env.md)。
 
 本文档用于从零构建和运行 MSPM0G3507 Framework。建议先构建 VM，再构建 ARM 固件。
 

@@ -20,6 +20,19 @@ target_link_libraries(platform INTERFACE platform_headers)
 if(BUILD_PLATFORM STREQUAL "VM")
     find_package(SDL2 REQUIRED)
 
+    add_library(framework_sdl2 INTERFACE)
+    target_compile_definitions(framework_sdl2 INTERFACE SDL_MAIN_HANDLED)
+
+    if(TARGET SDL2::SDL2)
+        target_link_libraries(framework_sdl2 INTERFACE SDL2::SDL2)
+    else()
+        target_include_directories(framework_sdl2 INTERFACE ${SDL2_INCLUDE_DIRS})
+
+        set(_FRAMEWORK_SDL2_LIBRARIES ${SDL2_LIBRARIES})
+        list(FILTER _FRAMEWORK_SDL2_LIBRARIES EXCLUDE REGEX ".*SDL2main.*")
+        target_link_libraries(framework_sdl2 INTERFACE ${_FRAMEWORK_SDL2_LIBRARIES})
+    endif()
+
     target_include_directories(platform_headers INTERFACE
         "${CMAKE_SOURCE_DIR}/src/vm/ti"
         "${CMAKE_SOURCE_DIR}/src/vm"
