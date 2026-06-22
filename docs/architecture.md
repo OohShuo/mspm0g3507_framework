@@ -53,7 +53,7 @@ Platform_Start()
 2. APP 不直接操作寄存器或 DriverLib。
 3. HAL 不直接关心具体游戏逻辑。
 4. BSP 只封装 MCU 外设，不保存业务状态。
-5. VM 尽量模拟 HAL/BSP 行为，保证 APP 代码可复用。
+5. VM 模拟 HAL/BSP 行为，保证 APP 代码可复用。
 
 ## 双平台设计
 
@@ -61,4 +61,4 @@ ARM 与 VM 的差异主要集中在 `src/platform`、`src/bsp`、`src/hal` 和 `
 
 - ARM 目标链接 `ti_device`、真实 BSP/HAL、FreeRTOS portable 层和 SysConfig 生成代码。
 - VM 目标链接 `src/vm` 下的虚拟实现，并通过 SDL2 模拟屏幕、输入和反馈。
-- APP、游戏、存储接口、图形接口尽量不感知当前平台。
+- APP、游戏、存储接口、图形接口不感知当前平台。

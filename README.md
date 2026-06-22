@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>嵌入式游戏机开发框架 · Embedded Game Console Framework</strong><br>
-  <small>APP → HAL → BSP → DriverLib 分层架构 · ARM 固件 + x86 SDL2 VM 双平台</small>
+  <small>ARM 固件 + x86 SDL2 VM 双平台</small>
 </p>
 
 ---
@@ -11,9 +11,7 @@
 
 ## 概览 · Overview
 
-**MSPM0G3507 Framework** 是一个面向 **TI MSPM0G3507** 的嵌入式应用开发框架。项目以小游戏控制台为主要应用场景，覆盖输入、显示、音频、振动、外部 Flash、文件系统、RTOS 任务和 PC 端仿真等模块。
-
-核心目标是：**业务代码尽量写在 APP 层，通过 HAL/BSP 隔离硬件差异，使同一套游戏和 UI 逻辑可以在 ARM 硬件与 PC VM 上复用调试。**
+**MSPM0G3507 Framework** 是一个面向 TI MSPM0G3507 (**~~电工实习~~**) 的嵌入式应用开发框架。项目以小游戏控制台为主要应用场景，覆盖输入、显示、音频、振动、外部 Flash、文件系统、RTOS 任务和 PC 端仿真等模块。
 
 | 芯片 · SoC | 内核 · Core | 主频 · Freq | Flash | SRAM |
 | :---: | :---: | :---: | :---: | :---: |
@@ -25,26 +23,28 @@
 
 ``` mermaid
 graph TD
+    subgraph ARM
+        direction LR
+
+        M["<b>HAL -> BSP -> DL</b>"] --> MC["<b>MCU</b><br/>MSPM0G3507"]
+    end
+
     APP["<b>APP</b><br/>Game Console · Games · Storage · Flash Mgr"]
-    HAL["<b>HAL</b><br/>Button · Joystick · ST7789 · W25Q32 · Buzzer · VibMotor"]
-    BSP["<b>BSP</b><br/>GPIO · PWM · ADC · SPI · UART · Time"]
-    DL["<b>DriverLib / SysConfig</b><br/>TI Register-Level API"]
-    MCU["<b>MSPM0G3507</b>"]
+    
 
-    MW["FreeRTOS · LittleFS · LVGL(optional) · RTT(optional)"]
-    VM["SDL2 VM<br/>Display · Input · Audio · Vibration Stub"]
+    MW["<b>Middleware</b><br/>FreeRTOS · LittleFS · LVGL(optional) · RTT(optional) · Local Lib"]
+    VM["<b>SDL2 VM</b><br/>Display · Input · Audio · Vibration Stub"]
 
-    APP --> HAL
-    HAL --> BSP
-    BSP --> DL
-    DL --> MCU
+    MAIN["<b>Main</b><br/>Application Entry"]
 
-    MW -.-> APP
-    MW -.-> HAL
-    VM -.-> BSP
+    MAIN --> APP
+
+    APP --"platform = arm"--> ARM
+    APP --"platform = vm"--> VM
+
 ```
 
-依赖方向保持单向：`APP` 调用 `HAL`，`HAL` 调用 `BSP`，`BSP` 调用 TI DriverLib / SysConfig。VM 通过模拟 BSP/HAL 行为，让应用层逻辑可以在 PC 上快速验证。
+业务代码写在 APP 层，通过模块依赖隔离硬件差异，使同一套游戏和 UI 逻辑可以在 ARM 硬件与 PC VM 上复用调试。
 
 ---
 
@@ -52,37 +52,37 @@ graph TD
 
 <div class="grid cards" markdown>
 
--   :material-layers-outline:{ .lg .middle } **分层架构**
+- :material-layers-outline:{ .lg .middle } **分层架构**
 
     APP / HAL / BSP / DriverLib 单向依赖，方便移植、裁剪和测试。
 
--   :material-chip:{ .lg .middle } **FreeRTOS 任务模型**
+- :material-chip:{ .lg .middle } **FreeRTOS 任务模型**
 
     支持任务、队列、信号量、互斥锁和 heap_4，适合组织输入扫描、游戏循环和硬件反馈。
 
--   :material-gamepad-variant:{ .lg .middle } **游戏控制台**
+- :material-gamepad-variant:{ .lg .middle } **游戏控制台**
 
     内置菜单、游戏信息页、小游戏、统一输入接口、暂停界面、分数和屏保逻辑。
 
--   :material-monitor-dashboard:{ .lg .middle } **LCD 图形显示**
+- :material-monitor-dashboard:{ .lg .middle } **LCD 图形显示**
 
     面向 ST7789 TFT LCD，支持游戏 UI、图片资源和像素级绘制。
 
--   :material-harddisk:{ .lg .middle } **外部 Flash 与 LittleFS**
+- :material-harddisk:{ .lg .middle } **外部 Flash 与 LittleFS**
 
     W25Q32 SPI Flash + LittleFS，用于资源、分数和运行时文件管理。
 
--   :material-desktop-tower:{ .lg .middle } **x86 SDL2 VM**
+- :material-desktop-tower:{ .lg .middle } **x86 SDL2 VM**
 
     在 Ubuntu/PC 上模拟显示、键盘输入、蜂鸣器/振动等接口，便于快速调试游戏逻辑。
 
--   :material-hammer-wrench:{ .lg .middle } **YAML 驱动构建**
+- :material-hammer-wrench:{ .lg .middle } **YAML 驱动构建**
 
     `config/config.yaml` 描述 ARM / VM target 和功能开关，`scripts/cc.py` 统一调用 CMake。
 
--   :material-console:{ .lg .middle } **工具脚本精简**
+- :material-console:{ .lg .middle } **工具脚本精简**
 
-    `scripts/` 只保留构建、烧录、SysConfig、串口、资源生成和文档预览等必要工具。
+    `scripts` 内有构建、烧录、SysConfig、串口、资源生成和文档预览等必要工具。
 
 </div>
 
@@ -105,9 +105,9 @@ graph TD
     python3 -m pip install -r requirements-docs.txt
     ```
 
-    下载 ARM Embedded Toolchain，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
+    下载 [GNU Arm Embedded Toolchain](https://developer.arm.com/downloads/-/gnu-rm)，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
 
-    下载 TI SysConfig 工具，解压到 `tools/sysconfig` 目录。
+    下载 [TI SysConfig 工具](https://www.ti.com/tool/SYSCONFIG?utm_source=google&utm_medium=cpc&utm_campaign=epd-der-null-58700007779115364_sysconfig_rsa-cpc-evm-google-ww_en_int&utm_content=sysconfig&ds_k=sysconfig&gclsrc=aw.ds&gad_source=1&gad_campaignid=12788839648&gbraid=0AAAAAC068F0mxDINEjN5e5Md3f4ZsSyBs&gclid=CjwKCAjwuuPRBhAnEiwA2Ji8eiK_ixXpEXuhgDtRp0YhwTWHAC6KOf8EZ79ZcwkbVHbUfiH5GBbcehoCNecQAvD_BwE)，解压到 `tools/sysconfig` 目录。
 
 === "2. 配置 target"
 
@@ -202,34 +202,6 @@ graph TD
 
 ---
 
-## 脚本目录 · Scripts
-
-清理后的 `scripts/` 目录只保留常用入口和必要工具：
-
-```text
-scripts/
-├── README.md                     # 脚本目录索引
-├── cc.py                         # YAML 驱动构建入口
-├── cm.bash                       # Linux/macOS 构建包装
-├── cm.cmd                        # Windows 构建包装
-├── clear.bash                    # 删除 build/
-├── flash.bash                    # pyOCD 烧录
-├── gen_syscfg_files.bash         # SysConfig CLI 生成文件
-├── open_syscfg_gui.bash          # 打开 SysConfig GUI
-├── install_sysconfig.bash        # 安装 SysConfig，不包含 .run 安装包
-├── flash_manager.py              # 外部 Flash / LittleFS 串口管理
-├── com_uart_test.py              # UART 通信测试
-├── generate_air_battle_assets.py # 飞机大战资源生成
-├── generate_info_images.py       # Info 页面图片生成
-├── serve_docs.sh                 # MkDocs 预览/构建
-├── assets/
-│   └── LVGLImage.py              # LVGL 图片转换工具，低频使用
-└── experimental/
-    └── slip_send.py              # SLIP/7D7E 协议实验脚本
-```
-
----
-
 ## 项目结构 · Project Layout
 
 ```text
@@ -250,7 +222,7 @@ framework/
 │   └── vm/              # SDL2 虚拟硬件层
 ├── ti_device/           # TI CMSIS、DriverLib、链接脚本
 ├── tools/               # ARM GCC、TI SysConfig、pack、SVD 等本地工具
-└── build/               # 构建产物，不提交
+└── build/               # 构建产物
 ```
 
 ---

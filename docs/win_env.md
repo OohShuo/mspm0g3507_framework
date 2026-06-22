@@ -1,6 +1,6 @@
 # Windows 环境配置说明（MSYS2 UCRT64）
 
-> 在官网安装 MSYS2 UCRT64
+> 在[官网](https://www.msys2.org/)安装 MSYS2 UCRT64
 
 ## 1. 推荐环境
 
@@ -123,3 +123,13 @@ UCRT64
 /ucrt64/bin/python
 /ucrt64/bin/pkg-config
 ```
+
+## 5. 后续步骤
+
+完成环境配置后，可以继续**在 MSYS2 UCRT64 中**进行以下步骤：
+
+1. 克隆项目代码
+2. 配置构建目标
+3. 构建项目
+4. 运行 VM 或烧录 ARM
+5. 调试和测试
