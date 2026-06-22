@@ -68,7 +68,7 @@ static Button* g_x_button = NULL;
 static Button* g_y_button = NULL;
 static Button* g_start_button = NULL;
 static Buzzer* g_buzzer = NULL;
-static Vib_motor* g_vib_motor = NULL;
+static Vib_motor_gpio* g_vib_motor = NULL;
 
 static Console_state g_console_state = console_state_menu;
 static Game_direction g_last_direction = game_direction_none;
@@ -758,7 +758,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
 
         if (changed) {
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
+            Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_tick);
             if (g_current_page != old_page) {
                 /* Page flip — full screen redraw */
                 render_menu();
@@ -772,7 +772,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
 
     if (input->x_pressed) {
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
         g_console_state = console_state_game_info;
         render_game_info();
         return;
@@ -783,7 +783,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
     const Game_descriptor* game = Game_Registry_Get(g_menu_selection);
     if (game != NULL) {
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
         g_console_state = console_state_game;
         Game_Graphics_Draw_Top_Bar(g_lcd, game->name);
         Game_Graphics_Clear_Game_Area(g_lcd);
@@ -795,7 +795,7 @@ static void update_menu(const Game_input* input, const Game_hardware* hardware) 
 static void update_game_info(const Game_input* input) {
     if (!input->b_pressed) { return; }
     Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-    Vib_Motor_Play_Effect(g_vib_motor, vib_effect_back);
+    Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_back);
     enter_menu();
 }
 
@@ -833,7 +833,7 @@ static Game_result update_active_game(const Game_input* input) {
 
 static void update_paused_game(const Game_input* input) {
     if (input->b_pressed) {
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_back);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_back);
         Game_Runtime_Resume_Time();
         enter_menu();
         return;
@@ -905,13 +905,12 @@ static void console_init(void) {
     g_buzzer = Buzzer_Create(&buzzer_config);
     configASSERT(g_buzzer != NULL);
 
-    const Vib_motor_config vib_motor_config = {
-        .pwm_idx = PWM_VIB_MOTOR_IDX,
-        .pwm_freq_hz = VIB_MOTOR_DEFAULT_PWM_FREQ_HZ,
-        .max_duty_percent = VIB_MOTOR_DEFAULT_MAX_DUTY_PERCENT,
-        .master_strength_percent = VIB_MOTOR_DEFAULT_MASTER_STRENGTH,
+    const Vib_motor_gpio_config vib_motor_config = {
+        .gpio_idx = GPIO_VIB_MOTOR_IDX,
+        .active_high = 1u,
+        .enabled = 1u,
     };
-    g_vib_motor = Vib_Motor_Create(&vib_motor_config);
+    g_vib_motor = Vib_Motor_Gpio_Create(&vib_motor_config);
     configASSERT(g_vib_motor != NULL);
 
     const St7789_config lcd_config = {
@@ -969,7 +968,7 @@ static void console_task(void* arg) {
         if (Screensaver_Is_Active()) {
             if (input.direction_pressed || input.a_pressed || input.b_pressed || input.x_pressed ||
                 input.y_pressed) {
-                Vib_Motor_Play_Effect(g_vib_motor, vib_effect_action_light);
+                Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_action_light);
                 Screensaver_Exit();
                 g_last_input_tick = Bsp_Get_Tick_Ms();
                 /* redraw the screen that was underneath */
@@ -1008,7 +1007,7 @@ static void console_task(void* arg) {
         }
 
         if (result == game_result_exit) {
-            if (input.back_requested) { Vib_Motor_Play_Effect(g_vib_motor, vib_effect_back); }
+            if (input.back_requested) { Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_back); }
             enter_menu();
         }
         monitor_resources();
