@@ -1,30 +1,27 @@
-#!bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-PROJECT_NAME="$(basename "$(pwd)")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_NAME="$(basename "$PROJECT_ROOT")"
 
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+cd "$PROJECT_ROOT"
+
+if [[ "${OSTYPE:-}" == "msys" || "${OSTYPE:-}" == "win32" ]]; then
     SUFFIX=".bat"
 else
     SUFFIX=".sh"
 fi
 
-SYSCFG_GUI_SH="./tools/sysconfig/sysconfig_gui${SUFFIX}"
+SYSCFG_GUI="./tools/sysconfig/sysconfig_gui${SUFFIX}"
 PRODUCT_JSON="./tools/product.json"
 SYSCFG_FILE="./config/${PROJECT_NAME}.syscfg"
 
-if [ ! -f "$SYSCFG_GUI_SH" ]; then
-    echo "Error: $SYSCFG_GUI_SH not found. Please check the path."
-    return 1
-fi
+for required in "$SYSCFG_GUI" "$PRODUCT_JSON" "$SYSCFG_FILE"; do
+    if [ ! -f "$required" ]; then
+        echo "Error: $required not found."
+        exit 1
+    fi
+done
 
-if [ ! -f "$PRODUCT_JSON" ]; then
-    echo "Error: $PRODUCT_JSON not found. Please check the path."
-    return 1
-fi
-
-if [ ! -f "$SYSCFG_FILE" ]; then
-    echo "Error: $SYSCFG_FILE not found. Please check the path."
-    return 1
-fi
-
-"$SYSCFG_GUI_SH" -p "$PRODUCT_JSON" "$SYSCFG_FILE"
+"$SYSCFG_GUI" -p "$PRODUCT_JSON" "$SYSCFG_FILE"

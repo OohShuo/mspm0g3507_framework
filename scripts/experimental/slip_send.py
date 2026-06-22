@@ -9,7 +9,7 @@ SLIP 协议串口发送脚本。
 - 10 Hz 发送
 
 用法:
-    python3 slip_send.py <串口> [--baud 115200] [--chunk-size 250] [--hz 10]
+    python3 scripts/experimental/slip_send.py <串口> [--baud 115200] [--chunk-size 250] [--hz 10]
 """
 
 import argparse

@@ -1,5 +1,5 @@
 # MSPM0G3507 Framework — MkDocs Material Configuration
-# 嵌入式系统框架文档 | Embedded Framework Documentation
+# 嵌入式游戏机框架文档 | Embedded Game Console Framework Documentation
 # Run:
 #   mkdocs serve
 #   mkdocs build --strict
@@ -7,18 +7,11 @@
 
 # ── Site ──────────────────────────────────────────────
 site_name: MSPM0G3507 Framework
-site_description: TI MSPM0G3507 Embedded Framework — BSP / HAL / APP / RTOS / VM Simulator
+site_description: TI MSPM0G3507 Embedded Framework — BSP / HAL / APP / FreeRTOS / VM Simulator
 site_author: MSPM0G3507 Framework Team
-
-# GitHub Pages 项目页地址
-# 如果仓库是 https://github.com/OohShuo/mspm0g3507_framework.git
-# 那么 Pages 地址通常是 https://OohShuo.github.io/mspm0g3507_framework/
 site_url: https://OohShuo.github.io/mspm0g3507_framework/
 
-# 启用严格模式，发布前更容易发现文档问题
 strict: true
-
-# ── Docs Root ─────────────────────────────────────────
 docs_dir: docs
 
 # ── Repository ────────────────────────────────────────
@@ -32,7 +25,6 @@ theme:
   language: zh
 
   palette:
-    # Light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: blue
@@ -41,7 +33,6 @@ theme:
         icon: material/weather-night
         name: 切换到深色模式
 
-    # Dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: blue
@@ -73,8 +64,7 @@ theme:
     repo: fontawesome/brands/github
 
 # ── Plugins ───────────────────────────────────────────
-# 这里移除了 mermaid2 插件。
-# Material for MkDocs 可以通过 pymdownx.superfences 原生支持 mermaid 代码块。
+# 不使用 mermaid2 插件；Material + pymdownx.superfences 可直接渲染 mermaid 代码块。
 plugins:
   - search:
       lang:
@@ -117,8 +107,6 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 # ── Validation ────────────────────────────────────────
-# strict: true 会让 warn 级别的问题导致构建失败，
-# 适合在 GitHub Actions 发布前检查文档质量。
 validation:
   nav:
     omitted_files: warn
@@ -132,81 +120,25 @@ validation:
     unrecognized_links: warn
 
 # ── Navigation ─────────────────────────────────────────
-# Architecture-first organization: 架构优先，按功能分组
+# 保持当前 docs/ 简洁结构，不强行改成 zh/en 双语目录。
 nav:
   - Home: index.md
 
-  # ═══ 中文文档 ═══
-  - 中文文档:
-      - 简介: zh/00_introduction.md
+  - 入门:
+      - 快速开始: quick_start.md
 
-      - 架构设计:
-          - 架构总览: zh/01_architecture.md
-          - 设计原则: zh/11_design_principles.md
-          - 内存布局: zh/12_memory_layout.md
+  - 架构设计:
+      - 项目架构: architecture.md
+      - FreeRTOS 设计: freertos_design.md
+      - 模块设计: modules.md
+      - VM 仿真器: vm.md
 
-      - 核心层:
-          - BSP / HAL / APP 分层: zh/03_bsp_hal_app.md
+  - 构建与工具:
+      - 构建系统: build_system.md
+      - 脚本说明: scripts.md
 
-      - 中间件:
-          - FreeRTOS / LVGL / LittleFS / RTT: zh/04_middleware.md
-
-      - 存储系统:
-          - Flash 存储: zh/05_storage.md
-
-      - 游戏控制台:
-          - 游戏框架: zh/06_game_console.md
-
-      - VM 仿真器:
-          - SDL2 虚拟机: zh/07_vm_simulator.md
-
-      - 构建系统:
-          - CMake 构建: zh/02_build_system.md
-
-      - 配置系统:
-          - 配置与模块: zh/08_configuration.md
-
-      - 移植与开发:
-          - 移植指南: zh/09_porting.md
-          - 开发者指南: zh/10_developer_guide.md
-
-  # ═══ English Docs ═══
-  - English Docs:
-      - Introduction: en/00_introduction.md
-
-      - Architecture:
-          - Overview: en/01_architecture.md
-          - Design Principles: en/11_design_principles.md
-          - Memory Layout: en/12_memory_layout.md
-
-      - Core Layers:
-          - BSP / HAL / APP: en/03_bsp_hal_app.md
-
-      - Middleware:
-          - FreeRTOS / LVGL / LittleFS / RTT: en/04_middleware.md
-
-      - Storage:
-          - Flash Storage: en/05_storage.md
-
-      - Game Console:
-          - Game Framework: en/06_game_console.md
-
-      - VM Simulator:
-          - SDL2 VM: en/07_vm_simulator.md
-
-      - Build System:
-          - CMake Build: en/02_build_system.md
-
-      - Configuration:
-          - Config & Modules: en/08_configuration.md
-
-      - Porting & Development:
-          - Porting Guide: en/09_porting.md
-          - Developer Guide: en/10_developer_guide.md
-
-  # ═══ ADR ═══
-  - ADR:
-      - Architecture Decision Records: en/adr/architecture_decisions.md
+  - 开发者指南:
+      - 开发者指南: developer_guide.md
 
 # ── Extra ─────────────────────────────────────────────
 extra:
