@@ -7,6 +7,8 @@
 
 ---
 
+> 建议在 Linux 下使用，跨平台不保证能够顺利运行。
+
 ## 概览 · Overview
 
 **MSPM0G3507 Framework** 是一个面向 **TI MSPM0G3507** 的嵌入式应用开发框架。项目以小游戏控制台为主要应用场景，覆盖输入、显示、音频、振动、外部 Flash、文件系统、RTOS 任务和 PC 端仿真等模块。
@@ -102,6 +104,10 @@ graph TD
     ```bash
     python3 -m pip install -r requirements-docs.txt
     ```
+
+    下载 ARM Embedded Toolchain，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
+
+    下载 TI SysConfig 工具，解压到 `tools/sysconfig` 目录。
 
 === "2. 配置 target"
 
