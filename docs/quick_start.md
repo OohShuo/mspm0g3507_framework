@@ -1,5 +1,7 @@
 # 快速开始
 
+> 建议在 Linux 下使用，跨平台不保证能够顺利运行。
+
 本文档用于从零构建和运行 MSPM0G3507 Framework。建议先构建 VM，再构建 ARM 固件。
 
 ## 环境准备
@@ -17,7 +19,9 @@ sudo apt install -y python3 python3-yaml cmake ninja-build libsdl2-dev
 python3 -m pip install -r requirements-docs.txt
 ```
 
-ARM 目标使用工程内的 `tools/gcc-arm-none-eabi` 工具链；VM 目标使用系统 GCC/Clang 与 SDL2。
+下载 ARM Embedded Toolchain，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
+
+下载 TI SysConfig 工具，解压到 `tools/sysconfig` 目录。
 
 ## 构建配置
 
