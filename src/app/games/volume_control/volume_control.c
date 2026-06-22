@@ -43,7 +43,7 @@
 
 static St7789* g_lcd = NULL;
 static Buzzer* g_buzzer = NULL;
-static Vib_motor* g_vib_motor = NULL;
+static Vib_motor_gpio* g_vib_motor = NULL;
 static uint8_t g_volume = 50;
 static uint8_t g_muted = 0;
 static uint8_t g_pre_mute_volume = 50;
@@ -152,7 +152,7 @@ Game_result Volume_Control_Update(const Game_input* input) {
         }
         Buzzer_Set_Volume(g_buzzer, g_volume);
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
         render_screen();
         return game_result_running;
     }
@@ -173,7 +173,7 @@ Game_result Volume_Control_Update(const Game_input* input) {
             g_muted = 0;
             Buzzer_Set_Volume(g_buzzer, g_volume);
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
+            Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_tick);
             update_bar_fill(old_volume, g_volume);
             update_text(old_volume, g_volume);
             update_arrows(old_volume, g_volume);
