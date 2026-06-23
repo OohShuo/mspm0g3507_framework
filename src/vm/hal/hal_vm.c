@@ -7,7 +7,8 @@
 #include "led_breath.h"
 #include "led_simple.h"
 #include "task.h"
-#include "vib_motor.h"
+#include "vib_motor_gpio.h"
+#include "vib_motor_pwm.h"
 
 static TaskHandle_t task_gpio_handle = NULL;
 static TaskHandle_t task_buzzer_handle = NULL;
@@ -28,7 +29,8 @@ static void task_buzzer(void* arg) {
     TickType_t tick = xTaskGetTickCount();
     while (1) {
         Buzzer_Update_All();
-        Vib_Motor_Update_All();
+        Vib_Motor_Gpio_Update_All();
+        Vib_Motor_Pwm_Update_All();
         vTaskDelayUntil(&tick, pdMS_TO_TICKS(5));
     }
 }
@@ -39,7 +41,8 @@ void Hal_Init(void) {
     Button_Init();
     Joystick_Init();
     Buzzer_Init();
-    Vib_Motor_Init();
+    Vib_Motor_Gpio_Init();
+    Vib_Motor_Pwm_Init();
 #if FRAMEWORK_USE_UART
     Com_Uart_Init();
 #endif

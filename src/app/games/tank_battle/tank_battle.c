@@ -321,7 +321,7 @@ static void end_game(Tank_state state) {
     if (g_state != tank_state_playing) { return; }
     g_state = state;
     Buzzer_Play_Sfx(g_hardware.buzzer, state == tank_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
-    Vib_Motor_Play_Effect(
+    Vib_Motor_Gpio_Play_Effect(
         g_hardware.vib_motor, state == tank_state_win ? vib_effect_victory : vib_effect_defeat);
     render_hud();
 }
@@ -402,7 +402,7 @@ static void fire_bullet(const Tank_actor* actor, uint8_t from_player) {
         if (from_player) {
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tank_fire);
             if (g_state == tank_state_playing && g_bullets[i].active) {
-                Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_shot);
+                Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_shot);
             }
         }
         return;
@@ -422,7 +422,7 @@ static void destroy_enemy(Tank_actor* enemy) {
     if (g_destroyed >= TOTAL_ENEMIES && active_enemy_count() == 0) {
         end_game(tank_state_win);
     } else {
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_hit_heavy);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_hit_heavy);
     }
 }
 
@@ -438,7 +438,7 @@ static void hit_player(void) {
         return;
     }
     if (reset_player_position()) {
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_life_lost);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_life_lost);
         render_cell(g_player.x, g_player.y);
         render_hud();
     } else {
@@ -472,7 +472,7 @@ static void update_bullet(Tank_bullet* bullet) {
         tile_set(g_tiles, next_x, next_y, tile_empty);
         if (bullet->from_player) {
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tank_hit);
-            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
+            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
         }
         render_cell(old_x, old_y);
         render_cell(next_x, next_y);
@@ -481,7 +481,7 @@ static void update_bullet(Tank_bullet* bullet) {
     if (tile == tile_steel) {
         if (bullet->from_player) {
             Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_tank_hit);
-            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
+            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
         }
         deactivate_bullet(bullet);
         return;

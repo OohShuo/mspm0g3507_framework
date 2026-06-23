@@ -527,14 +527,14 @@ Game_result Maze_Update(const Game_input* input) {
                 g_score = g_gems_collected * 100u + 500u;
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_maze_goal);
                 Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-                Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
+                Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
 
                 /* 画 GAME OVER 在间隙中 */
                 bar_fill(0, GAP_Y, SCREEN_WIDTH, PLAY_BOT - GAP_Y, COLOR_BLACK);
                 Game_Graphics_Draw_Text(lcd, 40, GAP_Y + 3, "GAME OVER", 1, COLOR_RED);
                 Game_Graphics_Draw_Text(lcd, 140, GAP_Y + 3, "PUSH RESTART", 1, COLOR_WHITE);
             } else {
-                Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_menu_tick);
+                Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_menu_tick);
             }
         }
     }

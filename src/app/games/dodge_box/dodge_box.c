@@ -164,7 +164,7 @@ typedef enum {
 } Dodge_state;
 
 static St7789* g_lcd = NULL;
-static Vib_motor* g_vib_motor = NULL;
+static Vib_motor_gpio* g_vib_motor = NULL;
 static Dodge_state g_state = game_state_ready;
 static uint32_t g_start_ms = 0;
 static uint32_t g_last_ms = 0;
@@ -1555,7 +1555,7 @@ Game_result Dodge_Box_Update(const Game_input* input) {
     if (player_hits_active_attacks(now_rel)) {
         g_state = game_state_failed;
         g_finished = 1;
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_hit_heavy);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_hit_heavy);
         render_dirty_scene(now_rel, COLOR_RED);
         Game_Graphics_Fill_Rect(g_lcd, 0, 258, SCREEN_WIDTH, 14, COLOR_BLACK);
         draw_text_centered(260, "FAILED - PRESS", 1, COLOR_RED);
@@ -1570,7 +1570,7 @@ Game_result Dodge_Box_Update(const Game_input* input) {
     if (g_all_attacks_done && (now_rel - g_all_attacks_done_ms >= 2000u)) {
         g_state = game_state_clear;
         g_finished = 1;
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_victory);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_victory);
         Game_Graphics_Fill_Rect(g_lcd, 0, 258, SCREEN_WIDTH, 14, COLOR_BLACK);
         draw_text_centered(260, "CLEAR - PRESS", 1, COLOR_GREEN);
     }
