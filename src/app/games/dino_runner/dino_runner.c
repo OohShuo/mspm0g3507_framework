@@ -411,7 +411,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
         g_state = dino_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         draw_dino(g_dino_y, g_crouching, COLOR_RED);
         update_score();
         play_fill(50, 148, 140, 9, COLOR_BLACK);
@@ -419,7 +419,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
         play_fill(25, 168, 190, 9, COLOR_BLACK);
         Game_Graphics_Draw_Text(lcd, 48, 170, "A TO RESTART", 1, COLOR_WHITE);
     } else if (jumped) {
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
     }
 
     return game_result_running;

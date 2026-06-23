@@ -14,7 +14,8 @@
 #include "slip_recv/test_slip_recv.h"
 #include "st7789_img/test_st7789_img.h"
 #include "test_config.h"
-#include "vib_motor/test_vib_motor.h"
+#include "vib_motor_gpio/test_vib_motor_gpio.h"
+#include "vib_motor_pwm/test_vib_motor_pwm.h"
 #include "w25q32/test_w25q32.h"
 
 void Test_Task_Def(void) {
@@ -54,8 +55,11 @@ void Test_Task_Def(void) {
 #if TEST_ST7789_IMG_ENABLE
     Test_St7789_Img_Task_Def();
 #endif
-#if TEST_VIB_MOTOR_ENABLE
-    Test_Vib_Motor_Task_Def();
+#if TEST_VIB_MOTOR_GPIO_ENABLE
+    Test_Vib_Motor_Gpio_Task_Def();
+#endif
+#if TEST_VIB_MOTOR_PWM_ENABLE
+    Test_Vib_Motor_Pwm_Task_Def();
 #endif
 #if TEST_W25Q32_ENABLE
     Test_W25q32_Task_Def();
