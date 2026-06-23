@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "game_graphics.h"
+#include "global_config.h"
 #include "info_image_hitsz.h"
 #include "info_image_morrow.h"
 #include "info_image_oooshuo.h"
@@ -94,6 +95,28 @@ static void render_page2(void) {
 }
 
 /* ── Full screen render ── */
+static void draw_version_text(void) {
+    char buf[32];
+    uint8_t p = 0;
+    buf[p++] = 'V';
+    buf[p++] = 'e';
+    buf[p++] = 'r';
+    buf[p++] = 's';
+    buf[p++] = 'i';
+    buf[p++] = 'o';
+    buf[p++] = 'n';
+    buf[p++] = ':';
+    buf[p++] = ' ';
+    buf[p++] = '0' + (char) APP_VERSION_MAJOR;
+    buf[p++] = '.';
+    buf[p++] = '0' + (char) APP_VERSION_MINOR;
+    buf[p++] = '.';
+    buf[p++] = '0' + (char) APP_VERSION_PATCH;
+    buf[p] = '\0';
+
+    Game_Graphics_Draw_Text(g_lcd, 150, 20, buf, 1, 0x053fu);
+}
+
 static void render_info_screen(void) {
     Game_Graphics_Clear_Game_Area(g_lcd);
 
@@ -109,6 +132,7 @@ void Info_Init(const Game_hardware* hardware) {
     g_vib_motor = hardware->vib_motor;
     g_current_page = 0;
     render_info_screen();
+    draw_version_text();
 }
 
 Game_result Info_Update(const Game_input* input) {

@@ -22,6 +22,6 @@ find "$PROJECT_ROOT/src" "$PROJECT_ROOT/lib/local_lib" "$PROJECT_ROOT/config" \
         \( -name "*.c" -o -name "*.h" \) \
         -o \
         -path "*/config/*" \
-        \( -name "app_config.h" -o -name "board_config.h" -o -name "test_config.h" -o -name "lfs_config.h" \) \
+        \( -name "app_config.h" -o -name "board_config.h" -o -name "test_config.h" -o -name "lfs_config.h" -o -name "global_config.h" \) \
     \) \
     -exec clang-format -i -style="file:$STYLE_FILE" --verbose {} +

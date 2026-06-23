@@ -7,7 +7,7 @@
 
 ---
 
-> 建议在 Linux 下使用，跨平台不保证能够顺利运行，Windows 环境配置详见 [Windows 环境配置](win_env.md)。
+> 建议在 Linux 下使用，跨平台不保证能够顺利运行，Windows 环境配置详见 [Windows 环境配置](docs/win_env.md)。
 
 ## 概览 · Overview
 
@@ -163,15 +163,15 @@ build/arm/framework.map
 
 | 你想做什么 · What to do | 文档 |
 | :--- | :--- |
-| 快速构建和运行 | [快速开始](quick_start.md) |
-| 理解整体结构 | [项目架构](architecture.md) |
-| 查看 FreeRTOS 任务设计 | [FreeRTOS 设计](freertos_design.md) |
-| 理解 APP / HAL / BSP / LIB | [模块设计](modules.md) |
-| 使用 PC 仿真环境 | [VM 仿真器](vm.md) |
-| 理解 CMake 和 target 配置 | [构建系统](build_system.md) |
-| 了解 scripts 工具目录 | [脚本说明](scripts.md) |
-| 新增模块、游戏或驱动 | [开发者指南](developer_guide.md) |
-| Windows 环境配置 | [Windows 环境配置](win_env.md) |
+| 快速构建和运行 | [快速开始](docs/quick_start.md) |
+| 理解整体结构 | [项目架构](docs/architecture.md) |
+| 查看 FreeRTOS 任务设计 | [FreeRTOS 设计](docs/freertos_design.md) |
+| 理解 APP / HAL / BSP / LIB | [模块设计](docs/modules.md) |
+| 使用 PC 仿真环境 | [VM 仿真器](docs/vm.md) |
+| 理解 CMake 和 target 配置 | [构建系统](docs/build_system.md) |
+| 了解 scripts 工具目录 | [脚本说明](docs/scripts.md) |
+| 新增模块、游戏或驱动 | [开发者指南](docs/developer_guide.md) |
+| Windows 环境配置 | [Windows 环境配置](docs/win_env.md) |
 
 ---
 
