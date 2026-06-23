@@ -39,7 +39,7 @@ Platform_Start()
 | 层级 | 目录 | 责任 |
 | --- | --- | --- |
 | APP | `src/app` | 菜单、游戏、存储、资源管理、应用任务 |
-| HAL | `src/hal` | Button、Joystick、ST7789、W25Q32、Buzzer、VibMotor 等对象化封装 |
+| HAL | `src/hal` | Button、Joystick、ST7789、W25Q32、Buzzer、VibMotor(GPIO/PWM) 等对象化封装 |
 | BSP | `src/bsp` | GPIO、PWM、ADC、SPI、UART、tick 等 MCU 外设接口 |
 | LIB | `lib` | FreeRTOS、LittleFS、LVGL、RTT、本地数据结构和协议工具 |
 | PLATFORM | `src/platform` | ARM/VM 初始化、平台启动、可执行目标创建 |

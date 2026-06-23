@@ -59,7 +59,7 @@ HAL 把硬件能力封装成对象，供 APP 使用。典型对象包括：
 | `led_simple` / `led_breath` | 普通 LED 和呼吸灯 |
 | `com_uart` | UART 通信封装，可由开关启用 |
 
-HAL 的设计原则是“对象持有状态，BSP 执行动作”。例如振动马达保存播放模式、强度、优先级和时间状态，最终输出仍通过 `Bsp_Pwm_*` 完成。
+HAL 的设计原则是“对象持有状态，BSP 执行动作”。例如 GPIO 振动马达保存播放模式、优先级和时间状态，最终输出通过 `Bsp_Gpio_Write()` 驱动控制脚；PWM 版本则通过 `Bsp_Pwm_*` 完成。
 
 ## BSP：板级外设层
 
@@ -123,9 +123,10 @@ VM 用 SDL2 提供虚拟设备：
 测试模块由 `config/test_config.h` 控制。每个测试项都有单独开关，例如：
 
 ```c
-#define TEST_BUTTON_ENABLE     0
-#define TEST_VIB_MOTOR_ENABLE  0
-#define TEST_W25Q32_ENABLE     0
+#define TEST_BUTTON_ENABLE         0
+#define TEST_VIB_MOTOR_GPIO_ENABLE 0
+#define TEST_VIB_MOTOR_PWM_ENABLE  0
+#define TEST_W25Q32_ENABLE         0
 ```
 
 只要任意测试开启，`TEST_ANY_ENABLE` 为真，`main.c` 会调用 `Test_Task_Def()` 创建对应测试任务。
