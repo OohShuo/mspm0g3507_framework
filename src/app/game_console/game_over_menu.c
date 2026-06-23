@@ -36,7 +36,7 @@ static const char g_keyboard_characters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 
 static St7789* g_lcd = NULL;
 static Buzzer* g_buzzer = NULL;
-static Vib_motor* g_vib_motor = NULL;
+static Vib_motor_gpio* g_vib_motor = NULL;
 static const char* g_game_name = NULL;
 static End_stage g_stage = end_stage_prompt;
 static uint32_t g_score = 0;
@@ -216,7 +216,7 @@ static uint8_t move_keyboard_selection(uint8_t selection, Game_direction directi
 
 static Game_over_action update_prompt(const Game_input* input) {
     if (input->back_requested) {
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_back);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_back);
         return game_over_action_menu;
     }
     if (input->direction_pressed) {
@@ -233,13 +233,13 @@ static Game_over_action update_prompt(const Game_input* input) {
             draw_prompt_button(old, 0);
             draw_prompt_button(g_prompt_selection, 1);
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
+            Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_tick);
         }
     }
 
     if (!input->confirm_pressed) { return game_over_action_none; }
     Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-    Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+    Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
     if (g_prompt_selection == 0 && g_score_qualifies) {
         g_stage = end_stage_keyboard;
         g_keyboard_selection = 0;
@@ -256,7 +256,7 @@ static Game_over_action update_prompt(const Game_input* input) {
 
 static Game_over_action update_keyboard(const Game_input* input) {
     if (input->back_requested) {
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_back);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_back);
         g_stage = end_stage_prompt;
         render_prompt();
         return game_over_action_none;
@@ -269,7 +269,7 @@ static Game_over_action update_keyboard(const Game_input* input) {
             draw_keyboard_key(old, 0);
             draw_keyboard_key(g_keyboard_selection, 1);
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
+            Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_tick);
         }
     }
 
@@ -280,14 +280,14 @@ static Game_over_action update_keyboard(const Game_input* input) {
             g_player_name[g_name_length] = '\0';
             draw_name();
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+            Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
         }
     } else if (g_keyboard_selection == KEY_DELETE) {
         if (g_name_length > 0) {
             g_player_name[--g_name_length] = '\0';
             draw_name();
             Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-            Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+            Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
         }
     } else if (g_name_length > 0) {
         g_new_rank = Score_Store_Add(g_game_id, g_player_name, g_score);
@@ -295,7 +295,7 @@ static Game_over_action update_keyboard(const Game_input* input) {
         g_stage = end_stage_leaderboard;
         g_board_selection = 0;
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
         render_leaderboard();
     }
     return game_over_action_none;
@@ -303,7 +303,7 @@ static Game_over_action update_keyboard(const Game_input* input) {
 
 static Game_over_action update_leaderboard(const Game_input* input) {
     if (input->back_requested) {
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_back);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_back);
         return game_over_action_menu;
     }
     if (input->direction_pressed &&
@@ -314,15 +314,15 @@ static Game_over_action update_leaderboard(const Game_input* input) {
         draw_board_button(old, 0);
         draw_board_button(g_board_selection, 1);
         Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_move);
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_tick);
     }
     if (!input->confirm_pressed) { return game_over_action_none; }
     Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_menu_select);
-    Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+    Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
     return g_board_selection == 0 ? game_over_action_replay : game_over_action_menu;
 }
 
-void Game_Over_Menu_Open(St7789* lcd, Buzzer* buzzer, Vib_motor* vib_motor, uint8_t game_id,
+void Game_Over_Menu_Open(St7789* lcd, Buzzer* buzzer, Vib_motor_gpio* vib_motor, uint8_t game_id,
     const char* game_name, uint32_t score) {
     g_lcd = lcd;
     g_buzzer = buzzer;
