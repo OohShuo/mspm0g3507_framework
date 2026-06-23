@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#define VIB_MOTOR_GPIO_MIN_RETRIGGER_MS 20u
+#define VIB_MOTOR_GPIO_MIN_RETRIGGER_MS 200u
 
 typedef enum {
     vib_gpio_effect_menu_tick = 0,
