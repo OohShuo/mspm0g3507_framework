@@ -11,6 +11,7 @@ scripts/
 ├── cm.bash
 ├── cm.cmd
 ├── clear.bash
+├── format.bash
 ├── flash.bash
 ├── gen_syscfg_files.bash
 ├── open_syscfg_gui.bash
@@ -34,6 +35,7 @@ scripts/
 | `cm.bash` | Linux/macOS 构建包装脚本，转发到 `cc.py` | 高 |
 | `cm.cmd` | Windows 构建包装脚本，转发到 `cc.py` | 中 |
 | `clear.bash` | 删除 `build/` 构建目录 | 中 |
+| `format.bash` | 使用 clang-format 格式化 `src/`、`lib/local_lib/`、`config/` 的 C 源文件 | 中 |
 | `flash.bash` | 使用 pyOCD 烧录 `build/arm/framework.elf` 并复位运行 | 高 |
 | `serve_docs.sh` | 本地预览或构建 MkDocs 文档站点 | 中 |
 

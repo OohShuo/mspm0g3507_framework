@@ -50,139 +50,112 @@ graph TD
 
 ## 特性 · Features
 
-<div class="grid cards" markdown>
-
-- :material-layers-outline:{ .lg .middle } **分层架构**
-
-    APP / HAL / BSP / DriverLib 单向依赖，方便移植、裁剪和测试。
-
-- :material-chip:{ .lg .middle } **FreeRTOS 任务模型**
-
-    支持任务、队列、信号量、互斥锁和 heap_4，适合组织输入扫描、游戏循环和硬件反馈。
-
-- :material-gamepad-variant:{ .lg .middle } **游戏控制台**
-
-    内置菜单、游戏信息页、小游戏、统一输入接口、暂停界面、分数和屏保逻辑。
-
-- :material-monitor-dashboard:{ .lg .middle } **LCD 图形显示**
-
-    面向 ST7789 TFT LCD，支持游戏 UI、图片资源和像素级绘制。
-
-- :material-harddisk:{ .lg .middle } **外部 Flash 与 LittleFS**
-
-    W25Q32 SPI Flash + LittleFS，用于资源、分数和运行时文件管理。
-
-- :material-desktop-tower:{ .lg .middle } **x86 SDL2 VM**
-
-    在 Ubuntu/PC 上模拟显示、键盘输入、蜂鸣器/振动等接口，便于快速调试游戏逻辑。
-
-- :material-hammer-wrench:{ .lg .middle } **YAML 驱动构建**
-
-    `config/config.yaml` 描述 ARM / VM target 和功能开关，`scripts/cc.py` 统一调用 CMake。
-
-- :material-console:{ .lg .middle } **工具脚本精简**
-
-    `scripts` 内有构建、烧录、SysConfig、串口、资源生成和文档预览等必要工具。
-
-</div>
+- **分层架构** — APP / HAL / BSP / DriverLib 单向依赖，方便移植、裁剪和测试。
+- **FreeRTOS 任务模型** — 支持任务、队列、信号量、互斥锁和 heap_4，适合组织输入扫描、游戏循环和硬件反馈。
+- **游戏控制台** — 内置菜单、游戏信息页、小游戏、统一输入接口、暂停界面、分数和屏保逻辑。
+- **LCD 图形显示** — 面向 ST7789 TFT LCD，支持游戏 UI、图片资源和像素级绘制。
+- **外部 Flash 与 LittleFS** — W25Q32 SPI Flash + LittleFS，用于资源、分数和运行时文件管理。
+- **x86 SDL2 VM** — 在 Ubuntu/PC 上模拟显示、键盘输入、蜂鸣器/振动等接口，便于快速调试游戏逻辑。
+- **YAML 驱动构建** — `config/config.yaml` 描述 ARM / VM target 和功能开关，`scripts/cc.py` 统一调用 CMake。
+- **工具脚本精简** — `scripts` 内有构建、烧录、SysConfig、串口、资源生成、格式化、文档预览等必要工具。
 
 ---
 
 ## 快速开始 · Quick Start
 
-=== "1. 安装依赖"
+### 1. 安装依赖
 
-    Ubuntu 示例：
+Ubuntu 示例：
 
-    ```bash
-    sudo apt update
-    sudo apt install -y python3 python3-yaml cmake ninja-build libsdl2-dev
-    ```
+```bash
+sudo apt update
+sudo apt install -y python3 python3-yaml cmake ninja-build libsdl2-dev
+```
 
-    文档站点依赖：
+文档站点依赖：
 
-    ```bash
-    python3 -m pip install -r requirements-docs.txt
-    ```
+```bash
+python3 -m pip install -r requirements-docs.txt
+```
 
-    下载 [GNU Arm Embedded Toolchain](https://developer.arm.com/downloads/-/gnu-rm)，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
+下载 [GNU Arm Embedded Toolchain](https://developer.arm.com/downloads/-/gnu-rm)，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
 
-    下载 [TI SysConfig 工具](https://www.ti.com/tool/SYSCONFIG?utm_source=google&utm_medium=cpc&utm_campaign=epd-der-null-58700007779115364_sysconfig_rsa-cpc-evm-google-ww_en_int&utm_content=sysconfig&ds_k=sysconfig&gclsrc=aw.ds&gad_source=1&gad_campaignid=12788839648&gbraid=0AAAAAC068F0mxDINEjN5e5Md3f4ZsSyBs&gclid=CjwKCAjwuuPRBhAnEiwA2Ji8eiK_ixXpEXuhgDtRp0YhwTWHAC6KOf8EZ79ZcwkbVHbUfiH5GBbcehoCNecQAvD_BwE)，解压到 `tools/sysconfig` 目录。
+下载 [TI SysConfig 工具](https://www.ti.com/tool/SYSCONFIG?utm_source=google&utm_medium=cpc&utm_campaign=epd-der-null-58700007779115364_sysconfig_rsa-cpc-evm-google-ww_en_int&utm_content=sysconfig&ds_k=sysconfig&gclsrc=aw.ds&gad_source=1&gad_campaignid=12788839648&gbraid=0AAAAAC068F0mxDINEjN5e5Md3f4ZsSyBs&gclid=CjwKCAjwuuPRBhAnEiwA2Ji8eiK_ixXpEXuhgDtRp0YhwTWHAC6KOf8EZ79ZcwkbVHbUfiH5GBbcehoCNecQAvD_BwE)，解压到 `tools/sysconfig` 目录。
 
-=== "2. 配置 target"
+### 2. 配置 target
 
-    编辑 `config/config.yaml`，选择构建目标和功能开关：
+编辑 `config/config.yaml`，选择构建目标和功能开关：
 
-    ```yaml
-    build:
-      - name: arm
-        platform: ARM
-        build_type: MinSizeRel
-        FRAMEWORK_USE_FREERTOS: ON
-        FRAMEWORK_USE_LVGL: OFF
-        FRAMEWORK_USE_LFS: ON
-        FRAMEWORK_USE_RTT: OFF
+```yaml
+build:
+  - name: arm
+    platform: ARM
+    build_type: MinSizeRel
+    FRAMEWORK_USE_FREERTOS: ON
+    FRAMEWORK_USE_LVGL: OFF
+    FRAMEWORK_USE_LFS: ON
+    FRAMEWORK_USE_RTT: OFF
 
-      - name: vm
-        platform: VM
-        build_type: Release
-        FRAMEWORK_USE_FREERTOS: ON
-        FRAMEWORK_USE_LFS: ON
-    ```
+  - name: vm
+    platform: VM
+    build_type: Release
+    FRAMEWORK_USE_FREERTOS: ON
+    FRAMEWORK_USE_LFS: ON
+```
 
-    `name` 决定 `build/<name>/` 目录；`platform` 决定 ARM 固件或 VM 仿真；`FRAMEWORK_USE_*` 控制中间件和模块裁剪。
+`name` 决定 `build/<name>/` 目录；`platform` 决定 ARM 固件或 VM 仿真；`FRAMEWORK_USE_*` 控制中间件和模块裁剪。
 
-=== "3. 构建"
+### 3. 构建
 
-    ```bash
-    # 构建 config.yaml 中的所有 target
-    python3 scripts/cc.py
+```bash
+# 构建 config.yaml 中的所有 target
+python3 scripts/cc.py
 
-    # 仅构建 ARM 固件
-    python3 scripts/cc.py --target arm
+# 仅构建 ARM 固件
+python3 scripts/cc.py --target arm
 
-    # 仅构建 VM 仿真器
-    python3 scripts/cc.py --target vm
+# 仅构建 VM 仿真器
+python3 scripts/cc.py --target vm
 
-    # Linux/macOS 包装入口
-    bash scripts/cm.bash --target vm
-    ```
+# Linux/macOS 包装入口
+bash scripts/cm.bash --target vm
+```
 
-    不建议直接手写 `cmake` 命令绕过 `cc.py`，否则 `config/config.yaml` 中的功能开关不会自动传入。
+不建议直接手写 `cmake` 命令绕过 `cc.py`，否则 `config/config.yaml` 中的功能开关不会自动传入。
 
-=== "4. 运行 VM"
+### 4. 运行 VM
 
-    ```bash
-    ./build/vm/framework_vm
-    ```
+```bash
+./build/vm/framework_vm
+```
 
-    VM 默认按键：
+VM 默认按键：
 
-    | 键盘 | 含义 |
-    | --- | --- |
-    | 方向键 | 摇杆方向 |
-    | `S` | A |
-    | `D` | B |
-    | `W` | X |
-    | `A` | Y |
-    | `Space` | START / 摇杆按键兼容输入 |
-    | `Esc` | 退出 VM |
+| 键盘 | 含义 |
+| --- | --- |
+| 方向键 | 摇杆方向 |
+| `S` | A |
+| `D` | B |
+| `W` | X |
+| `A` | Y |
+| `Space` | START / 摇杆按键兼容输入 |
+| `Esc` | 退出 VM |
 
-=== "5. 烧录 ARM"
+### 5. 烧录 ARM
 
-    ```bash
-    python3 scripts/cc.py --target arm
-    bash scripts/flash.bash
-    ```
+```bash
+python3 scripts/cc.py --target arm
+bash scripts/flash.bash
+```
 
-    常见输出位于：
+常见输出位于：
 
-    ```text
-    build/arm/framework.elf
-    build/arm/framework.hex
-    build/arm/framework.bin
-    build/arm/framework.map
-    ```
+```text
+build/arm/framework.elf
+build/arm/framework.hex
+build/arm/framework.bin
+build/arm/framework.map
+```
 
 ---
 
