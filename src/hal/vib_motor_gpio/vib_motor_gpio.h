@@ -2,19 +2,6 @@
 
 #include <stdint.h>
 
-/*
- * GPIO vibration motor driver.
- *
- * HARDWARE NOTE:
- * The MCU GPIO only outputs a low-current control signal.
- * The actual hardware MUST drive the vibration motor through a
- * transistor or MOSFET stage with a flyback diode or other suitable
- * protection.  Never drive a motor directly from a GPIO pin.
- *
- * GPIO_VIB_MOTOR_IDX maps to the gate/base of the driver transistor,
- * NOT to the motor supply pin.
- */
-
 #define VIB_MOTOR_GPIO_MIN_RETRIGGER_MS 20u
 
 typedef enum {
@@ -32,24 +19,25 @@ typedef enum {
     vib_gpio_effect_life_lost,
     vib_gpio_effect_victory,
     vib_gpio_effect_defeat,
+
     vib_gpio_effect_count
 } Vib_motor_gpio_effect;
 
 /* Compatibility macros so APP-layer game code can keep using vib_effect_xxx names. */
-#define vib_effect_menu_tick      vib_gpio_effect_menu_tick
-#define vib_effect_menu_select    vib_gpio_effect_menu_select
-#define vib_effect_back           vib_gpio_effect_back
-#define vib_effect_action_light   vib_gpio_effect_action_light
-#define vib_effect_jump           vib_gpio_effect_jump
-#define vib_effect_shot           vib_gpio_effect_shot
-#define vib_effect_pickup         vib_gpio_effect_pickup
-#define vib_effect_score          vib_gpio_effect_score
-#define vib_effect_merge          vib_gpio_effect_merge
-#define vib_effect_hit_light      vib_gpio_effect_hit_light
-#define vib_effect_hit_heavy      vib_gpio_effect_hit_heavy
-#define vib_effect_life_lost      vib_gpio_effect_life_lost
-#define vib_effect_victory        vib_gpio_effect_victory
-#define vib_effect_defeat         vib_gpio_effect_defeat
+#define vib_effect_menu_tick    vib_gpio_effect_menu_tick
+#define vib_effect_menu_select  vib_gpio_effect_menu_select
+#define vib_effect_back         vib_gpio_effect_back
+#define vib_effect_action_light vib_gpio_effect_action_light
+#define vib_effect_jump         vib_gpio_effect_jump
+#define vib_effect_shot         vib_gpio_effect_shot
+#define vib_effect_pickup       vib_gpio_effect_pickup
+#define vib_effect_score        vib_gpio_effect_score
+#define vib_effect_merge        vib_gpio_effect_merge
+#define vib_effect_hit_light    vib_gpio_effect_hit_light
+#define vib_effect_hit_heavy    vib_gpio_effect_hit_heavy
+#define vib_effect_life_lost    vib_gpio_effect_life_lost
+#define vib_effect_victory      vib_gpio_effect_victory
+#define vib_effect_defeat       vib_gpio_effect_defeat
 
 typedef struct {
     uint8_t gpio_idx;

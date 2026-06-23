@@ -8,9 +8,7 @@ static Vib_motor_pwm g_motor;
 
 static uint8_t clamp_percent(uint8_t percent) { return percent > 100u ? 100u : percent; }
 
-void Vib_Motor_Pwm_Init(void) {
-    memset(&g_motor, 0, sizeof(g_motor));
-}
+void Vib_Motor_Pwm_Init(void) { memset(&g_motor, 0, sizeof(g_motor)); }
 
 Vib_motor_pwm* Vib_Motor_Pwm_Create(const Vib_motor_pwm_config* config) {
     if (config == NULL) { return NULL; }
@@ -33,13 +31,9 @@ void Vib_Motor_Pwm_Play_Effect(Vib_motor_pwm* motor, Vib_motor_pwm_effect effect
     (void)effect;
 }
 
-void Vib_Motor_Pwm_Stop(Vib_motor_pwm* motor) {
-    (void)motor;
-}
+void Vib_Motor_Pwm_Stop(Vib_motor_pwm* motor) { (void)motor; }
 
-void Vib_Motor_Pwm_Update_All(void) {
-    /* PWM vib_motor is not simulated on VM — use GPIO version instead. */
-}
+void Vib_Motor_Pwm_Update_All(void) { /* PWM vib_motor is not simulated on VM — use GPIO version instead. */ }
 
 void Vib_Motor_Pwm_Set_Master_Strength(Vib_motor_pwm* motor, uint8_t strength_percent) {
     (void)motor;
@@ -55,6 +49,4 @@ void Vib_Motor_Pwm_Set_Enabled(Vib_motor_pwm* motor, uint8_t enabled) {
     motor->enabled = enabled != 0u;
 }
 
-uint8_t Vib_Motor_Pwm_Is_Enabled(Vib_motor_pwm* motor) {
-    return motor != NULL && motor->enabled;
-}
+uint8_t Vib_Motor_Pwm_Is_Enabled(Vib_motor_pwm* motor) { return motor != NULL && motor->enabled; }

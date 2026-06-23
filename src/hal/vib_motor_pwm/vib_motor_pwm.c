@@ -68,7 +68,8 @@ static void output_strength(Vib_motor_pwm* obj, uint8_t strength_percent) {
 static uint8_t can_accept(Vib_motor_pwm* obj, uint8_t priority, uint32_t now) {
     if (!obj->enabled) { return 0u; }
     if (obj->active && priority < obj->priority) { return 0u; }
-    const uint8_t within_cooldown = obj->has_played && now - obj->last_play_at < VIB_MOTOR_PWM_MIN_RETRIGGER_MS;
+    const uint8_t within_cooldown =
+        obj->has_played && now - obj->last_play_at < VIB_MOTOR_PWM_MIN_RETRIGGER_MS;
     if (within_cooldown && (!obj->active || priority <= obj->priority)) { return 0u; }
     obj->has_played = 1u;
     obj->last_play_at = now;
@@ -120,7 +121,9 @@ static void update_pattern(Vib_motor_pwm* obj, uint32_t now) {
 }
 
 void Vib_Motor_Pwm_Init(void) {
-    if (vib_motor_pwm_instances == NULL) { vib_motor_pwm_instances = Vector_Init(sizeof(Vib_motor_pwm*), 4u); }
+    if (vib_motor_pwm_instances == NULL) {
+        vib_motor_pwm_instances = Vector_Init(sizeof(Vib_motor_pwm*), 4u);
+    }
 }
 
 Vib_motor_pwm* Vib_Motor_Pwm_Create(const Vib_motor_pwm_config* config) {

@@ -14,57 +14,35 @@ static Vector* vib_motor_gpio_instances;
 
 /* ── GPIO vibration patterns ─────────────────────────────────────────── */
 
-#define SINGLE_GPIO_STEP(name, on_time) \
+#define SINGLE_GPIO_STEP(name, on_time)                                \
     static const Vib_motor_gpio_step name##_steps[] = {{on_time, 0u}}; \
     static const Vib_motor_gpio_pattern name = {name##_steps, 1u}
 
-SINGLE_GPIO_STEP(pattern_menu_tick, 12u);
-SINGLE_GPIO_STEP(pattern_menu_select, 35u);
-SINGLE_GPIO_STEP(pattern_back, 45u);
-SINGLE_GPIO_STEP(pattern_action_light, 18u);
-SINGLE_GPIO_STEP(pattern_jump, 18u);
-SINGLE_GPIO_STEP(pattern_shot, 20u);
-SINGLE_GPIO_STEP(pattern_pickup, 30u);
-SINGLE_GPIO_STEP(pattern_score, 25u);
-SINGLE_GPIO_STEP(pattern_merge, 35u);
-SINGLE_GPIO_STEP(pattern_hit_light, 45u);
-SINGLE_GPIO_STEP(pattern_hit_heavy, 90u);
+SINGLE_GPIO_STEP(pattern_menu_tick, 200u);
+SINGLE_GPIO_STEP(pattern_menu_select, 200u);
+SINGLE_GPIO_STEP(pattern_back, 225u);
+SINGLE_GPIO_STEP(pattern_action_light, 200u);
+SINGLE_GPIO_STEP(pattern_jump, 200u);
+SINGLE_GPIO_STEP(pattern_shot, 200u);
+SINGLE_GPIO_STEP(pattern_pickup, 200u);
+SINGLE_GPIO_STEP(pattern_score, 200u);
+SINGLE_GPIO_STEP(pattern_merge, 200u);
+SINGLE_GPIO_STEP(pattern_hit_light, 225u);
+SINGLE_GPIO_STEP(pattern_hit_heavy, 450u);
 
-static const Vib_motor_gpio_step pattern_life_lost_steps[] = {
-    {80u, 40u},
-    {80u, 0u},
-};
+static const Vib_motor_gpio_step pattern_life_lost_steps[] = {{400u, 200u}, {400u, 0u}};
 static const Vib_motor_gpio_pattern pattern_life_lost = {pattern_life_lost_steps, 2u};
 
-static const Vib_motor_gpio_step pattern_victory_steps[] = {
-    {40u, 50u},
-    {40u, 0u},
-};
+static const Vib_motor_gpio_step pattern_victory_steps[] = {{200u, 250u}, {200u, 0u}};
 static const Vib_motor_gpio_pattern pattern_victory = {pattern_victory_steps, 2u};
 
-static const Vib_motor_gpio_step pattern_defeat_steps[] = {
-    {60u, 40u},
-    {60u, 40u},
-    {160u, 0u},
-};
+static const Vib_motor_gpio_step pattern_defeat_steps[] = {{300u, 200u}, {300u, 200u}, {800u, 0u}};
 static const Vib_motor_gpio_pattern pattern_defeat = {pattern_defeat_steps, 3u};
 
-static const Vib_motor_gpio_pattern* const effect_patterns[vib_gpio_effect_count] = {
-    &pattern_menu_tick,
-    &pattern_menu_select,
-    &pattern_back,
-    &pattern_action_light,
-    &pattern_jump,
-    &pattern_shot,
-    &pattern_pickup,
-    &pattern_score,
-    &pattern_merge,
-    &pattern_hit_light,
-    &pattern_hit_heavy,
-    &pattern_life_lost,
-    &pattern_victory,
-    &pattern_defeat,
-};
+static const Vib_motor_gpio_pattern* const effect_patterns[vib_gpio_effect_count] = {&pattern_menu_tick,
+    &pattern_menu_select, &pattern_back, &pattern_action_light, &pattern_jump, &pattern_shot, &pattern_pickup,
+    &pattern_score, &pattern_merge, &pattern_hit_light, &pattern_hit_heavy, &pattern_life_lost,
+    &pattern_victory, &pattern_defeat};
 
 static const uint8_t gpio_effect_priorities[vib_gpio_effect_count] = {
     1u, /* menu_tick */
@@ -86,27 +64,17 @@ static const uint8_t gpio_effect_priorities[vib_gpio_effect_count] = {
 /* ── GPIO helpers ────────────────────────────────────────────────────── */
 
 static void output_on(Vib_motor_gpio* obj) {
-    if (obj == NULL || !obj->config.enabled) {
-        return;
-    }
+    if (obj == NULL || !obj->config.enabled) { return; }
 
-    Bsp_Gpio_Write(
-        obj->config.gpio_idx,
-        obj->config.active_high ? bsp_gpio_state_set : bsp_gpio_state_reset
-    );
+    Bsp_Gpio_Write(obj->config.gpio_idx, obj->config.active_high ? bsp_gpio_state_set : bsp_gpio_state_reset);
 
     obj->output_on = 1u;
 }
 
 static void output_off(Vib_motor_gpio* obj) {
-    if (obj == NULL) {
-        return;
-    }
+    if (obj == NULL) { return; }
 
-    Bsp_Gpio_Write(
-        obj->config.gpio_idx,
-        obj->config.active_high ? bsp_gpio_state_reset : bsp_gpio_state_set
-    );
+    Bsp_Gpio_Write(obj->config.gpio_idx, obj->config.active_high ? bsp_gpio_state_reset : bsp_gpio_state_set);
 
     obj->output_on = 0u;
 }
@@ -257,6 +225,4 @@ void Vib_Motor_Gpio_Set_Enabled(Vib_motor_gpio* obj, uint8_t enabled) {
     taskEXIT_CRITICAL();
 }
 
-uint8_t Vib_Motor_Gpio_Is_Enabled(Vib_motor_gpio* obj) {
-    return obj == NULL ? 0u : obj->config.enabled;
-}
+uint8_t Vib_Motor_Gpio_Is_Enabled(Vib_motor_gpio* obj) { return obj == NULL ? 0u : obj->config.enabled; }

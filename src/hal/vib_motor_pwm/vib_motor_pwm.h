@@ -6,12 +6,10 @@
  * a flyback diode or other suitable protection. Never drive a motor directly
  * from a GPIO/PWM pin. */
 
-#define VIB_MOTOR_PWM_DEFAULT_FREQ_HZ      20000u
+#define VIB_MOTOR_PWM_DEFAULT_FREQ_HZ          20000u
 #define VIB_MOTOR_PWM_DEFAULT_MAX_DUTY_PERCENT 60u
 #define VIB_MOTOR_PWM_DEFAULT_MASTER_STRENGTH  70u
 #define VIB_MOTOR_PWM_MIN_RETRIGGER_MS         20u
-
-#define PWM_VIB_MOTOR_PWM_IDX              PWM_BUZZER_IDX /* placeholder: no dedicated PWM channel */
 
 typedef enum {
     vib_pwm_effect_menu_tick = 0,
