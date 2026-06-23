@@ -41,7 +41,7 @@ typedef enum {
 
 /* ── Static state ── */
 static St7789* g_lcd = NULL;
-static Vib_motor* g_vib_motor = NULL;
+static Vib_motor_gpio* g_vib_motor = NULL;
 static char g_expr[MAX_EXPR];
 static uint8_t g_expr_len = 0;
 static uint8_t g_cursor_row = 2;
@@ -393,9 +393,9 @@ Game_result Calc_Update(const Game_input* input) {
     }
 
     if (input->confirm_pressed && press_button(g_cursor_row, g_cursor_col)) {
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_select);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_select);
     } else if (cursor_changed) {
-        Vib_Motor_Play_Effect(g_vib_motor, vib_effect_menu_tick);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_menu_tick);
     }
 
     return game_result_running;

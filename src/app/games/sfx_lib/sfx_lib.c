@@ -245,9 +245,9 @@ Game_result Sfx_Lib_Update(const Game_input* input) {
 
     if (input->confirm_pressed) {
         Buzzer_Play_Sfx(g_hardware.buzzer, (Buzzer_sfx_idx)(page_start() + g_cursor));
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_menu_select);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_menu_select);
     } else if (g_page != old_page || g_cursor != old_cursor) {
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_menu_tick);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_menu_tick);
     }
 
     return game_result_running;

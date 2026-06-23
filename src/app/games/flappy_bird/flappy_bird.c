@@ -275,7 +275,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
             g_gravity_acc = 0;
             play_fill(20, 130, SCREEN_WIDTH - 40, 20, COLOR_BLACK);
             update_score();
-            Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
+            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
         }
         g_up_prev = up;
         return game_result_running;
@@ -394,7 +394,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         g_state = flappy_state_over;
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         play_fill(BIRD_X - 1, g_bird_y - 1, BIRD_W + 3, BIRD_H + 2, COLOR_RED);
         update_score();
         play_fill(50, 148, 140, 9, COLOR_BLACK);
@@ -402,9 +402,9 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         play_fill(25, 168, 190, 9, COLOR_BLACK);
         Game_Graphics_Draw_Text(lcd, 48, 170, "A TO RESTART", 1, COLOR_WHITE);
     } else if (scored) {
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_score);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_score);
     } else if (flapped) {
-        Vib_Motor_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
+        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
     }
 
     return game_result_running;
