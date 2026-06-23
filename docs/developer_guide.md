@@ -91,7 +91,13 @@ build/arm/framework.map
 
 ## 代码风格
 
-项目根目录有 `.clang-format`，建议修改后执行格式化。通用建议：
+项目根目录有 `.clang-format`，建议修改后执行格式化：
+
+```bash
+source scripts/format.bash
+```
+
+通用建议：
 
 - 模块接口放 `.h`，实现放 `.c`。
 - 对外函数使用模块名前缀，例如 `Vib_Motor_Gpio_*`、`Vib_Motor_Pwm_*`、`Game_Console_*`。
