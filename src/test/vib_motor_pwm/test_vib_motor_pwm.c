@@ -10,7 +10,7 @@ static Vib_motor_pwm* g_motor = NULL;
 static void vib_motor_pwm_task(void* arg) {
     (void)arg;
     const Vib_motor_pwm_config config = {
-        .pwm_idx = PWM_VIB_MOTOR_PWM_IDX,
+        .pwm_idx = 255,
         .pwm_freq_hz = VIB_MOTOR_PWM_DEFAULT_FREQ_HZ,
         .max_duty_percent = VIB_MOTOR_PWM_DEFAULT_MAX_DUTY_PERCENT,
         .master_strength_percent = VIB_MOTOR_PWM_DEFAULT_MASTER_STRENGTH,
@@ -32,6 +32,4 @@ static void vib_motor_pwm_task(void* arg) {
     }
 }
 
-void Test_Vib_Motor_Pwm_Task_Def(void) {
-    xTaskCreate(vib_motor_pwm_task, "VibMotorPwm", 128, NULL, 1, NULL);
-}
+void Test_Vib_Motor_Pwm_Task_Def(void) { xTaskCreate(vib_motor_pwm_task, "VibMotorPwm", 128, NULL, 1, NULL); }

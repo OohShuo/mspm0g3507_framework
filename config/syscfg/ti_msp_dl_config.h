@@ -101,18 +101,6 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 #define GPIO_PWM_0_C3_IOMUX_FUNC                     IOMUX_PINCM34_PF_TIMA0_CCP3
 #define GPIO_PWM_0_C3_IDX                                    DL_TIMER_CC_3_INDEX
 
-/* Defines for PWM_1 */
-#define PWM_1_INST                                                         TIMG0
-#define PWM_1_INST_IRQHandler                                   TIMG0_IRQHandler
-#define PWM_1_INST_INT_IRQN                                     (TIMG0_INT_IRQn)
-#define PWM_1_INST_CLK_FREQ                                              4000000
-/* GPIO defines for channel 1 */
-#define GPIO_PWM_1_C1_PORT                                                 GPIOA
-#define GPIO_PWM_1_C1_PIN                                         DL_GPIO_PIN_13
-#define GPIO_PWM_1_C1_IOMUX                                      (IOMUX_PINCM35)
-#define GPIO_PWM_1_C1_IOMUX_FUNC                     IOMUX_PINCM35_PF_TIMG0_CCP1
-#define GPIO_PWM_1_C1_IDX                                    DL_TIMER_CC_1_INDEX
-
 
 
 /* Defines for TIMER_0 */
@@ -211,6 +199,9 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 /* Defines for PIN_0: GPIOA.25 with pinCMx 55 on package pin 26 */
 #define GPIO_GRP_0_PIN_0_PIN                                    (DL_GPIO_PIN_25)
 #define GPIO_GRP_0_PIN_0_IOMUX                                   (IOMUX_PINCM55)
+/* Defines for PIN_1: GPIOA.13 with pinCMx 35 on package pin 6 */
+#define GPIO_GRP_0_PIN_1_PIN                                    (DL_GPIO_PIN_13)
+#define GPIO_GRP_0_PIN_1_IOMUX                                   (IOMUX_PINCM35)
 /* Port definition for Pin Group GPIO_GRP_1 */
 #define GPIO_GRP_1_PORT                                                  (GPIOB)
 
@@ -265,7 +256,6 @@ void SYSCFG_DL_SYSCTL_init(void);
 
 bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 void SYSCFG_DL_PWM_0_init(void);
-void SYSCFG_DL_PWM_1_init(void);
 void SYSCFG_DL_TIMER_0_init(void);
 void SYSCFG_DL_UART_0_init(void);
 void SYSCFG_DL_SPI_0_init(void);

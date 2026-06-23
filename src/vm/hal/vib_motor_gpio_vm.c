@@ -11,33 +11,33 @@ static Vib_motor_gpio g_motor;
 
 /* ── GPIO vibration patterns ─────────────────────────────────────────── */
 
-#define SINGLE_GPIO_STEP(name, on_time) \
+#define SINGLE_GPIO_STEP(name, on_time)                                \
     static const Vib_motor_gpio_step name##_steps[] = {{on_time, 0u}}; \
     static const Vib_motor_gpio_pattern name = {name##_steps, 1u}
 
-SINGLE_GPIO_STEP(pattern_menu_tick, 12u);
-SINGLE_GPIO_STEP(pattern_menu_select, 35u);
-SINGLE_GPIO_STEP(pattern_back, 45u);
-SINGLE_GPIO_STEP(pattern_action_light, 18u);
-SINGLE_GPIO_STEP(pattern_jump, 18u);
-SINGLE_GPIO_STEP(pattern_shot, 20u);
-SINGLE_GPIO_STEP(pattern_pickup, 30u);
-SINGLE_GPIO_STEP(pattern_score, 25u);
-SINGLE_GPIO_STEP(pattern_merge, 35u);
-SINGLE_GPIO_STEP(pattern_hit_light, 45u);
-SINGLE_GPIO_STEP(pattern_hit_heavy, 90u);
+SINGLE_GPIO_STEP(pattern_menu_tick, 200u);
+SINGLE_GPIO_STEP(pattern_menu_select, 200u);
+SINGLE_GPIO_STEP(pattern_back, 225u);
+SINGLE_GPIO_STEP(pattern_action_light, 200u);
+SINGLE_GPIO_STEP(pattern_jump, 200u);
+SINGLE_GPIO_STEP(pattern_shot, 200u);
+SINGLE_GPIO_STEP(pattern_pickup, 200u);
+SINGLE_GPIO_STEP(pattern_score, 200u);
+SINGLE_GPIO_STEP(pattern_merge, 200u);
+SINGLE_GPIO_STEP(pattern_hit_light, 225u);
+SINGLE_GPIO_STEP(pattern_hit_heavy, 450u);
 
-static const Vib_motor_gpio_step g_life_lost_steps[] = {{80u, 40u}, {80u, 0u}};
+static const Vib_motor_gpio_step g_life_lost_steps[] = {{400u, 200u}, {400u, 0u}};
 static const Vib_motor_gpio_pattern g_life_lost = {g_life_lost_steps, 2u};
-static const Vib_motor_gpio_step g_victory_steps[] = {{40u, 50u}, {40u, 0u}};
+static const Vib_motor_gpio_step g_victory_steps[] = {{200u, 250u}, {200u, 0u}};
 static const Vib_motor_gpio_pattern g_victory = {g_victory_steps, 2u};
-static const Vib_motor_gpio_step g_defeat_steps[] = {{60u, 40u}, {60u, 40u}, {160u, 0u}};
+static const Vib_motor_gpio_step g_defeat_steps[] = {{300u, 200u}, {300u, 200u}, {800u, 0u}};
 static const Vib_motor_gpio_pattern g_defeat = {g_defeat_steps, 3u};
 
-static const Vib_motor_gpio_pattern* const g_effect_patterns[vib_gpio_effect_count] = {
-    &pattern_menu_tick, &pattern_menu_select, &pattern_back, &pattern_action_light, &pattern_jump,
-    &pattern_shot, &pattern_pickup, &pattern_score, &pattern_merge, &pattern_hit_light, &pattern_hit_heavy,
-    &g_life_lost, &g_victory, &g_defeat};
+static const Vib_motor_gpio_pattern* const g_effect_patterns[vib_gpio_effect_count] = {&pattern_menu_tick,
+    &pattern_menu_select, &pattern_back, &pattern_action_light, &pattern_jump, &pattern_shot, &pattern_pickup,
+    &pattern_score, &pattern_merge, &pattern_hit_light, &pattern_hit_heavy, &g_life_lost, &g_victory,
+    &g_defeat};
 static const uint8_t g_effect_priorities[vib_gpio_effect_count] = {
     1u, 2u, 2u, 2u, 2u, 2u, 3u, 3u, 3u, 4u, 4u, 5u, 5u, 5u};
 
@@ -175,6 +175,4 @@ void Vib_Motor_Gpio_Set_Enabled(Vib_motor_gpio* motor, uint8_t enabled) {
     if (!motor->config.enabled) { finish_playback(motor); }
 }
 
-uint8_t Vib_Motor_Gpio_Is_Enabled(Vib_motor_gpio* motor) {
-    return motor != NULL && motor->config.enabled;
-}
+uint8_t Vib_Motor_Gpio_Is_Enabled(Vib_motor_gpio* motor) { return motor != NULL && motor->config.enabled; }
