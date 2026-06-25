@@ -21,6 +21,7 @@ typedef enum {
     /* ── 通用 / 菜单 ── */
     buzzer_sfx_menu_move = 0,
     buzzer_sfx_menu_select,
+    buzzer_sfx_boot,
 
     /* ── Pac‑Man ── */
     buzzer_sfx_pellet,
