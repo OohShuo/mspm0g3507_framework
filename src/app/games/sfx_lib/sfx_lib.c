@@ -25,7 +25,7 @@
 #define COLOR_HILITE   0xc618u
 
 /* ── SFX 名称，顺序必须与 Buzzer_sfx_idx 一致 ── */
-static const char* const g_sfx_names[] = {"menu move", "menu select", "pellet", "power", "ghost",
+static const char* const g_sfx_names[] = {"menu move", "menu select", "boot", "pellet", "power", "ghost",
     "pacman waka", "snake eat", "snake turn", "snake grow", "lane change", "overtake", "racing crash",
     "tank fire", "tank hit", "air fire", "air hit", "air pickup", "boss alert", "tetris move",
     "tetris rotate", "tetris lock", "tetris line clear", "tetris tetris", "breakout bounce", "breakout brick",

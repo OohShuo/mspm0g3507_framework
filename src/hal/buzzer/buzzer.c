@@ -33,6 +33,7 @@ static Vector* buzzer_instances = NULL;
 static const uint8_t sfx_priorities[buzzer_sfx_count] = {
     [buzzer_sfx_menu_move] = 1,
     [buzzer_sfx_menu_select] = 2,
+    [buzzer_sfx_boot] = 5,
     [buzzer_sfx_pellet] = 1,
     [buzzer_sfx_power] = 3,
     [buzzer_sfx_ghost] = 3,

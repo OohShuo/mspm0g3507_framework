@@ -77,21 +77,27 @@ def pack_image_asset(
     except ImportError as exc:
         raise RuntimeError("Pillow is required: pip install pillow") from exc
 
+    # Pillow >= 9.1 uses Image.Resampling.LANCZOS; older versions use Image.LANCZOS
+    try:
+        _LANCZOS = Image.Resampling.LANCZOS
+    except AttributeError:
+        _LANCZOS = Image.LANCZOS  # type: ignore[attr-defined]
+
     if width <= 0 or height <= 0 or width > 0xFFFF or height > 0xFFFF:
         raise ValueError("Image dimensions must be in the range 1..65535")
 
     image = ImageOps.exif_transpose(Image.open(source_path)).convert("RGBA")
     target_size = (width, height)
     if fit == "cover":
-        image = ImageOps.fit(image, target_size, method=Image.Resampling.LANCZOS)
+        image = ImageOps.fit(image, target_size, method=_LANCZOS)
     elif fit == "contain":
-        contained = ImageOps.contain(image, target_size, method=Image.Resampling.LANCZOS)
+        contained = ImageOps.contain(image, target_size, method=_LANCZOS)
         image = Image.new("RGBA", target_size, (0, 0, 0, 0))
         image.alpha_composite(
             contained, ((width - contained.width) // 2, (height - contained.height) // 2)
         )
     elif fit == "stretch":
-        image = image.resize(target_size, Image.Resampling.LANCZOS)
+        image = image.resize(target_size, _LANCZOS)
     else:
         raise ValueError(f"Unknown fit mode: {fit}")
 

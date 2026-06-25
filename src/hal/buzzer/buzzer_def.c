@@ -46,6 +46,15 @@
 static const Buzzer_note sfx_menu_move[] = {S(C6, 35), S(E6, 45)};
 static const Buzzer_note sfx_menu_select[] = {S(C6, 45), S(G6, 55), N(C7, 90)};
 
+/* 约 2400 ms：明亮上扬的 8-bit 开机完成提示音 */
+static const Buzzer_note sfx_boot[] = {
+    N(C5, 150), R(20),  N(E5, 150), R(20),  N(G5, 190), R(30),
+    N(A5, 160), N(G5, 150), R(30),  N(E5, 190), R(50),
+    S(F5, 125), S(G5, 125), N(A5, 190), R(30),  N(C6, 230), R(40),
+    S(B5, 125), S(A5, 125), N(G5, 200), R(30),
+    S(E5, 130), S(G5, 140), S(A5, 160), L(C6, 340), R(90),
+};
+
 /* ── Pac-Man ── */
 static const Buzzer_note sfx_pellet[] = {S(B5, 28), S(E6, 32)};
 static const Buzzer_note sfx_power[] = {G(C5, 90), G(G5, 90), N(C6, 120)};
@@ -127,6 +136,7 @@ static const Buzzer_note sfx_defeat[] = {
 const Music buzzer_sfx_library[buzzer_sfx_count] = {
     [buzzer_sfx_menu_move] = {sfx_menu_move, LEN(sfx_menu_move)},
     [buzzer_sfx_menu_select] = {sfx_menu_select, LEN(sfx_menu_select)},
+    [buzzer_sfx_boot] = {sfx_boot, LEN(sfx_boot)},
     [buzzer_sfx_pellet] = {sfx_pellet, LEN(sfx_pellet)},
     [buzzer_sfx_power] = {sfx_power, LEN(sfx_power)},
     [buzzer_sfx_ghost] = {sfx_ghost, LEN(sfx_ghost)},

@@ -17,6 +17,7 @@ static SDL_AudioDeviceID g_audio_device;
 static const uint8_t g_sfx_priorities[buzzer_sfx_count] = {
     [buzzer_sfx_menu_move] = 1u,
     [buzzer_sfx_menu_select] = 2u,
+    [buzzer_sfx_boot] = 5u,
     [buzzer_sfx_power] = 3u,
     [buzzer_sfx_ghost] = 3u,
     [buzzer_sfx_snake_grow] = 2u,

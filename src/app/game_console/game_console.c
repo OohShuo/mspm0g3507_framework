@@ -930,6 +930,8 @@ static void console_init(void) {
 
     Score_Store_Init(game_id_count);
     render_menu();
+
+    Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_boot);
 }
 
 static void console_task(void* arg) {
