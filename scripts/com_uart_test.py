@@ -51,7 +51,7 @@ def drain(ser: serial.Serial) -> None:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--port", default=os.environ.get("COM_UART_PORT", "/dev/ttyUSB0"))
-    p.add_argument("--baud", type=int, default=115200)
+    p.add_argument("--baud", type=int, default=2000000)
     p.add_argument("--interval", type=float, default=1.0,
         help="seconds between sends (default: 1.0, like the C test; 0 to send as fast as possible)")
     p.add_argument("--no-rx", action="store_true",

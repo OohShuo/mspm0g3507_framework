@@ -12,8 +12,8 @@
     #include "semphr.h"
     #include "w25q32.h"
 
-    #define STORAGE_LFS_START   (2u * 1024u * 1024u)
-    #define STORAGE_LFS_SIZE    (2u * 1024u * 1024u)
+    #define STORAGE_LFS_START   (1u * 1024u * 1024u)
+    #define STORAGE_LFS_SIZE    (3u * 1024u * 1024u)
     #define STORAGE_RAW_LIMIT   STORAGE_LFS_START
     #define STORAGE_SECTOR_SIZE 4096u
     #define STORAGE_PAGE_SIZE   256u

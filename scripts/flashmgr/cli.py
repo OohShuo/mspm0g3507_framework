@@ -42,7 +42,7 @@ def cli_main(argv: list) -> int:
     parser = argparse.ArgumentParser(
         description="通过 UART 管理外部 Flash 文件")
     parser.add_argument("port", nargs="?", help="串口，例如 COM3 或 /dev/ttyUSB0")
-    parser.add_argument("--baud", type=int, default=115200, help="串口波特率")
+    parser.add_argument("--baud", type=int, default=2000000, help="串口波特率")
     parser.add_argument(
         "--list-ports",
         action="store_true",
@@ -212,7 +212,7 @@ def cli_main(argv: list) -> int:
                 "  1. 已烧录 FLASH_MGR_ENABLE=1 的最新固件并复位；\n"
                 "  2. 调试器 UART TX 接 PA11（MCU RX）；\n"
                 "  3. 调试器 UART RX 接 PA10（MCU TX）；\n"
-                "  4. 调试器与 MCU 共地，串口为 115200 8N1；\n"
+                "  4. 调试器与 MCU 共地，串口为 2000000 8N1；\n"
                 "  5. 当前选择的是调试器虚拟串口。",
                 file=sys.stderr,
             )

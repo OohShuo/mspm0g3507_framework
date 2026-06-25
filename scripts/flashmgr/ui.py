@@ -37,6 +37,7 @@ from flashmgr.utils import (
     COLOR_DIM,
     COLOR_GREEN,
     COLOR_YELLOW,
+    COLOR_RED,
     COLOR_MAGENTA,
 )
 
@@ -44,7 +45,7 @@ from flashmgr.utils import (
 
 config = {
     "port": None,
-    "baudrate": 115200,
+    "baudrate": 2000000,
     "timeout": 5.0,
     "local_cwd": ".",
     "remote_cwd": "/",
@@ -212,7 +213,7 @@ def _refresh_and_show() -> None:
     connected = config.get("_client") is not None
     print_banner(
         port=config.get("port") or "(not set)",
-        baudrate=config.get("baudrate", 115200),
+        baudrate=config.get("baudrate", 2000000),
         local_cwd=config.get("local_cwd", "./"),
         remote_cwd=config.get("remote_cwd", "/"),
         connected=connected,
@@ -672,7 +673,7 @@ def _menu_config() -> None:
                 _close_client()
                 print_success(f"Port set to: {p}")
         elif choice == "b":
-            b = input("  Baudrate [115200]: ").strip()
+            b = input("  Baudrate [2000000]: ").strip()
             if b:
                 try:
                     config["baudrate"] = int(b)
@@ -723,7 +724,7 @@ def _show_config() -> None:
     """Print the current config as a table."""
     items = [
         ("port", config.get("port", "(not set)")),
-        ("baudrate", config.get("baudrate", 115200)),
+        ("baudrate", config.get("baudrate", 2000000)),
         ("timeout", f"{config.get('timeout', 5.0):.1f}s"),
         ("local cwd", config.get("local_cwd", "./")),
         ("remote cwd", config.get("remote_cwd", "/")),
@@ -761,7 +762,7 @@ def _action_help() -> None:
     print(f"    {color_text('<port> delete <remote>', COLOR_YELLOW)}   Delete a file")
     print(f"    {color_text('<port> format --yes', COLOR_YELLOW)}        Format filesystem")
     print()
-    print("  Protocol: UART 115200 8N1, chunked transfer with CRC16 verification.")
+    print("  Protocol: UART 2000000 8N1, chunked transfer with CRC16 verification.")
     print("  MCU commands: READ, WRITE, DELETE, LIST, INFO, FORMAT, RESET.")
     print()
     print("  Notes:")

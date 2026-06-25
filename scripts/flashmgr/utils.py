@@ -79,7 +79,7 @@ def _terminal_width() -> int:
 
 def print_banner(
     port: str = "",
-    baudrate: int = 115200,
+    baudrate: int = 2000000,
     local_cwd: str = "./",
     remote_cwd: str = "/",
     connected: bool = False,
