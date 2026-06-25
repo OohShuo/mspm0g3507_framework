@@ -291,8 +291,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Send article over serial with SLIP framing")
     parser.add_argument("port", help="Serial port, e.g. /dev/ttyACM0 or COM3")
-    parser.add_argument("--baud", type=int, default=115200,
-                        help="Baud rate (default: 115200)")
+    parser.add_argument("--baud", type=int, default=2000000,
+                        help="Baud rate (default: 2000000)")
     parser.add_argument("--chunk-size", type=int, default=250,
                         help="Max escaped bytes per chunk (default: 250)")
     parser.add_argument("--hz", type=float, default=10.0,

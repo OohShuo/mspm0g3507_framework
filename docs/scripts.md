@@ -102,7 +102,7 @@ python3 scripts/flash_manager.py /dev/ttyUSB0 format --yes
 python3 scripts/flash_manager.py /dev/ttyUSB0 upload-image photo.jpg /bg.r565 --width 240 --height 135
 
 # UART 测试
-python3 scripts/com_uart_test.py --port /dev/ttyUSB0 --baud 115200
+python3 scripts/com_uart_test.py --port /dev/ttyUSB0 --baud 2000000
 ```
 
 ## 资源生成与实验脚本

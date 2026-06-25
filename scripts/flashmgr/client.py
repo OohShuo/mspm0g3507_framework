@@ -282,7 +282,7 @@ class FlashManager:
     port : str
         Serial device path, e.g. ``/dev/ttyUSB0`` or ``COM3``.
     baudrate : int
-        Baud rate (default 115200).
+        Baud rate (default 2000000).
     timeout : float
         Per-byte read timeout in seconds (default 0.5).
     max_retries : int
@@ -295,7 +295,7 @@ class FlashManager:
     def __init__(
         self,
         port: str,
-        baudrate: int = 115200,
+        baudrate: int = 2000000,
         timeout: float = 5.0,
         max_retries: int = 3,
     ):
