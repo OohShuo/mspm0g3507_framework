@@ -20,13 +20,13 @@ void Bad_Apple_Init(const Game_hardware* hardware) {
     /* Play from SPI flash via LittleFS */
     if (!Badapple_Video_Init(g_lcd, badapple_video_source_lfs_file)) {
         /* Clear game area only, keep bars */
-        Game_Graphics_Draw_Top_Bar(g_lcd, "?");
+        Game_Graphics_Draw_Top_Bar(g_lcd, "BAD APPLE");
         Game_Graphics_Draw_Text(g_lcd, 30, 130, "NO BAD APPLE VIDEO", 2, COLOR_CYAN);
         return;
     }
 
     /* Redraw top bar — Init clears game area */
-    Game_Graphics_Draw_Top_Bar(g_lcd, "?");
+    Game_Graphics_Draw_Top_Bar(g_lcd, "BAD APPLE");
 }
 
 Game_result Bad_Apple_Update(const Game_input* input) {
