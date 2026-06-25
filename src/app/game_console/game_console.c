@@ -471,6 +471,29 @@ static void draw_rhythm_icon(int32_t x, int32_t y) {
     Game_Graphics_Fill_Rect(g_lcd, x - 2, y + 17, 10, 3, COLOR_YELLOW);
 }
 
+static void draw_bad_apple_icon(int32_t x, int32_t y) {
+    /* White background */
+    Game_Graphics_Fill_Rect(g_lcd, x - 16, y - 17, 32, 36, COLOR_WHITE);
+
+    /* Stem */
+    Game_Graphics_Fill_Rect(g_lcd, x - 1, y - 15, 3, 7, COLOR_BLACK);
+
+    /* Apple body: two top lobes */
+    Game_Graphics_Fill_Rect(g_lcd, x - 10, y - 11, 9, 3, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x + 2, y - 11, 10, 3, COLOR_BLACK);
+
+    /* Apple body: main silhouette */
+    Game_Graphics_Fill_Rect(g_lcd, x - 13, y - 8, 27, 4, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 15, y - 4, 31, 5, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 15, y + 1, 31, 5, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 14, y + 6, 29, 4, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 12, y + 10, 25, 4, COLOR_BLACK);
+    Game_Graphics_Fill_Rect(g_lcd, x - 9, y + 14, 19, 3, COLOR_BLACK);
+
+    /* Top notch */
+    Game_Graphics_Fill_Rect(g_lcd, x - 1, y - 11, 3, 3, COLOR_WHITE);
+}
+
 static int32_t cell_x(uint8_t col) { return GRID_X0 + (int32_t)col * (CELL_W + CELL_GAP_X); }
 static int32_t cell_y(uint8_t row) { return GRID_Y0 + (int32_t)row * (CELL_H + CELL_GAP_Y); }
 
@@ -536,6 +559,8 @@ static void draw_grid_cell(uint8_t row, uint8_t col, uint8_t selected, uint8_t g
         draw_dodge_box_icon(icon_cx, icon_cy);
     } else if (game->icon == game_icon_rhythm) {
         draw_rhythm_icon(icon_cx, icon_cy);
+    } else if (game->icon == game_icon_bad_apple) {
+        draw_bad_apple_icon(icon_cx, icon_cy);
     } else {
         draw_air_icon(cx + 12, cy + 5);
     }
