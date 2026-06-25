@@ -19,6 +19,7 @@ find "$PROJECT_ROOT/src" "$PROJECT_ROOT/lib/local_lib" "$PROJECT_ROOT/config" \
     \( \
         \( -path "*/src/*" -o -path "*/local_lib/*" \) \
         ! -name "*_img.c" \
+        ! -name "*badapple_builtin_video.h" \
         \( -name "*.c" -o -name "*.h" \) \
         -o \
         -path "*/config/*" \

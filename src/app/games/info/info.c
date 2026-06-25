@@ -107,11 +107,11 @@ static void draw_version_text(void) {
     buf[p++] = 'n';
     buf[p++] = ':';
     buf[p++] = ' ';
-    buf[p++] = '0' + (char) APP_VERSION_MAJOR;
+    buf[p++] = '0' + (char)APP_VERSION_MAJOR;
     buf[p++] = '.';
-    buf[p++] = '0' + (char) APP_VERSION_MINOR;
+    buf[p++] = '0' + (char)APP_VERSION_MINOR;
     buf[p++] = '.';
-    buf[p++] = '0' + (char) APP_VERSION_PATCH;
+    buf[p++] = '0' + (char)APP_VERSION_PATCH;
     buf[p] = '\0';
 
     Game_Graphics_Draw_Text(g_lcd, 150, 20, buf, 1, 0x053fu);

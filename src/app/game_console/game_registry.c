@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "air_battle.h"
+#include "bad_apple.h"
 #include "breakout.h"
 #include "calculator.h"
 #include "dino_runner.h"
@@ -275,6 +276,19 @@ static const Game_descriptor g_games[] = {
         .update = Volume_Control_Update,
         .get_score = Volume_Control_Get_Score,
         .is_finished = Volume_Control_Is_Finished,
+    },
+    {
+        .name = "?",
+        .icon = game_icon_bad_apple,
+        .id = game_id_bad_apple,
+        .control_hint = NULL,
+        .info_text = "DESCRIPTION\nBad Apple shadow art video.\nBlack-and-white animation.\n\n"
+                     "CONTROLS\nB BACK",
+        .is_game = 0,
+        .init = Bad_Apple_Init,
+        .update = Bad_Apple_Update,
+        .get_score = Bad_Apple_Get_Score,
+        .is_finished = Bad_Apple_Is_Finished,
     },
     {
         .name = "INFO",

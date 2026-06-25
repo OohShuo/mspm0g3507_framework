@@ -26,6 +26,7 @@ typedef enum {
     game_icon_volume_control,
     game_icon_dodge_box,
     game_icon_rhythm,
+    game_icon_bad_apple,
 } Game_icon;
 
 typedef enum {
@@ -50,6 +51,7 @@ typedef enum {
     game_id_volume_control,
     game_id_dodge_box,
     game_id_rhythm,
+    game_id_bad_apple,
     game_id_count,
 } Game_id;
 

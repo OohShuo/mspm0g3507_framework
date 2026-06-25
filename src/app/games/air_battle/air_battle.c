@@ -5,42 +5,46 @@
 #include <string.h>
 
 #include "air_assets.h"
-#include "app_config.h"
 #include "bsp_time.h"
 #include "game_graphics.h"
 #include "image_asset.h"
 
-#define SCREEN_WIDTH             240
-#define SCREEN_HEIGHT            320
-#define HUD_HEIGHT               GAME_TOP_BAR_H
-#define GAME_BOTTOM              GAME_AREA_BOTTOM
+#define SCREEN_WIDTH                 240
+#define SCREEN_HEIGHT                320
 
-#define MAX_ENEMIES              7
-#define MAX_PLAYER_BULLETS       18
-#define MAX_ENEMY_BULLETS        8
-#define MAX_BULLETS              (MAX_PLAYER_BULLETS + MAX_ENEMY_BULLETS)
-#define MAX_PICKUPS              3
-#define MAX_EXPLOSIONS           5
-#define MAX_DIRTY_RECTS          36
-#define NORMAL_ENEMIES           18
+/* Raw cache slot in the W25Q32 low 2 MiB reserved resource area. */
+#define AIR_BATTLE_BG_CACHE_ADDRESS  (1u * 1024u * 1024u)
+#define AIR_BATTLE_BG_CACHE_CAPACITY (256u * 1024u)
 
-#define PLAYER_MOVE_STEP         12
-#define WORLD_STEP_MS            50u
-#define PLAYER_FIRE_STEPS        4u
-#define ENEMY_SPAWN_MS           720u
-#define INVINCIBLE_MS            1300u
-#define EXTERNAL_BACKGROUND_PATH "/air_bg.r565"
+#define HUD_HEIGHT                   GAME_TOP_BAR_H
+#define GAME_BOTTOM                  GAME_AREA_BOTTOM
 
-#define COLOR_BLACK              0x0000u
-#define COLOR_WHITE              0xffffu
-#define COLOR_CYAN               0x07ffu
-#define COLOR_BLUE_DARK          0x0864u
-#define COLOR_BLUE               0x041fu
-#define COLOR_GREEN              0x07e0u
-#define COLOR_YELLOW             0xffe0u
-#define COLOR_ORANGE             0xfd20u
-#define COLOR_RED                0xf800u
-#define COLOR_PINK               0xf81fu
+#define MAX_ENEMIES                  7
+#define MAX_PLAYER_BULLETS           18
+#define MAX_ENEMY_BULLETS            8
+#define MAX_BULLETS                  (MAX_PLAYER_BULLETS + MAX_ENEMY_BULLETS)
+#define MAX_PICKUPS                  3
+#define MAX_EXPLOSIONS               5
+#define MAX_DIRTY_RECTS              36
+#define NORMAL_ENEMIES               18
+
+#define PLAYER_MOVE_STEP             12
+#define WORLD_STEP_MS                50u
+#define PLAYER_FIRE_STEPS            4u
+#define ENEMY_SPAWN_MS               720u
+#define INVINCIBLE_MS                1300u
+#define EXTERNAL_BACKGROUND_PATH     "/air_bg.r565"
+
+#define COLOR_BLACK                  0x0000u
+#define COLOR_WHITE                  0xffffu
+#define COLOR_CYAN                   0x07ffu
+#define COLOR_BLUE_DARK              0x0864u
+#define COLOR_BLUE                   0x041fu
+#define COLOR_GREEN                  0x07e0u
+#define COLOR_YELLOW                 0xffe0u
+#define COLOR_ORANGE                 0xfd20u
+#define COLOR_RED                    0xf800u
+#define COLOR_PINK                   0xf81fu
 
 typedef enum {
     air_state_playing,

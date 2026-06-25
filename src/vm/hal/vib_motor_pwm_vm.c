@@ -11,8 +11,8 @@ static Vib_motor_pwm g_motor;
 
 /* ── PWM vibration patterns ─────────────────────────────────────────────── */
 
-#define SINGLE_STEP(name, strength, duration)                                              \
-    static const Vib_motor_pwm_step name##_steps[] = {{strength, duration, 0u}};           \
+#define SINGLE_STEP(name, strength, duration)                                    \
+    static const Vib_motor_pwm_step name##_steps[] = {{strength, duration, 0u}}; \
     static const Vib_motor_pwm_pattern name = {name##_steps, 1u}
 
 SINGLE_STEP(pattern_menu_tick, 10u, 12u);

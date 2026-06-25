@@ -80,6 +80,7 @@ static const uint8_t g_glyph_paren_left[5] = {0x00, 0x1c, 0x22, 0x41, 0x00};  /*
 static const uint8_t g_glyph_paren_right[5] = {0x00, 0x41, 0x22, 0x1c, 0x00}; /* ) */
 static const uint8_t g_glyph_equal[5] = {0x14, 0x14, 0x14, 0x14, 0x14};       /* = */
 static const uint8_t g_glyph_asterisk[5] = {0x14, 0x08, 0x3e, 0x08, 0x14};    /* * */
+static const uint8_t g_glyph_question[5] = {0x02, 0x01, 0x51, 0x09, 0x06};    /* ? */
 
 static const uint8_t g_digits[][5] = {
     {0x3e, 0x51, 0x49, 0x45, 0x3e},
@@ -127,6 +128,8 @@ static const uint8_t* glyph_for(char character) {
             return g_glyph_equal;
         case '*':
             return g_glyph_asterisk;
+        case '?':
+            return g_glyph_question;
         default:
             return NULL;
     }
