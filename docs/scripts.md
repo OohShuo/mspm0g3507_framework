@@ -17,6 +17,12 @@ scripts/
 ├── open_syscfg_gui.bash
 ├── install_sysconfig.bash
 ├── flash_manager.py
+├── flashmgr/
+│   ├── __init__.py
+│   ├── client.py
+│   ├── utils.py
+│   ├── cli.py
+│   └── ui.py
 ├── com_uart_test.py
 ├── generate_air_battle_assets.py
 ├── generate_info_images.py
@@ -50,15 +56,53 @@ scripts/
 
 | 脚本 | 作用 | 说明 |
 | --- | --- | --- |
-| `flash_manager.py` | PC 端外部 Flash / LittleFS 管理工具 | 支持上传、下载、删除、格式化、图片转换上传 |
+| `flash_manager.py` | PC 端外部 Flash / LittleFS 管理工具 | 交互式工作台 + CLI 两种模式；支持上传、下载、删除、格式化、图片转换上传 |
+| `flashmgr/` | flash_manager 的 Python 包 | `client.py`(协议)、`ui.py`(交互菜单)、`cli.py`(命令行)、`utils.py`(输出工具) |
 | `com_uart_test.py` | UART 收发测试脚本 | - |
 
-示例：
+### Flash Manager Workbench
+
+无参数运行时进入交互式工作台：
 
 ```bash
-python3 scripts/com_uart_test.py --port /dev/ttyUSB0 --baud 115200
+python3 scripts/flash_manager.py
+```
+
+进入后可以：
+
+- `[O]` 选择串口并连接设备
+- `[I]` 查看设备 / 文件系统信息
+- `[L]` 列出远端目录
+- `[U]` 上传文件（带进度和速度显示）
+- `[D]` 下载文件（带进度和速度显示）
+- `[R]` 删除文件（需输入 `yes` 确认）
+- `[F]` 格式化文件系统（需输入 `FORMAT` 确认）
+- `[P]` 枚举可用串口
+- `[C]` 查看 / 修改运行时配置
+- `[H]` 帮助说明
+- `[Q]` 退出
+
+带参数运行时保持原有 CLI 行为：
+
+```bash
+# 列出可用串口
+python3 scripts/flash_manager.py --list-ports
+python3 scripts/flash_manager.py ports
+
+# 串口 + 操作
+python3 scripts/flash_manager.py /dev/ttyUSB0 probe
 python3 scripts/flash_manager.py /dev/ttyUSB0 list
+python3 scripts/flash_manager.py /dev/ttyUSB0 upload build/res.bin /res.bin
+python3 scripts/flash_manager.py /dev/ttyUSB0 download /res.bin ./res.bin
+python3 scripts/flash_manager.py /dev/ttyUSB0 delete /res.bin
+python3 scripts/flash_manager.py /dev/ttyUSB0 info /
 python3 scripts/flash_manager.py /dev/ttyUSB0 format --yes
+
+# 图片转换上传
+python3 scripts/flash_manager.py /dev/ttyUSB0 upload-image photo.jpg /bg.r565 --width 240 --height 135
+
+# UART 测试
+python3 scripts/com_uart_test.py --port /dev/ttyUSB0 --baud 115200
 ```
 
 ## 资源生成与实验脚本
