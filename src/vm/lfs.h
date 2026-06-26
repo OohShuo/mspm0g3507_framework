@@ -9,20 +9,20 @@ extern "C" {
 
 /* ── Type definitions matching littlefs ── */
 
-typedef int32_t  lfs_soff_t;
-typedef int32_t  lfs_ssize_t;
+typedef int32_t lfs_soff_t;
+typedef int32_t lfs_ssize_t;
 typedef uint32_t lfs_size_t;
 typedef uint32_t lfs_off_t;
 typedef uint32_t lfs_block_t;
 
 enum lfs_open_flags {
-    LFS_O_RDONLY  = 1,
-    LFS_O_WRONLY  = 2,
-    LFS_O_RDWR    = 3,
-    LFS_O_CREAT   = 0x010,
-    LFS_O_EXCL    = 0x020,
-    LFS_O_TRUNC   = 0x040,
-    LFS_O_APPEND  = 0x080,
+    LFS_O_RDONLY = 1,
+    LFS_O_WRONLY = 2,
+    LFS_O_RDWR = 3,
+    LFS_O_CREAT = 0x010,
+    LFS_O_EXCL = 0x020,
+    LFS_O_TRUNC = 0x040,
+    LFS_O_APPEND = 0x080,
 };
 
 enum lfs_seek_flags {
@@ -37,27 +37,29 @@ enum lfs_type {
 };
 
 struct lfs_info {
-    uint8_t     type;
-    lfs_size_t  size;
-    char        name[256];
+    uint8_t type;
+    lfs_size_t size;
+    char name[256];
 };
 
 struct lfs_config;
 
+#define LFS_VM_PATH_MAX 800
+
 typedef struct {
-    char  root[512];
+    char root[LFS_VM_PATH_MAX];
     uint8_t mounted;
 } lfs_t;
 
 typedef struct {
-    FILE*  fh;
-    char   path[512];
-    int    flags;
+    FILE* fh;
+    char path[LFS_VM_PATH_MAX];
+    int flags;
 } lfs_file_t;
 
 typedef struct {
-    void*  handle;     /* platform-specific directory iterator */
-    char   path[512];
+    void* handle; /* platform-specific directory iterator */
+    char path[LFS_VM_PATH_MAX];
     struct lfs_info current;
 } lfs_dir_t;
 
