@@ -54,10 +54,10 @@ graph TD
 - **FreeRTOS 任务模型** — 支持任务、队列、信号量、互斥锁和 heap_4，适合组织输入扫描、游戏循环和硬件反馈。
 - **游戏控制台** — 内置菜单、游戏信息页、小游戏、统一输入接口、暂停界面、分数和屏保逻辑。
 - **LCD 图形显示** — 面向 ST7789 TFT LCD，支持游戏 UI、图片资源和像素级绘制。
-- **外部 Flash 与 LittleFS** — W25Q32 SPI Flash + LittleFS，用于资源、分数和运行时文件管理。
+- **外部 Flash 与 LittleFS** — W25Q32 SPI Flash + LittleFS，用于资源、分数和运行时文件管理。PC 端通过 [Flash Manager](docs/flash_mgr.md) 管理文件。
 - **x86 SDL2 VM** — 在 Ubuntu/PC 上模拟显示、键盘输入、蜂鸣器/振动等接口，便于快速调试游戏逻辑。
 - **YAML 驱动构建** — `config/config.yaml` 描述 ARM / VM target 和功能开关，`scripts/cc.py` 统一调用 CMake。
-- **工具脚本精简** — `scripts` 内有构建、烧录、SysConfig、串口、资源生成、格式化、文档预览等必要工具。
+- **工具脚本** — `scripts` 内有构建、烧录、SysConfig、串口、资源生成、图片/视频转换和文档预览等必要工具。
 
 ---
 

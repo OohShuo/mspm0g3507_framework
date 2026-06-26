@@ -17,6 +17,8 @@ scripts/
 ├── open_syscfg_gui.bash
 ├── install_sysconfig.bash
 ├── flash_manager.py
+├── img2r565.py
+├── encode_video_rect_delta.py
 ├── flashmgr/
 │   ├── __init__.py
 │   ├── client.py
@@ -54,9 +56,13 @@ scripts/
 
 ## 串口与 Flash 工具
 
+> 完整的使用指南、编译配置和协议说明见 **[SPI Flash 管理](flash_mgr.md)**。
+
 | 脚本 | 作用 | 说明 |
 | --- | --- | --- |
 | `flash_manager.py` | PC 端外部 Flash / LittleFS 管理工具 | 交互式工作台 + CLI 两种模式；支持上传、下载、删除、格式化、图片转换上传 |
+| `img2r565.py` | 图片转 RGB565 格式 | 离线转换 JPG/PNG 为 `.r565`，无需连接设备 |
+| `encode_video_rect_delta.py` | 视频转 BARD 矩形差分格式 | 将 MP4 编码为固件可渲染的 `.bard` 文件 |
 | `flashmgr/` | flash_manager 的 Python 包 | `client.py`(协议)、`ui.py`(交互菜单)、`cli.py`(命令行)、`utils.py`(输出工具) |
 | `com_uart_test.py` | UART 收发测试脚本 | - |
 
@@ -105,11 +111,18 @@ python3 scripts/flash_manager.py /dev/ttyUSB0 upload-image photo.jpg /bg.r565 --
 python3 scripts/com_uart_test.py --port /dev/ttyUSB0 --baud 2000000
 ```
 
-## 资源生成与实验脚本
+## 资源转换工具
 
-| 路径 | 作用 | 说明 |
+| 脚本 | 作用 | 说明 |
 | --- | --- | --- |
+| `img2r565.py` | JPG/PNG 转 RGB565 格式 | 离线转换，输出 `.r565` 文件，可通过 `flash_manager.py` 上传 |
+| `encode_video_rect_delta.py` | 视频转 BARD 矩形差分格式 | 将 MP4 编码为固件可渲染的 `.bard` 文件 |
 | `generate_air_battle_assets.py` | 生成飞机大战贴图资源 | 修改飞机大战贴图后运行 |
 | `generate_info_images.py` | 生成 Info 页面图片资源 | 修改 Info 图片后运行 |
 | `assets/LVGLImage.py` | LVGL 图片转换工具 | 当前 LVGL 默认未启用，低频使用 |
+
+## 实验脚本
+
+| 路径 | 作用 | 说明 |
+| --- | --- | --- |
 | `experimental/slip_send.py` | SLIP/7D7E 协议实验发送脚本 | 不属于主流程，保留在实验目录 |
