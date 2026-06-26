@@ -761,8 +761,8 @@ static void restart_game(void) {
         Image_Asset_Close(&g_external_background);
     }
     if (g_external_background.is_open) {
-        Image_Asset_Prepare_Raw_Cache(&g_external_background,
-                                      AIR_BATTLE_BG_CACHE_ADDRESS, AIR_BATTLE_BG_CACHE_CAPACITY);
+        Image_Asset_Prepare_Raw_Cache(
+            &g_external_background, AIR_BATTLE_BG_CACHE_ADDRESS, AIR_BATTLE_BG_CACHE_CAPACITY);
         /* Raw cache is optional — reads fall back to LittleFS when unavailable */
     }
 

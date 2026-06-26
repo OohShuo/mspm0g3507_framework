@@ -59,6 +59,6 @@ Platform_Start()
 
 ARM 与 VM 的差异主要集中在 `src/platform`、`src/bsp`、`src/hal` 和 `src/vm`：
 
-- ARM 目标链接 `ti_device`、真实 BSP/HAL、FreeRTOS portable 层和 SysConfig 生成代码。
-- VM 目标链接 `src/vm` 下的虚拟实现，并通过 SDL2 模拟屏幕、输入和反馈。
+- ARM 目标链接 `ti_device`、真实 BSP/HAL、FreeRTOS portable 层和 SysConfig 生成代码。存储使用 LittleFS + W25Q32 SPI Flash。
+- VM 目标链接 `src/vm` 下的虚拟实现，并通过 SDL2 模拟屏幕、输入和反馈。存储使用宿主机文件系统直接读写 `assets/vm_flash/` 目录。
 - APP、游戏、存储接口、图形接口不感知当前平台。

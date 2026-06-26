@@ -24,4 +24,6 @@ __pycache__/
 .codex/
 .github/
 
+scores.bin
+
 site/

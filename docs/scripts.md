@@ -18,6 +18,8 @@ scripts/
 ├── install_sysconfig.bash
 ├── flash_manager.py
 ├── img2r565.py
+├── r5652img.py
+├── mk_vm_flash.py
 ├── encode_video_rect_delta.py
 ├── flashmgr/
 │   ├── __init__.py
@@ -116,9 +118,11 @@ python3 scripts/com_uart_test.py --port /dev/ttyUSB0 --baud 2000000
 | 脚本 | 作用 | 说明 |
 | --- | --- | --- |
 | `img2r565.py` | JPG/PNG 转 RGB565 格式 | 离线转换，输出 `.r565` 文件，可通过 `flash_manager.py` 上传 |
+| `r5652img.py` | RGB565 转回 JPG/PNG | 将 `.r565` 文件解码为图片，方便预览和调试 |
 | `encode_video_rect_delta.py` | 视频转 BARD 矩形差分格式 | 将 MP4 编码为固件可渲染的 `.bard` 文件 |
 | `generate_air_battle_assets.py` | 生成飞机大战贴图资源 | 修改飞机大战贴图后运行 |
 | `generate_info_images.py` | 生成 Info 页面图片资源 | 修改 Info 图片后运行 |
+| `mk_vm_flash.py` | 构建 VM LittleFS 闪存镜像 | 将 `assets/vm_flash/` 打包为 `.bin` 镜像（当前 VM 已改用宿主机文件系统直接读写，此脚本为可选工具） |
 | `assets/LVGLImage.py` | LVGL 图片转换工具 | 当前 LVGL 默认未启用，低频使用 |
 
 ## 实验脚本

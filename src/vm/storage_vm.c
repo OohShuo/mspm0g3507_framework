@@ -42,11 +42,19 @@ void Storage_Lock(void) { /* no-op on host */ }
 void Storage_Unlock(void) { /* no-op on host */ }
 
 uint8_t Storage_Raw_Read(uint32_t address, void* data, uint32_t size) {
-    (void)address; (void)data; (void)size; return 0;
+    (void)address;
+    (void)data;
+    (void)size;
+    return 0;
 }
 uint8_t Storage_Raw_Write(uint32_t address, const void* data, uint32_t size) {
-    (void)address; (void)data; (void)size; return 0;
+    (void)address;
+    (void)data;
+    (void)size;
+    return 0;
 }
 uint8_t Storage_Raw_Erase(uint32_t address, uint32_t size) {
-    (void)address; (void)size; return 0;
+    (void)address;
+    (void)size;
+    return 0;
 }

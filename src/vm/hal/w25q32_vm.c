@@ -4,7 +4,7 @@
 
 #ifdef _WIN32
     #include <io.h>
-    #define fsync _commit
+    #define fsync  _commit
     #define fileno _fileno
 #else
     #include <unistd.h>
@@ -52,9 +52,7 @@ static void load_file_into_buffer(void) {
 
     if (file_size >= (long)VM_FLASH_SIZE) {
         size_t n = fread(s_buffer, 1, VM_FLASH_SIZE, s_backing_file);
-        if (n < VM_FLASH_SIZE) {
-            memset(s_buffer + n, 0xFF, VM_FLASH_SIZE - n);
-        }
+        if (n < VM_FLASH_SIZE) { memset(s_buffer + n, 0xFF, VM_FLASH_SIZE - n); }
     } else {
         /* Existing file too small — read what we can, pad with 0xFF */
         if (file_size > 0) {
@@ -144,7 +142,7 @@ void W25q32_Page_Program(W25q32* o, uint32_t addr, const uint8_t* data, uint32_t
     if (len > remaining) { len = remaining; }
     memcpy(s_buffer + addr, data, len);
     s_dirty = 1;
-    flush_to_file();  /* persist every write — scores must survive exit */
+    flush_to_file(); /* persist every write — scores must survive exit */
 }
 
 void W25q32_Sector_Erase(W25q32* o, uint32_t addr) {

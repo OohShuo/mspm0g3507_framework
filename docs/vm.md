@@ -33,6 +33,17 @@ python3 scripts/cc.py --target vm
 | `freertos/freertos_stubs.c` | 用 pthread/SDL ticks 模拟常用 FreeRTOS API |
 | `hal/*_vm.c` | HAL 对象在 VM 中的适配实现 |
 | `bsp/*.c` | BSP 接口在 VM 中的虚拟实现 |
+| `lfs.h` + `lfs_vm_impl.c` | LittleFS API 的宿主机文件系统实现，直接读写 `assets/vm_flash/` 目录 |
+| `storage_vm.c` | VM 存储层，`Storage_Get_Lfs()` 返回宿主机文件系统句柄 |
+
+## 文件存储
+
+VM 将 LittleFS 的所有文件操作（`lfs_file_open` / `lfs_file_read` / `lfs_file_write` 等）直接映射到宿主机文件系统，根目录为 `assets/vm_flash/`：
+
+```text
+assets/vm_flash/
+  ├── ...
+```
 
 ## 与 ARM 的差异
 
@@ -42,6 +53,7 @@ VM 目标追求“应用层行为一致”，不是完整硬件仿真：
 - 任务由 pthread 启动，不是真实 FreeRTOS 调度器。
 - 部分队列/中断相关 API 只是占位或最小实现。
 - LCD、蜂鸣器、振动和 Flash 都是软件模拟。
+- 文件操作直接使用宿主机文件系统。
 
 因此，VM 适合验证交互和应用逻辑；真实时序、外设电气特性、DMA、中断优先级仍需要在 ARM 硬件上验证。
 
