@@ -26,8 +26,14 @@
 
 /* ── Konami code easter egg ── */
 static const Game_direction g_konami_sequence[] = {
-    game_direction_up,    game_direction_up,   game_direction_down,  game_direction_down,
-    game_direction_left,  game_direction_right, game_direction_left, game_direction_right,
+    game_direction_up,
+    game_direction_up,
+    game_direction_down,
+    game_direction_down,
+    game_direction_left,
+    game_direction_right,
+    game_direction_left,
+    game_direction_right,
 };
 #define KONAMI_LENGTH     8
 #define KONAMI_TIMEOUT_MS 500u
@@ -228,9 +234,7 @@ Game_result Info_Update(const Game_input* input) {
 
     /* ── Konami code detection: ↑ ↑ ↓ ↓ ← → ← → with 500ms timeout ── */
     const uint32_t now = Bsp_Get_Tick_Ms();
-    if (g_konami_position > 0 && now - g_konami_last_tick > KONAMI_TIMEOUT_MS) {
-        g_konami_position = 0;
-    }
+    if (g_konami_position > 0 && now - g_konami_last_tick > KONAMI_TIMEOUT_MS) { g_konami_position = 0; }
 
     if (input->direction_pressed) {
         if (input->direction == g_konami_sequence[g_konami_position]) {
