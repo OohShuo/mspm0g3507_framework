@@ -23,6 +23,9 @@
 /* ── Tune streaming config ── */
 #define BADAPPLE_TUNE_LFS_PATH   "/badapple.tune"
 #define BADAPPLE_TUNE_NOTE_BYTES 8u
+#define BADAPPLE_TUNE_GATE       100u /* gate percent */
+#define BADAPPLE_TUNE_VOLUME     100u /* volume percent */
+#define BADAPPLE_TUNE_OCTAVE     2u   /* frequency multiplier (1=none, 2=+1 octave) */
 
 static St7789* g_lcd = NULL;
 static Buzzer* g_buzzer = NULL;
@@ -71,6 +74,13 @@ static void tune_cleanup(void) {
     if (g_buzzer != NULL) { Buzzer_Note_Off(g_buzzer); }
 }
 
+/* ── Start playing the current note ── */
+static void tune_note_on(void) {
+    if (g_tune_current.frequency_hz == 0) { return; }
+    uint16_t freq = g_tune_current.frequency_hz * BADAPPLE_TUNE_OCTAVE;
+    Buzzer_Note_On(g_buzzer, freq, BADAPPLE_TUNE_VOLUME);
+}
+
 /* ── Tune update per frame ── */
 static void tune_update(void) {
     if (!g_tune_active || g_buzzer == NULL) { return; }
@@ -79,7 +89,7 @@ static void tune_update(void) {
     uint32_t elapsed = now - g_tune_note_start;
     uint32_t duration = g_tune_current.duration_ms;
     if (duration == 0) { duration = 1; }
-    uint32_t gate_time = duration * g_tune_current.gate_percent / 100u;
+    uint32_t gate_time = duration * BADAPPLE_TUNE_GATE / 100u;
 
     /* Gate: silence note after gate_time */
     if (!g_tune_note_silenced && elapsed >= gate_time) {
@@ -92,17 +102,27 @@ static void tune_update(void) {
 
     /* Advance to next note */
     if (!tune_read_next_note(&g_tune_current)) {
-        g_tune_active = 0;
-        Buzzer_Note_Off(g_buzzer);
+        /* EOF — loop back to start, resync to current time */
+        lfs_t* lfs = Storage_Get_Lfs();
+        if (lfs != NULL) {
+            Storage_Lock();
+            lfs_file_seek(lfs, &g_tune_file, 0, LFS_SEEK_SET);
+            Storage_Unlock();
+        }
+        if (!tune_read_next_note(&g_tune_current)) {
+            g_tune_active = 0;
+            Buzzer_Note_Off(g_buzzer);
+            return;
+        }
+        g_tune_note_start = now;
+        g_tune_note_silenced = 0;
+        tune_note_on();
         return;
     }
 
     g_tune_note_start += duration;
     g_tune_note_silenced = 0;
-
-    if (g_tune_current.frequency_hz > 0) {
-        Buzzer_Note_On(g_buzzer, g_tune_current.frequency_hz, g_tune_current.volume_percent);
-    }
+    tune_note_on();
 }
 
 #endif /* FRAMEWORK_USE_LFS */
@@ -113,13 +133,11 @@ void Bad_Apple_Init(const Game_hardware* hardware) {
 
     /* Play from SPI flash via LittleFS */
     if (!Badapple_Video_Init(g_lcd, badapple_video_source_lfs_file)) {
-        /* Clear game area only, keep bars */
         Game_Graphics_Draw_Top_Bar(g_lcd, "BAD APPLE");
         Game_Graphics_Draw_Text(g_lcd, 30, 130, "NO BAD APPLE VIDEO", 2, COLOR_CYAN);
         return;
     }
 
-    /* Redraw top bar — Init clears game area */
     Game_Graphics_Draw_Top_Bar(g_lcd, "BAD APPLE");
 
 #if FRAMEWORK_USE_LFS
@@ -136,7 +154,7 @@ void Bad_Apple_Init(const Game_hardware* hardware) {
                     g_tune_active = 1;
                     g_tune_note_start = Bsp_Get_Tick_Ms();
                     g_tune_note_silenced = 0;
-                    Buzzer_Note_On(g_buzzer, g_tune_current.frequency_hz, g_tune_current.volume_percent);
+                    tune_note_on();
                 }
             }
         }
@@ -153,12 +171,11 @@ Game_result Bad_Apple_Update(const Game_input* input) {
         return game_result_exit;
     }
 
-    if (Badapple_Video_Is_Active()) {
-        Badapple_Video_Update();
+    /* Video and audio run independently — each loops on its own timeline */
+    Badapple_Video_Update();
 #if FRAMEWORK_USE_LFS
-        tune_update();
+    tune_update();
 #endif
-    }
 
     return game_result_running;
 }
