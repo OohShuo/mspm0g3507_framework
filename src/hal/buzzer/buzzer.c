@@ -26,6 +26,7 @@ struct Buzzer_t {
     uint8_t output_active;
     uint8_t sfx_priority;
     uint8_t master_volume;
+    uint8_t external_note_active;
 };
 
 static Vector* buzzer_instances = NULL;
@@ -226,6 +227,8 @@ void Buzzer_Update_All(void) {
         Buzzer* obj = *(Buzzer**)Vector_Get_At(buzzer_instances, i);
         if (obj == NULL) { continue; }
 
+        if (obj->external_note_active) { continue; }
+
         if (obj->sfx.active) {
             if (update_track(obj, &obj->sfx, now)) { continue; }
             obj->sfx_priority = 0;
@@ -244,4 +247,16 @@ void Buzzer_Set_Volume(Buzzer* obj, uint8_t volume_percent) {
 uint8_t Buzzer_Get_Volume(Buzzer* obj) {
     if (obj == NULL) { return 0; }
     return obj->master_volume;
+}
+
+void Buzzer_Note_On(Buzzer* obj, uint16_t frequency_hz, uint8_t volume_percent) {
+    if (obj == NULL) { return; }
+    obj->external_note_active = 1;
+    output_frequency(obj, frequency_hz, volume_percent);
+}
+
+void Buzzer_Note_Off(Buzzer* obj) {
+    if (obj == NULL) { return; }
+    obj->external_note_active = 0;
+    silence(obj);
 }
