@@ -80,9 +80,9 @@ graph TD
 
     `config/config.yaml` 描述 ARM / VM target 和功能开关，`scripts/cc.py` 统一调用 CMake。
 
-- :material-console:{ .lg .middle } **工具脚本精简**
+- :material-console:{ .lg .middle } **工具脚本**
 
-    `scripts` 内有构建、烧录、SysConfig、串口、资源生成和文档预览等必要工具。
+    `scripts` 内有构建、烧录、SysConfig、串口、资源生成、图片/视频转换和文档预览等必要工具。
 
 </div>
 
@@ -197,6 +197,7 @@ graph TD
 | 使用 PC 仿真环境 | [VM 仿真器](vm.md) |
 | 理解 CMake 和 target 配置 | [构建系统](build_system.md) |
 | 了解 scripts 工具目录 | [脚本说明](scripts.md) |
+| PC 端管理 SPI Flash | [SPI Flash 管理](flash_mgr.md) |
 | 新增模块、游戏或驱动 | [开发者指南](developer_guide.md) |
 | Windows 环境配置 | [Windows 环境配置](win_env.md) |
 
