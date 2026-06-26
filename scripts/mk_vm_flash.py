@@ -43,11 +43,11 @@ def main() -> int:
         print(f"Error: assets directory not found: {assets_dir}", file=sys.stderr)
         return 1
 
-    # Collect files to pack
+    # Collect files to pack (skip .bin flash images)
     files_to_pack = []
     for name in sorted(os.listdir(assets_dir)):
         fpath = os.path.join(assets_dir, name)
-        if os.path.isfile(fpath):
+        if os.path.isfile(fpath) and not name.endswith(".bin"):
             files_to_pack.append((f"/{name}", fpath))
 
     if not files_to_pack:
