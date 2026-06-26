@@ -114,3 +114,5 @@ void Buzzer_Stop(Buzzer* obj);
 void Buzzer_Update_All(void);
 void Buzzer_Set_Volume(Buzzer* obj, uint8_t volume_percent);
 uint8_t Buzzer_Get_Volume(Buzzer* obj);
+void Buzzer_Note_On(Buzzer* obj, uint16_t frequency_hz, uint8_t volume_percent);
+void Buzzer_Note_Off(Buzzer* obj);

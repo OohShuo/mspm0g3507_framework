@@ -134,3 +134,25 @@ uint8_t Buzzer_Get_Volume(Buzzer* buzzer) {
     unlock_audio();
     return volume;
 }
+
+void Buzzer_Note_On(Buzzer* buzzer, uint16_t frequency_hz, uint8_t volume_percent) {
+    if (buzzer == NULL) { return; }
+    /* Synthesize a long note — streaming playback handles timing externally */
+    static Buzzer_note s_note;
+    static Music s_music = {&s_note, 1u};
+    s_note.frequency_hz = frequency_hz;
+    s_note.duration_ms = 60000u; /* long enough to outlast any stream note */
+    s_note.gate_percent = 100u;
+    s_note.volume_percent = volume_percent;
+    s_note.flags = 0u;
+    lock_audio();
+    Vm_Audio_Synth_Play(&buzzer->synth, &s_music);
+    unlock_audio();
+}
+
+void Buzzer_Note_Off(Buzzer* buzzer) {
+    if (buzzer == NULL) { return; }
+    lock_audio();
+    Vm_Audio_Synth_Stop(&buzzer->synth);
+    unlock_audio();
+}
