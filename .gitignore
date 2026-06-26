@@ -27,3 +27,4 @@ __pycache__/
 scores.bin
 
 site/
+assets/vm_flash/scores.bin
