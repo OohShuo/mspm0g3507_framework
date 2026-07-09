@@ -1,9 +1,9 @@
-# Framework Developer Tool
+# Framework 开发者工具
 
-`scripts/framework.py` provides developer-facing diagnostics for build targets,
-tool availability, Flash Manager switches, and linker map summaries.
+`scripts/framework.py` 提供面向开发者的诊断入口，用于检查构建 target、
+主机工具、Flash Manager 开关一致性，以及链接 map 文件中的内存区域摘要。
 
-## Commands
+## 命令
 
 ```bash
 python3 scripts/framework.py doctor
@@ -11,17 +11,17 @@ python3 scripts/framework.py inspect
 python3 scripts/framework.py size build/arm/framework.map
 ```
 
-## Doctor
+## 环境诊断
 
-`doctor` checks host tools and high-level configuration consistency.
+`doctor` 检查主机工具和高层配置是否一致。
 
-Current checks:
+当前检查项：
 
-- `cmake`, `ninja`, and `python3` availability in `PATH`
-- `FLASH_MGR_ENABLE` consistency with ARM target switches
-- `FRAMEWORK_USE_LFS` and `FRAMEWORK_USE_UART` when Flash Manager is enabled
+- `PATH` 中是否可以找到 `cmake`、`ninja` 和 `python3`
+- `FLASH_MGR_ENABLE` 是否与 ARM target 开关一致
+- 启用 Flash Manager 时，`FRAMEWORK_USE_LFS` 和 `FRAMEWORK_USE_UART` 是否同时打开
 
-Example:
+示例：
 
 ```text
 [OK] cmake: /usr/bin/cmake
@@ -30,10 +30,10 @@ Example:
 [ERR] flash-manager: FLASH_MGR_ENABLE requires FRAMEWORK_USE_UART
 ```
 
-## Inspect
+## Target 检视
 
-`inspect` prints the effective CMake flags forwarded from `config/config.yaml`.
-Use it before a build when a target behaves differently than expected.
+`inspect` 打印从 `config/config.yaml` 转发给 CMake 的实际 `-D` 参数。
+当某个 target 的构建行为与预期不一致时，先用它确认开关是否正确传入。
 
 ```text
 arm (ARM, MinSizeRel, ninja)
@@ -42,8 +42,8 @@ arm (ARM, MinSizeRel, ninja)
   -DFRAMEWORK_USE_UART=ON
 ```
 
-## Size
+## Map 摘要
 
-`size` reads a linker `.map` file and prints memory region origins and lengths.
-It is intentionally small in the first version; later versions can add section
-and object-file ranking.
+`size` 读取链接器 `.map` 文件，打印内存区域的起始地址和长度。
+第一版保持很小，只提供基础摘要；后续可以继续扩展 section 排名、
+对象文件占用排行和 Flash/RAM 风险提示。
