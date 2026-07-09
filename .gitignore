@@ -13,6 +13,7 @@ tools/sysconfig
 1d3_TFT_Example
 
 CLAUDE.md
+prompt.md
 graphify-out/
 
 __pycache__/

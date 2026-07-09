@@ -7,8 +7,13 @@ else()
     set(EXEC_SUFFIX "" CACHE STRING "Executable suffix for Unix-like systems")
 endif()
 
-set(TOOLCHAIN_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tools/gcc-arm-none-eabi/bin")
-set(LINKER_LIBS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/gcc-arm-none-eabi/arm-none-eabi/lib/thumb/v6-m/nofp")
+if(NOT DEFINED ARM_TOOLCHAIN_ROOT OR "${ARM_TOOLCHAIN_ROOT}" STREQUAL "")
+    set(ARM_TOOLCHAIN_ROOT "${CMAKE_CURRENT_LIST_DIR}/../tools/gcc-arm-none-eabi")
+endif()
+get_filename_component(ARM_TOOLCHAIN_ROOT "${ARM_TOOLCHAIN_ROOT}" ABSOLUTE)
+
+set(TOOLCHAIN_BIN_DIR "${ARM_TOOLCHAIN_ROOT}/bin")
+set(LINKER_LIBS_PATH "${ARM_TOOLCHAIN_ROOT}/arm-none-eabi/lib/thumb/v6-m/nofp")
 
 set(CMAKE_C_COMPILER   "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc${EXEC_SUFFIX}")
 set(CMAKE_ASM_COMPILER "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-gcc${EXEC_SUFFIX}")

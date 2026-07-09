@@ -16,6 +16,8 @@ build:
     build_type: MinSizeRel # Debug | Release | RelWithDebInfo | MinSizeRel
     generator: ninja       # ninja | make | auto
     graphviz: ON           # ON | OFF
+    arm_tool_chain_path: "" # empty => tools/gcc-arm-none-eabi
+    sysconfig_path: ""      # empty => tools/sysconfig
 
     FRAMEWORK_USE_FREERTOS: ON
     FRAMEWORK_USE_RTT: OFF

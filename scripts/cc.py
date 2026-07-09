@@ -30,6 +30,7 @@ BUILD_ROOT = ROOT / "build"
 GENERATOR_MAP = {"ninja": "Ninja", "make": "Unix Makefiles"}
 
 META_KEYS = {"name", "platform", "build_type", "generator", "graphviz"}
+PATH_KEYS = {"arm_tool_chain_path", "sysconfig_path"}
 STRING_KEYS = set()  # reserved for future non-boolean keys
 
 
@@ -60,6 +61,42 @@ def _is_truthy(value: object) -> bool:
     return False
 
 
+def resolve_config_path(
+    value: object,
+    default_relative: str,
+    root: pathlib.Path = ROOT,
+) -> pathlib.Path:
+    text = "" if value is None else str(value).strip()
+    path = pathlib.Path(default_relative) if text == "" else pathlib.Path(text)
+    if not path.is_absolute():
+        path = root / path
+    return path
+
+
+def cmake_cache_args(target: dict, root: pathlib.Path = ROOT) -> list[str]:
+    args: list[str] = []
+    is_arm = str(target.get("platform", "ARM")).upper() == "ARM"
+
+    if is_arm:
+        args.append(
+            "-DARM_TOOLCHAIN_ROOT="
+            + str(resolve_config_path(target.get("arm_tool_chain_path"), "tools/gcc-arm-none-eabi", root))
+        )
+        args.append(
+            "-DSYSCONFIG_ROOT="
+            + str(resolve_config_path(target.get("sysconfig_path"), "tools/sysconfig", root))
+        )
+
+    for key, value in target.items():
+        if key in META_KEYS or key in PATH_KEYS:
+            continue
+        if key in STRING_KEYS:
+            args.append(f"-D{key}={value}")
+        else:
+            args.append(f"-D{key}={'ON' if _is_truthy(value) else 'OFF'}")
+    return args
+
+
 def build_one(target: dict) -> None:
     name = target.get("name")
     if not name:
@@ -78,14 +115,7 @@ def build_one(target: dict) -> None:
         f"-DBUILD_PLATFORM={target.get('platform', 'ARM')}",
     ]
 
-    # Forward remaining keys as -D<key>=ON|OFF (or verbatim for STRING_KEYS)
-    for key, value in target.items():
-        if key in META_KEYS:
-            continue
-        if key in STRING_KEYS:
-            cmake_cmd.append(f"-D{key}={value}")
-        else:
-            cmake_cmd.append(f"-D{key}={'ON' if _is_truthy(value) else 'OFF'}")
+    cmake_cmd.extend(cmake_cache_args(target))
 
     if graphviz:
         cmake_cmd.append("--graphviz=framework.dot")

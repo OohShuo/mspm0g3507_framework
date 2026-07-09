@@ -30,6 +30,8 @@ python3 scripts/cc.py --target arm
   build_type: MinSizeRel
   generator: ninja
   graphviz: ON
+  arm_tool_chain_path: ""
+  sysconfig_path: ""
   FRAMEWORK_USE_FREERTOS: ON
   FRAMEWORK_USE_RTT: OFF
   FRAMEWORK_USE_LVGL: OFF
@@ -46,6 +48,8 @@ python3 scripts/cc.py --target arm
 | `build_type` | CMake 构建类型 |
 | `generator` | `ninja`、`make` 或 `auto` |
 | `graphviz` | 是否生成 CMake 目标关系图 |
+| `arm_tool_chain_path` | ARM GCC 根目录；为空时使用 `tools/gcc-arm-none-eabi` |
+| `sysconfig_path` | TI SysConfig 根目录；为空时使用 `tools/sysconfig` |
 | `FRAMEWORK_USE_*` | 功能开关，最终变成编译宏 |
 
 ## CMake 静态库结构
@@ -83,7 +87,8 @@ graph TD
 
 ## ARM 工具链
 
-`cmake/toolchain.cmake` 指定工程内 ARM GCC：
+`scripts/cc.py` 会读取 ARM target 的 `arm_tool_chain_path`。
+当该字段为空字符串时，`cmake/toolchain.cmake` 使用工程内 ARM GCC：
 
 ```text
 tools/gcc-arm-none-eabi/bin/arm-none-eabi-gcc
@@ -91,6 +96,10 @@ tools/gcc-arm-none-eabi/bin/arm-none-eabi-g++
 tools/gcc-arm-none-eabi/bin/arm-none-eabi-objcopy
 tools/gcc-arm-none-eabi/bin/arm-none-eabi-size
 ```
+
+当该字段非空时，`cc.py` 会把解析后的路径作为 `-DARM_TOOLCHAIN_ROOT=<path>`
+传给 CMake；相对路径按仓库根目录解析，绝对路径保持不变。这个工具链只用于 ARM 目标，
+VM 目标使用主机编译器。
 
 ARM 编译参数包括：
 
@@ -118,8 +127,11 @@ ARM 编译参数包括：
 ARM 目标会调用 `cmake/tools.cmake` 中的 `syscfg_gen()`：
 
 - 输入：`config/framework.syscfg`
-- 工具：`tools/sysconfig/sysconfig_cli.sh`
+- 工具：`sysconfig_path` 指定目录下的 `sysconfig_cli.sh`，为空时使用 `tools/sysconfig/sysconfig_cli.sh`
 - 输出：`config/syscfg/ti_msp_dl_config.c`、`.h`、`device.opt`
+
+`cc.py` 会把解析后的 SysConfig 路径作为 `-DSYSCONFIG_ROOT=<path>` 传给 CMake。
+SysConfig 主要在重新生成 `config/syscfg/` 时需要；已有生成文件参与 BSP 编译。
 
 BSP 会把 SysConfig 生成的 C 文件加入编译。
 

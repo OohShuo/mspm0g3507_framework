@@ -14,7 +14,12 @@ endif()
 
 set(TAG "Tools")
 
-set(SYSCFG_INSTALL_DIR "${CMAKE_SOURCE_DIR}/tools/sysconfig" CACHE PATH "Directory for installing syscfg tool")
+if(NOT DEFINED SYSCONFIG_ROOT OR "${SYSCONFIG_ROOT}" STREQUAL "")
+    set(SYSCONFIG_ROOT "${CMAKE_SOURCE_DIR}/tools/sysconfig")
+endif()
+get_filename_component(SYSCONFIG_ROOT "${SYSCONFIG_ROOT}" ABSOLUTE)
+
+set(SYSCFG_INSTALL_DIR "${SYSCONFIG_ROOT}" CACHE PATH "Directory for installing syscfg tool" FORCE)
 set(SYSCFG_GEN_DIR "${CMAKE_SOURCE_DIR}/config/syscfg" CACHE PATH "Directory for generated syscfg files")
 
 set(SYSCFG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/${PROJECT_NAME}.syscfg")

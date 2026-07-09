@@ -78,9 +78,24 @@ sudo apt install -y python3 python3-yaml cmake ninja-build libsdl2-dev
 python3 -m pip install -r requirements-docs.txt
 ```
 
-下载 [GNU Arm Embedded Toolchain](https://developer.arm.com/downloads/-/gnu-rm)，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
+下载 [GNU Arm Embedded Toolchain](https://developer.arm.com/downloads/-/gnu-rm)，默认解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
 
-下载 [TI SysConfig 工具](https://www.ti.com/tool/SYSCONFIG?utm_source=google&utm_medium=cpc&utm_campaign=epd-der-null-58700007779115364_sysconfig_rsa-cpc-evm-google-ww_en_int&utm_content=sysconfig&ds_k=sysconfig&gclsrc=aw.ds&gad_source=1&gad_campaignid=12788839648&gbraid=0AAAAAC068F0mxDINEjN5e5Md3f4ZsSyBs&gclid=CjwKCAjwuuPRBhAnEiwA2Ji8eiK_ixXpEXuhgDtRp0YhwTWHAC6KOf8EZ79ZcwkbVHbUfiH5GBbcehoCNecQAvD_BwE)，解压到 `tools/sysconfig` 目录。
+下载 [TI SysConfig 工具](https://www.ti.com/tool/SYSCONFIG?utm_source=google&utm_medium=cpc&utm_campaign=epd-der-null-58700007779115364_sysconfig_rsa-cpc-evm-google-ww_en_int&utm_content=sysconfig&ds_k=sysconfig&gclsrc=aw.ds&gad_source=1&gad_campaignid=12788839648&gbraid=0AAAAAC068F0mxDINEjN5e5Md3f4ZsSyBs&gclid=CjwKCAjwuuPRBhAnEiwA2Ji8eiK_ixXpEXuhgDtRp0YhwTWHAC6KOf8EZ79ZcwkbVHbUfiH5GBbcehoCNecQAvD_BwE)，默认解压到 `tools/sysconfig` 目录。
+
+如果工具不放在默认目录，可以在 ARM target 中配置路径；空字符串表示继续使用 `tools/` 下的默认位置：
+
+```yaml
+arm_tool_chain_path: ""
+sysconfig_path: ""
+```
+
+环境检查入口：
+
+```bash
+python3 scripts/framework.py doctor
+```
+
+`doctor` 会检查构建工具、Python 包、SDL2、ARM GCC、SysConfig 和 Flash Manager 开关一致性，并说明每个缺失项是否必需以及何时需要。
 
 ### 2. 配置 target
 
@@ -91,6 +106,8 @@ build:
   - name: arm
     platform: ARM
     build_type: MinSizeRel
+    arm_tool_chain_path: ""
+    sysconfig_path: ""
     FRAMEWORK_USE_FREERTOS: ON
     FRAMEWORK_USE_LVGL: OFF
     FRAMEWORK_USE_LFS: ON
