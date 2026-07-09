@@ -19,9 +19,23 @@ sudo apt install -y python3 python3-yaml cmake ninja-build libsdl2-dev
 python3 -m pip install -r requirements-docs.txt
 ```
 
-下载 ARM Embedded Toolchain，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
+下载 [GNU Arm Embedded Toolchain](https://developer.arm.com/downloads/-/gnu-rm)，解压到 `tools/gcc-arm-none-eabi` 目录；VM 目标使用系统 GCC/Clang 与 SDL2。
 
-下载 TI SysConfig 工具，解压到 `tools/sysconfig` 目录。
+下载 [TI SysConfig 工具](https://www.ti.com/tool/SYSCONFIG?utm_source=google&utm_medium=cpc&utm_campaign=epd-der-null-58700007779115364_sysconfig_rsa-cpc-evm-google-ww_en_int&utm_content=sysconfig&ds_k=sysconfig&gclsrc=aw.ds&gad_source=1&gad_campaignid=12788839648&gbraid=0AAAAAC068F0mxDINEjN5e5Md3f4ZsSyBs&gclid=CjwKCAjwuuPRBhAnEiwA2Ji8eiK_ixXpEXuhgDtRp0YhwTWHAC6KOf8EZ79ZcwkbVHbUfiH5GBbcehoCNecQAvD_BwE)，解压到 `tools/sysconfig` 目录。
+
+如果工具不放在默认目录，可以在 ARM target 中配置路径：
+
+```yaml
+arm_tool_chain_path: ""
+sysconfig_path: ""
+skip_syscfg: OFF
+```
+
+检查依赖是否就绪：
+
+```bash
+python3 scripts/dep_check.py
+```
 
 ## 构建配置
 

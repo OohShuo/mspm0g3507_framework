@@ -6,7 +6,7 @@
 
 | 芯片 | 容量 | 接口 | 用途 |
 |------|------|------|------|
-| W25Q32 | 4 MiB (32 Mbit) | SPI (共享 LCD 总线) | LittleFS 文件系统 + raw 资源缓存区 |
+| W25Q32 | 4 MiB (32 Mbit) | SPI | LittleFS 文件系统 + raw 资源缓存区 |
 
 ### Flash 地址布局
 

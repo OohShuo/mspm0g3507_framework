@@ -96,7 +96,7 @@ skip_syscfg: OFF
 python3 scripts/dep_check.py
 ```
 
-`doctor` 以表格形式检查构建工具、Python 包、SDL2、ARM GCC、SysConfig，状态用彩色符号（✓/⚠/✗）区分，未通过时显示用途。
+以表格形式检查构建工具、Python 包、SDL2、ARM GCC、SysConfig，状态用彩色符号（✓/⚠/✗）区分，未通过时显示用途。
 
 ### 2. 配置 target
 
