@@ -29,7 +29,7 @@ BUILD_ROOT = ROOT / "build"
 
 GENERATOR_MAP = {"ninja": "Ninja", "make": "Unix Makefiles"}
 
-META_KEYS = {"name", "platform", "build_type", "generator", "graphviz"}
+META_KEYS = {"name", "platform", "build_type", "generator", "graphviz", "skip_syscfg"}
 PATH_KEYS = {"arm_tool_chain_path", "sysconfig_path"}
 STRING_KEYS = set()  # reserved for future non-boolean keys
 
@@ -85,6 +85,9 @@ def cmake_cache_args(target: dict, root: pathlib.Path = ROOT) -> list[str]:
         args.append(
             "-DSYSCONFIG_ROOT="
             + str(resolve_config_path(target.get("sysconfig_path"), "tools/sysconfig", root))
+        )
+        args.append(
+            "-DSKIP_SYSCFG=" + ("ON" if _is_truthy(target.get("skip_syscfg")) else "OFF")
         )
 
     for key, value in target.items():

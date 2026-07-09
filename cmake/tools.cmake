@@ -41,33 +41,35 @@ function(syscfg_gen)
     set(TEMP_GEN_DIR "${CMAKE_BINARY_DIR}/syscfg_temp")
     file(MAKE_DIRECTORY "${TEMP_GEN_DIR}")
 
-    add_custom_command(
-        OUTPUT
-        "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
-        "${SYSCFG_GEN_DIR}/ti_msp_dl_config.h"
-        "${SYSCFG_GEN_DIR}/device.opt"
+    if(NOT SKIP_SYSCFG)
+        add_custom_command(
+            OUTPUT
+            "${SYSCFG_GEN_DIR}/ti_msp_dl_config.c"
+            "${SYSCFG_GEN_DIR}/ti_msp_dl_config.h"
+            "${SYSCFG_GEN_DIR}/device.opt"
 
-        COMMAND ${SYSCFG_CLI}
-        --compiler gcc
-        --product "${PRODUCT_JSON_FILE}"
-        --output "${TEMP_GEN_DIR}"
-        --quiet
-        "${SYSCFG_FILE}" "${REDIRECT_OUTPUT}"
+            COMMAND ${SYSCFG_CLI}
+            --compiler gcc
+            --product "${PRODUCT_JSON_FILE}"
+            --output "${TEMP_GEN_DIR}"
+            --quiet
+            "${SYSCFG_FILE}" "${REDIRECT_OUTPUT}"
 
-        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.c" "${SYSCFG_GEN_DIR}/"
-        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.h" "${SYSCFG_GEN_DIR}/"
-        COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/device.opt" "${SYSCFG_GEN_DIR}/"
+            COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.c" "${SYSCFG_GEN_DIR}/"
+            COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/ti_msp_dl_config.h" "${SYSCFG_GEN_DIR}/"
+            COMMAND ${CMAKE_COMMAND} -E copy "${TEMP_GEN_DIR}/device.opt" "${SYSCFG_GEN_DIR}/"
 
-        COMMAND ${CMAKE_COMMAND} -E echo ""
-        COMMAND ${CMAKE_COMMAND} -E echo "-- ${ColorGreen}[SysConfig]${ColorReset} Configuration file setup for ${SYSCFG_GEN_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E echo ""
+            COMMAND ${CMAKE_COMMAND} -E echo ""
+            COMMAND ${CMAKE_COMMAND} -E echo "-- ${ColorGreen}[SysConfig]${ColorReset} Configuration file setup for ${SYSCFG_GEN_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E echo ""
 
-        DEPENDS "${SYSCFG_FILE}"
+            DEPENDS "${SYSCFG_FILE}"
 
-        COMMENT "Generating and cleaning SysConfig files..."
+            COMMENT "Generating and cleaning SysConfig files..."
 
-        VERBATIM
-    )
+            VERBATIM
+        )
+    endif()
 
     add_custom_target(syscfg_gen_target
         DEPENDS ${SYSCFG_GEN_FILES}

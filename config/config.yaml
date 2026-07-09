@@ -14,13 +14,14 @@ build:
   - name: arm
     platform: ARM
     build_type: MinSizeRel # Debug | Release | RelWithDebInfo | MinSizeRel
-    generator: ninja       # ninja | make | auto
-    graphviz: ON           # ON | OFF
-    arm_tool_chain_path: "" # empty => tools/gcc-arm-none-eabi
-    sysconfig_path: ""      # empty => tools/sysconfig
+    generator: ninja # ninja | make | auto
+    graphviz: ON # ON | OFF
+    
+    arm_tool_chain_path: "/home/shuo/envs/gcc-arm-none-eabi-10.3-2021.10" # empty => tools/gcc-arm-none-eabi
+    sysconfig_path: "/home/shuo/ti/sysconfig_1.27.1" # empty => tools/sysconfig
+    skip_syscfg: OFF
 
     FRAMEWORK_USE_FREERTOS: ON
     FRAMEWORK_USE_RTT: OFF
     FRAMEWORK_USE_LVGL: OFF
     FRAMEWORK_USE_LFS: ON
-    FRAMEWORK_USE_UART: ON

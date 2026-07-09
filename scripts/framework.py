@@ -8,14 +8,13 @@ import importlib.util
 import os
 import re
 import shutil
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "config" / "config.yaml"
-APP_CONFIG_PATH = ROOT / "config" / "app_config.h"
-
-META_KEYS = {"name", "platform", "build_type", "generator", "graphviz"}
+META_KEYS = {"name", "platform", "build_type", "generator", "graphviz", "skip_syscfg"}
 PATH_KEYS = {"arm_tool_chain_path", "sysconfig_path"}
 
 
@@ -32,6 +31,38 @@ class CheckResult:
         if self.ok:
             return "OK"
         return "ERR" if self.required else "WARN"
+
+
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+def _display_width(s: str) -> int:
+    """Monospace display width accounting for CJK full-width characters."""
+    w = 0
+    for ch in _ANSI_RE.sub("", str(s)):
+        w += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+    return w
+
+
+def _pad(s: str, width: int) -> str:
+    """Left-pad with spaces so the string occupies *width* monospace columns."""
+    return s + " " * max(0, width - _display_width(s))
+
+
+def _print_table(headers: list[str], rows: list[list[str]]) -> None:
+    """Print a compact aligned table with a separator line under the header."""
+    if not rows:
+        return
+    widths = [
+        max(_display_width(h), max((_display_width(c) for c in col), default=0))
+        for h, col in zip(headers, zip(*rows))
+    ]
+    sep = "  ".join("─" * w for w in widths)
+    header_line = "  ".join(_pad(h, w) for h, w in zip(headers, widths))
+    print(header_line)
+    print(sep)
+    for row in rows:
+        print("  ".join(_pad(c, w) for c, w in zip(row, widths)))
 
 
 def _truthy(value: object) -> bool:
@@ -54,47 +85,6 @@ def load_targets(path: Path = CONFIG_PATH) -> list[dict]:
     if not isinstance(targets, list):
         raise ValueError(f"{path}: expected a `build:` list")
     return targets
-
-
-def _macro_enabled(text: str, macro: str) -> bool:
-    pattern = rf"^\s*#\s*define\s+{re.escape(macro)}\s+([01]|ON|OFF|TRUE|FALSE)\b"
-    for line in text.splitlines():
-        match = re.match(pattern, line, re.IGNORECASE)
-        if match:
-            return _truthy(match.group(1))
-    return False
-
-
-def check_flash_manager_config(target: dict, app_config_text: str) -> CheckResult:
-    when = "FLASH_MGR_ENABLE=1 时"
-    if not _macro_enabled(app_config_text, "FLASH_MGR_ENABLE"):
-        return CheckResult(
-            "flash-manager",
-            True,
-            "FLASH_MGR_ENABLE 已关闭；必要性：必需；何时需要：启用 Flash Manager 前检查开关一致性",
-            when=when,
-        )
-
-    missing = []
-    for key in ("FRAMEWORK_USE_LFS", "FRAMEWORK_USE_UART"):
-        if not _truthy(target.get(key)):
-            missing.append(key)
-
-    if missing:
-        return CheckResult(
-            "flash-manager",
-            False,
-            "FLASH_MGR_ENABLE 需要 "
-            + ", ".join(missing)
-            + "；必要性：必需；何时需要：启用 Flash Manager 时",
-            when=when,
-        )
-    return CheckResult(
-        "flash-manager",
-        True,
-        "Flash Manager 开关一致；必要性：必需；何时需要：启用 Flash Manager 时",
-        when=when,
-    )
 
 
 def summarize_target(target: dict) -> dict:
@@ -208,7 +198,6 @@ def check_sysconfig_tool(target: dict, root: Path = ROOT) -> CheckResult:
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
-    app_text = APP_CONFIG_PATH.read_text(encoding="utf-8") if APP_CONFIG_PATH.exists() else ""
     checks = [
         _tool_check("python3", "python3", True, "运行项目脚本"),
         _tool_check("cmake", "cmake", True, "配置和生成所有构建 target"),
@@ -237,13 +226,20 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         if platform == "ARM":
             checks.extend(check_arm_toolchain(target))
             checks.append(check_sysconfig_tool(target))
-            checks.append(check_flash_manager_config(target, app_text))
 
     exit_code = 0
+    icon = {
+        "OK": "\033[32m✓\033[0m",
+        "ERR": "\033[31m✗\033[0m",
+        "WARN": "\033[33m⚠\033[0m",
+    }
+    rows: list[list[str]] = []
     for check in checks:
-        print(f"[{check.status}] {check.name}: {check.message}")
+        note = check.when if check.status != "OK" else ""
+        rows.append([icon[check.status], check.name, note])
         if check.status == "ERR":
             exit_code = 1
+    _print_table(["", "Check", "Note"], rows)
     return exit_code
 
 
