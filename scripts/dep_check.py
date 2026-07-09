@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Developer diagnostics for the MSPM0G3507 framework."""
+"""Developer dependency check for the MSPM0G3507 framework."""
 
 from __future__ import annotations
 
-import argparse
 import importlib.util
 import os
 import re
@@ -85,30 +84,6 @@ def load_targets(path: Path = CONFIG_PATH) -> list[dict]:
     if not isinstance(targets, list):
         raise ValueError(f"{path}: expected a `build:` list")
     return targets
-
-
-def summarize_target(target: dict) -> dict:
-    flags = []
-    for key, value in sorted(target.items()):
-        if key in META_KEYS or key in PATH_KEYS:
-            continue
-        flags.append(f"-D{key}={'ON' if _truthy(value) else 'OFF'}")
-    return {
-        "name": target.get("name", "<unnamed>"),
-        "platform": target.get("platform", "ARM"),
-        "build_type": target.get("build_type", "RelWithDebInfo"),
-        "generator": target.get("generator", "auto"),
-        "cmake_flags": flags,
-    }
-
-
-def parse_map_summary(text: str) -> dict[str, dict[str, str]]:
-    rows: dict[str, dict[str, str]] = {}
-    for line in text.splitlines():
-        parts = line.split()
-        if len(parts) >= 3 and parts[1].startswith("0x") and parts[2].startswith("0x"):
-            rows[parts[0]] = {"origin": parts[1], "length": parts[2]}
-    return rows
 
 
 def _need_text(required: bool, when: str) -> str:
@@ -197,7 +172,7 @@ def check_sysconfig_tool(target: dict, root: Path = ROOT) -> CheckResult:
     return CheckResult("sysconfig-cli", bool(found), message, required=False, when=when)
 
 
-def cmd_doctor(_: argparse.Namespace) -> int:
+def run_checks() -> int:
     checks = [
         _tool_check("python3", "python3", True, "运行项目脚本"),
         _tool_check("cmake", "cmake", True, "配置和生成所有构建 target"),
@@ -243,34 +218,5 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     return exit_code
 
 
-def cmd_inspect(_: argparse.Namespace) -> int:
-    for target in load_targets():
-        summary = summarize_target(target)
-        print(f"{summary['name']} ({summary['platform']}, {summary['build_type']}, {summary['generator']})")
-        for flag in summary["cmake_flags"]:
-            print(f"  {flag}")
-    return 0
-
-
-def cmd_size(args: argparse.Namespace) -> int:
-    map_path = Path(args.map_file)
-    rows = parse_map_summary(map_path.read_text(encoding="utf-8"))
-    for name, row in rows.items():
-        print(f"{name}: origin={row['origin']} length={row['length']}")
-    return 0
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("doctor").set_defaults(func=cmd_doctor)
-    sub.add_parser("inspect").set_defaults(func=cmd_inspect)
-    size = sub.add_parser("size")
-    size.add_argument("map_file")
-    size.set_defaults(func=cmd_size)
-    args = parser.parse_args()
-    return args.func(args)
-
-
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_checks())

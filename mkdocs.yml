@@ -138,7 +138,6 @@ nav:
   - 构建与工具:
       - 构建系统: build_system.md
       - 脚本说明: scripts.md
-      - Framework 开发者工具: framework_tool.md
       - SPI Flash 管理: flash_mgr.md
 
   - Windows 环境配置: win_env.md

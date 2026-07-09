@@ -7,6 +7,7 @@
 ```text
 scripts/
 ├── README.md
+├── dep_check.py
 ├── cc.py
 ├── cm.bash
 ├── cm.cmd
@@ -41,6 +42,7 @@ scripts/
 
 | 脚本 | 作用 | 常用程度 |
 | --- | --- | --- |
+| `dep_check.py` | 检查构建依赖 | 中 |
 | `cc.py` | 读取 `config/config.yaml`，调用 CMake 构建 ARM / VM target | 高 |
 | `cm.bash` | Linux/macOS 构建包装脚本，转发到 `cc.py` | 高 |
 | `cm.cmd` | Windows 构建包装脚本，转发到 `cc.py` | 中 |

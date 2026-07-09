@@ -109,6 +109,20 @@ graph TD
 
     下载 [TI SysConfig 工具](https://www.ti.com/tool/SYSCONFIG?utm_source=google&utm_medium=cpc&utm_campaign=epd-der-null-58700007779115364_sysconfig_rsa-cpc-evm-google-ww_en_int&utm_content=sysconfig&ds_k=sysconfig&gclsrc=aw.ds&gad_source=1&gad_campaignid=12788839648&gbraid=0AAAAAC068F0mxDINEjN5e5Md3f4ZsSyBs&gclid=CjwKCAjwuuPRBhAnEiwA2Ji8eiK_ixXpEXuhgDtRp0YhwTWHAC6KOf8EZ79ZcwkbVHbUfiH5GBbcehoCNecQAvD_BwE)，解压到 `tools/sysconfig` 目录。
 
+    如果工具不放在默认目录，可以在 ARM target 中配置路径：
+
+    ```yaml
+    arm_tool_chain_path: ""
+    sysconfig_path: ""
+    skip_syscfg: OFF
+    ```
+
+    检查依赖是否就绪：
+
+    ```bash
+    python3 scripts/dep_check.py
+    ```
+
 === "2. 配置 target"
 
     编辑 `config/config.yaml`，选择构建目标和功能开关：
@@ -118,6 +132,9 @@ graph TD
       - name: arm
         platform: ARM
         build_type: MinSizeRel
+        arm_tool_chain_path: ""
+        sysconfig_path: ""
+        skip_syscfg: OFF
         FRAMEWORK_USE_FREERTOS: ON
         FRAMEWORK_USE_LVGL: OFF
         FRAMEWORK_USE_LFS: ON

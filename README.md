@@ -93,7 +93,7 @@ skip_syscfg: OFF
 环境检查入口：
 
 ```bash
-python3 scripts/framework.py doctor
+python3 scripts/dep_check.py
 ```
 
 `doctor` 以表格形式检查构建工具、Python 包、SDL2、ARM GCC、SysConfig，状态用彩色符号（✓/⚠/✗）区分，未通过时显示用途。
@@ -189,7 +189,6 @@ build/arm/framework.map
 | 使用 PC 仿真环境 | [VM 仿真器](docs/vm.md) |
 | 理解 CMake 和 target 配置 | [构建系统](docs/build_system.md) |
 | 了解 scripts 工具目录 | [脚本说明](docs/scripts.md) |
-| 检查开发环境、target 开关和 map 摘要 | [Framework 开发者工具](docs/framework_tool.md) |
 | 新增模块、游戏或驱动 | [开发者指南](docs/developer_guide.md) |
 | Windows 环境配置 | [Windows 环境配置](docs/win_env.md) |
 
