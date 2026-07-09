@@ -87,6 +87,7 @@ python3 -m pip install -r requirements-docs.txt
 ```yaml
 arm_tool_chain_path: ""
 sysconfig_path: ""
+skip_syscfg: OFF
 ```
 
 环境检查入口：
@@ -95,7 +96,7 @@ sysconfig_path: ""
 python3 scripts/framework.py doctor
 ```
 
-`doctor` 会检查构建工具、Python 包、SDL2、ARM GCC、SysConfig 和 Flash Manager 开关一致性，并说明每个缺失项是否必需以及何时需要。
+`doctor` 以表格形式检查构建工具、Python 包、SDL2、ARM GCC、SysConfig，状态用彩色符号（✓/⚠/✗）区分，未通过时显示用途。
 
 ### 2. 配置 target
 
@@ -108,6 +109,7 @@ build:
     build_type: MinSizeRel
     arm_tool_chain_path: ""
     sysconfig_path: ""
+    skip_syscfg: OFF
     FRAMEWORK_USE_FREERTOS: ON
     FRAMEWORK_USE_LVGL: OFF
     FRAMEWORK_USE_LFS: ON

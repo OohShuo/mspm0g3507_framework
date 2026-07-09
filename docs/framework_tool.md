@@ -1,7 +1,7 @@
 # Framework 开发者工具
 
 `scripts/framework.py` 提供面向开发者的诊断入口，用于检查构建 target、
-主机工具、Flash Manager 开关一致性，以及链接 map 文件中的内存区域摘要。
+主机工具以及链接 map 文件中的内存区域摘要。
 
 ## 命令
 
@@ -13,8 +13,8 @@ python3 scripts/framework.py size build/arm/framework.map
 
 ## 环境诊断
 
-`doctor` 检查主机工具、Python 包、ARM/VM 构建依赖和高层配置是否一致。
-每条结果都会说明“必要性”和“何时需要”，方便判断当前缺失项是否会影响手头工作。
+`doctor` 检查主机工具、Python 包、ARM/VM 构建依赖是否就绪。
+Note 列仅在检查未通过时显示该项的用途，通过时留空。
 
 当前检查项：
 
@@ -23,29 +23,29 @@ python3 scripts/framework.py size build/arm/framework.map
 - VM target 是否可以找到 `sdl2-config`
 - ARM target 是否可以在配置路径下找到 `arm-none-eabi-gcc`、`arm-none-eabi-g++`、`arm-none-eabi-objcopy`、`arm-none-eabi-size`
 - ARM target 是否可以在配置路径下找到 `sysconfig_cli`、`sysconfig_cli.sh` 或 `sysconfig_cli.bat`
-- `FLASH_MGR_ENABLE` 是否与 ARM target 开关一致
-- 启用 Flash Manager 时，`FRAMEWORK_USE_LFS` 和 `FRAMEWORK_USE_UART` 是否同时打开
 
-状态含义：
+状态符号：
 
-| 状态 | 含义 |
-| --- | --- |
-| `[OK]` | 当前检查通过 |
-| `[WARN]` | 可选依赖缺失，不影响不使用该功能的构建 |
-| `[ERR]` | 当前配置下必需依赖缺失或配置错误，`doctor` 返回非零退出码 |
+| 符号 | 颜色 | 含义 |
+| --- | --- | --- |
+| `✓` | 绿 | 当前检查通过 |
+| `⚠` | 黄 | 可选依赖缺失，不影响不使用该功能的构建 |
+| `✗` | 红 | 当前配置下必需依赖缺失或配置错误，`doctor` 返回非零退出码 |
 
 示例：
 
 ```text
-[OK] python3: /usr/bin/python3；必要性：必需；何时需要：运行项目脚本
-[OK] cmake: /usr/bin/cmake；必要性：必需；何时需要：配置和生成所有构建 target
-[WARN] python package pyserial: pyserial 未安装；必要性：可选；何时需要：Flash Manager 和串口调试脚本
-[ERR] arm toolchain arm-none-eabi-gcc: /repo/tools/gcc-arm-none-eabi/bin/arm-none-eabi-gcc 不存在；必要性：必需；何时需要：构建 ARM target 'arm'
+  Check                            Note
+  ───────────────────────────────  ────────────────────────────
+  ✓  python3
+  ✓  cmake
+  ⚠  python package pyserial        Flash Manager 和串口调试脚本
+  ✗  arm toolchain arm-none-eabi-gcc  构建 ARM target 'arm'
 ```
 
 ## ARM 工具路径配置
 
-ARM target 支持两个路径配置项：
+ARM target 支持三个配置项：
 
 ```yaml
 build:
@@ -53,10 +53,12 @@ build:
     platform: ARM
     arm_tool_chain_path: ""
     sysconfig_path: ""
+    skip_syscfg: OFF
 ```
 
 `arm_tool_chain_path` 为空字符串时使用 `tools/gcc-arm-none-eabi`，否则使用填写的路径。
 `sysconfig_path` 为空字符串时使用 `tools/sysconfig`，否则使用填写的路径。
+`skip_syscfg: ON` 跳过首次编译时自动调用 SysConfig 生成硬件配置文件的步骤。
 相对路径按仓库根目录解析，绝对路径保持不变。
 
 `scripts/cc.py` 会把解析后的路径传给 CMake：
@@ -64,6 +66,7 @@ build:
 ```text
 -DARM_TOOLCHAIN_ROOT=<resolved-path>
 -DSYSCONFIG_ROOT=<resolved-path>
+-DSKIP_SYSCFG=ON|OFF
 ```
 
 `doctor` 使用同一套解析规则检查路径下的工具是否存在。

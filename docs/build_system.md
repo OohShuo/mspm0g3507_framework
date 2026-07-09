@@ -32,6 +32,7 @@ python3 scripts/cc.py --target arm
   graphviz: ON
   arm_tool_chain_path: ""
   sysconfig_path: ""
+  skip_syscfg: OFF
   FRAMEWORK_USE_FREERTOS: ON
   FRAMEWORK_USE_RTT: OFF
   FRAMEWORK_USE_LVGL: OFF
@@ -50,6 +51,7 @@ python3 scripts/cc.py --target arm
 | `graphviz` | 是否生成 CMake 目标关系图 |
 | `arm_tool_chain_path` | ARM GCC 根目录；为空时使用 `tools/gcc-arm-none-eabi` |
 | `sysconfig_path` | TI SysConfig 根目录；为空时使用 `tools/sysconfig` |
+| `skip_syscfg` | 跳过首次编译时自动调用 SysConfig（`ON`/`OFF`） |
 | `FRAMEWORK_USE_*` | 功能开关，最终变成编译宏 |
 
 ## CMake 静态库结构
@@ -130,7 +132,9 @@ ARM 目标会调用 `cmake/tools.cmake` 中的 `syscfg_gen()`：
 - 工具：`sysconfig_path` 指定目录下的 `sysconfig_cli.sh`，为空时使用 `tools/sysconfig/sysconfig_cli.sh`
 - 输出：`config/syscfg/ti_msp_dl_config.c`、`.h`、`device.opt`
 
-`cc.py` 会把解析后的 SysConfig 路径作为 `-DSYSCONFIG_ROOT=<path>` 传给 CMake。
+`cc.py` 会把解析后的 SysConfig 路径作为 `-DSYSCONFIG_ROOT=<path>` 传给 CMake，
+同时传递 `-DSKIP_SYSCFG=ON|OFF`。设置 `skip_syscfg: ON` 可跳过 SysConfig 自动生成，
+适用于已有生成文件或不需要重新生成的场景。
 SysConfig 主要在重新生成 `config/syscfg/` 时需要；已有生成文件参与 BSP 编译。
 
 BSP 会把 SysConfig 生成的 C 文件加入编译。

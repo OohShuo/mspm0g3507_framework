@@ -6,7 +6,6 @@ from pathlib import Path
 from scripts.framework import (
     CheckResult,
     check_arm_toolchain,
-    check_flash_manager_config,
     check_python_package,
     check_sysconfig_tool,
     load_targets,
@@ -43,19 +42,6 @@ class FrameworkToolTests(unittest.TestCase):
             with mock.patch("scripts.framework.importlib.import_module", side_effect=ImportError):
                 with self.assertRaisesRegex(RuntimeError, "PyYAML"):
                     load_targets(cfg)
-
-    def test_flash_manager_requires_lfs_uart_and_app_switch(self):
-        target = {
-            "name": "arm",
-            "FRAMEWORK_USE_LFS": "ON",
-            "FRAMEWORK_USE_UART": "OFF",
-        }
-        app_config = "#define FLASH_MGR_ENABLE 1\n"
-
-        result = check_flash_manager_config(target, app_config)
-
-        self.assertFalse(result.ok)
-        self.assertIn("FRAMEWORK_USE_UART", result.message)
 
     def test_summarize_target_lists_forwarded_cmake_flags(self):
         target = {
