@@ -48,13 +48,8 @@ static Snake_state g_state = snake_state_playing;
 static uint16_t g_length = 0;
 static uint32_t g_score = 0;
 static uint32_t g_last_move = 0;
-static uint32_t g_random_state = 0x51a9e37du;
+static Game_rng g_rng;
 static uint16_t g_cell_buffer[CELL_SIZE * CELL_SIZE];
-
-static uint32_t random_next(void) {
-    g_random_state = g_random_state * 1664525u + 1013904223u;
-    return g_random_state;
-}
 
 static uint8_t positions_equal(Snake_position a, Snake_position b) { return a.x == b.x && a.y == b.y; }
 
@@ -133,7 +128,7 @@ static void place_food(void) {
         return;
     }
 
-    uint16_t target = (uint16_t)(random_next() % available);
+    uint16_t target = (uint16_t)Game_Rng_Range(&g_rng, available);
     for (int8_t y = 0; y < GRID_HEIGHT; y++) {
         for (int8_t x = 0; x < GRID_WIDTH; x++) {
             const Snake_position candidate = {x, y};
@@ -148,6 +143,7 @@ static void place_food(void) {
 }
 
 static void restart_game(void) {
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0x51A9E37Du);
     g_length = 4;
     g_score = 0;
     g_direction = game_direction_right;

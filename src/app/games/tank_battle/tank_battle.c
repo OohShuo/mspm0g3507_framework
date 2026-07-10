@@ -101,7 +101,7 @@ static uint32_t g_last_player_move = 0;
 static uint32_t g_last_enemy_move = 0;
 static uint32_t g_last_bullet_move = 0;
 static uint32_t g_last_spawn = 0;
-static uint32_t g_random_state = 0x74a91c3du;
+static Game_rng g_rng;
 static uint16_t g_cell_buffer[CELL_SIZE * CELL_SIZE];
 
 /* ── 2-bit tile accessors ── */
@@ -117,11 +117,6 @@ static inline void tile_set(uint8_t* tiles, int8_t x, int8_t y, uint8_t val) {
 }
 
 static void update_bullet(Tank_bullet* bullet);
-
-static uint32_t random_next(void) {
-    g_random_state = g_random_state * 1664525u + 1013904223u;
-    return g_random_state;
-}
 
 static int8_t direction_x(Game_direction direction) {
     if (direction == game_direction_left) { return -1; }
@@ -327,6 +322,7 @@ static void end_game(Tank_state state) {
 }
 
 static void restart_game(void) {
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0x74A91C3Du);
     load_level();
     memset(g_enemies, 0, sizeof(g_enemies));
     memset(g_bullets, 0, sizeof(g_bullets));
@@ -525,7 +521,9 @@ static void update_bullet(Tank_bullet* bullet) {
 }
 
 static Game_direction choose_enemy_direction(const Tank_actor* enemy) {
-    if ((random_next() % 4u) == 0u) { return (Game_direction)(game_direction_up + random_next() % 4u); }
+    if (Game_Rng_Range(&g_rng, 4u) == 0u) {
+        return (Game_direction)(game_direction_up + Game_Rng_Range(&g_rng, 4u));
+    }
 
     const int8_t dx = g_player.x - enemy->x;
     const int8_t dy = g_player.y - enemy->y;
@@ -543,12 +541,12 @@ static void update_enemies(void) {
         Game_direction direction = (Game_direction)enemy->direction;
         const int8_t next_x = enemy->x + direction_x(direction);
         const int8_t next_y = enemy->y + direction_y(direction);
-        if (!can_enter(next_x, next_y) || (random_next() % 5u) == 0u) {
+        if (!can_enter(next_x, next_y) || Game_Rng_Range(&g_rng, 5u) == 0u) {
             direction = choose_enemy_direction(enemy);
         }
         move_actor(enemy, direction);
 
-        if ((random_next() % ENEMY_FIRE_CHANCE) == 0u) { fire_bullet(enemy, 0); }
+        if (Game_Rng_Range(&g_rng, ENEMY_FIRE_CHANCE) == 0u) { fire_bullet(enemy, 0); }
     }
 }
 

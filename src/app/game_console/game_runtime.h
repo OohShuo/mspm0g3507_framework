@@ -52,7 +52,13 @@ typedef struct {
 typedef enum {
     game_result_running,
     game_result_exit,
+    game_result_won,
+    game_result_lost,
 } Game_result;
+
+typedef struct {
+    uint32_t state;
+} Game_rng;
 
 /* ── Unified screen layout ── */
 #define GAME_TOP_BAR_H    30
@@ -64,3 +70,7 @@ typedef enum {
 uint32_t Game_Runtime_Get_Tick_Ms(void);
 void Game_Runtime_Pause_Time(void);
 void Game_Runtime_Resume_Time(void);
+
+void Game_Rng_Seed(Game_rng* rng, uint32_t seed);
+uint32_t Game_Rng_Next(Game_rng* rng);
+uint32_t Game_Rng_Range(Game_rng* rng, uint32_t upper_bound);

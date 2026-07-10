@@ -50,17 +50,13 @@ static int16_t g_dino_y, g_old_dino_y, g_dino_vy;
 static uint8_t g_dino_in_air, g_jump_held, g_gravity_acc, g_up_prev, g_crouching;
 static Obstacle g_obstacles[MAX_OBSTACLES];
 static uint16_t g_move_acc;
-static uint32_t g_score, g_old_score, g_spawn_countdown, g_rand_state;
+static uint32_t g_score, g_old_score, g_spawn_countdown;
+static Game_rng g_rng;
 static uint8_t g_ptero_wing;
 static uint32_t g_start_ms;
 static uint32_t g_last_tick;
 
 #define BASE_TICK_MS 20u
-
-static uint32_t fast_rand(void) {
-    g_rand_state = g_rand_state * 1103515245 + 12345;
-    return (g_rand_state >> 16) & 0x7FFF;
-}
 
 /* ── Fill helpers ── */
 
@@ -221,21 +217,22 @@ static void add_ptero(uint8_t s, int16_t x, Obs_type t) {
 }
 
 static void spawn_obstacle(void) {
-    uint32_t r = fast_rand() % 100;
+    uint32_t r = Game_Rng_Range(&g_rng, 100u);
     if ((g_score > 400u) && r < 20) {
         uint8_t s = next_free();
         if (s < MAX_OBSTACLES)
-            add_ptero(s, SCREEN_WIDTH + 20, (fast_rand() % 2u) ? obs_ptero_high : obs_ptero_low);
+            add_ptero(s, SCREEN_WIDTH + 20,
+                Game_Rng_Range(&g_rng, 2u) != 0u ? obs_ptero_high : obs_ptero_low);
         return;
     }
     if ((g_score > 600u) && r < 65 && r >= 35) {
-        uint8_t cnt = 2u + (fast_rand() % 2u);
+        uint8_t cnt = (uint8_t)(2u + Game_Rng_Range(&g_rng, 2u));
         int16_t cx = SCREEN_WIDTH + 10;
         for (uint8_t j = 0; j < cnt; j++) {
             uint8_t s = next_free();
             if (s >= MAX_OBSTACLES) { break; }
             uint8_t h, w;
-            uint32_t sr = fast_rand() % 100;
+            uint32_t sr = Game_Rng_Range(&g_rng, 100u);
             if (sr < 50) {
                 w = 10;
                 h = 18;
@@ -247,7 +244,7 @@ static void spawn_obstacle(void) {
                 h = 34;
             }
             add_cactus(s, cx, w, h);
-            cx = (int16_t)(cx + w + 6 + (fast_rand() % 10));
+            cx = (int16_t)(cx + w + 6 + Game_Rng_Range(&g_rng, 10u));
         }
         return;
     }
@@ -298,7 +295,7 @@ static void restart_game(void) {
     g_score = 0;
     g_old_score = 0;
     g_spawn_countdown = 60;
-    g_rand_state = Game_Runtime_Get_Tick_Ms();
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0xC8013EA4u);
     g_last_tick = 0;
     g_ptero_wing = 0;
     for (uint8_t i = 0; i < MAX_OBSTACLES; i++) { g_obstacles[i].active = 0; }
@@ -396,7 +393,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
         if (g_spawn_countdown == 0) {
             spawn_obstacle();
             g_spawn_countdown =
-                50u + (fast_rand() % 80u) - (speed_scaled(g_last_tick * BASE_TICK_MS) >> 8) * 4u;
+                50u + Game_Rng_Range(&g_rng, 80u) - (speed_scaled(g_last_tick * BASE_TICK_MS) >> 8) * 4u;
             if (g_spawn_countdown < 15u) { g_spawn_countdown = 15u; }
         } else {
             g_spawn_countdown--;

@@ -48,12 +48,7 @@ static Game_state g_state = state_playing;
 static uint32_t g_score = 0;
 static uint8_t g_moved = 0;
 static uint8_t g_merged = 0;
-static uint32_t g_random_state = 0x3c8bf915u;
-
-static uint32_t random_next(void) {
-    g_random_state = g_random_state * 1664525u + 1013904223u;
-    return g_random_state;
-}
+static Game_rng g_rng;
 
 static int32_t cell_x(uint8_t c) { return BOARD_X + c * (CELL_SIZE + GAP); }
 static int32_t cell_y(uint8_t r) { return BOARD_Y + r * (CELL_SIZE + GAP); }
@@ -115,8 +110,8 @@ static uint8_t spawn_tile(void) {
         }
     }
     if (count == 0) { return 0; }
-    const uint8_t idx = (uint8_t)(random_next() % count);
-    g_grid[empty[idx][0]][empty[idx][1]] = (random_next() % 10u) == 0 ? 4u : 2u;
+    const uint8_t idx = (uint8_t)Game_Rng_Range(&g_rng, count);
+    g_grid[empty[idx][0]][empty[idx][1]] = Game_Rng_Range(&g_rng, 10u) == 0u ? 4u : 2u;
     return 1;
 }
 
@@ -254,6 +249,7 @@ static void force_render(void) {
 }
 
 static void restart_game(void) {
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0x3C8BF915u);
     for (uint8_t r = 0; r < GRID_SIZE; r++)
         for (uint8_t c = 0; c < GRID_SIZE; c++) g_grid[r][c] = 0;
     g_state = state_playing;

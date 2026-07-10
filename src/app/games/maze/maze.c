@@ -68,7 +68,7 @@ static MazePos g_exit;
 static uint32_t g_score;
 static uint32_t g_gems_collected;
 static uint32_t g_total_gems;
-static uint32_t g_rand_state;
+static Game_rng g_rng;
 static uint32_t g_seed;
 
 /* DFS 栈（生成迷宫用，同时被 BFS 复用为队列） */
@@ -149,11 +149,6 @@ static void update_score_display(void) {
 
 /* ── 随机数生成器 ── */
 
-static uint32_t fast_rand(void) {
-    g_rand_state = g_rand_state * 1664525u + 1013904223u;
-    return g_rand_state;
-}
-
 /* ── 迷宫生成（递归回溯 DFS，显式栈） ── */
 
 static void generate_maze(void) {
@@ -186,7 +181,7 @@ static void generate_maze(void) {
             continue;
         }
 
-        const uint8_t pick = fast_rand() % dir_count;
+        const uint8_t pick = (uint8_t)Game_Rng_Range(&g_rng, dir_count);
         const uint8_t dir = dirs[pick];
 
         uint8_t nr = cr, nc = cc;
@@ -333,8 +328,8 @@ static void place_gems(void) {
             uint8_t place = 0;
             if (!on_path) {
                 if (openings == 1) {
-                    place = (fast_rand() % 100) < 70;
-                } else if (openings >= 3 && (fast_rand() % 100) < 20) {
+                    place = Game_Rng_Range(&g_rng, 100u) < 70u;
+                } else if (openings >= 3 && Game_Rng_Range(&g_rng, 100u) < 20u) {
                     place = 1;
                 }
             }
@@ -397,7 +392,7 @@ static void restart_game(void) {
     g_state = maze_state_ready;
 
     g_seed = Game_Runtime_Get_Tick_Ms();
-    g_rand_state = g_seed;
+    Game_Rng_Seed(&g_rng, g_seed ^ 0xA341316Cu);
 
     generate_maze();
     scatter_gems();

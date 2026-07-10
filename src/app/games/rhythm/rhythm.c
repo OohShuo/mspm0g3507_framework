@@ -36,7 +36,7 @@ static Game_hardware g_hardware;
 static Rhythm_state g_state;
 static Note g_notes[NOTE_COUNT];
 static uint32_t g_score;
-static uint32_t g_rand_state;
+static Game_rng g_rng;
 static uint32_t g_last_tick_ms;
 static uint32_t g_spawn_ms;
 static uint16_t g_combo;
@@ -68,11 +68,6 @@ static const uint16_t g_loop_tone[LOOP_CHART_LEN] = {523, 587, 659, 587, 523, 39
     659, 587, 523, 440, 392, 440, 523, 587, 659, 784, 659, 587, 523, 523, 587, 659, 784, 659, 587, 523, 440};
 static const uint16_t g_loop_gap[LOOP_CHART_LEN] = {480, 480, 720, 240, 480, 960, 480, 480, 720, 240, 480,
     480, 960, 480, 240, 240, 480, 720, 240, 480, 960, 480, 480, 720, 240, 480, 480, 960, 720, 240, 480, 960};
-
-static uint32_t fast_rand(void) {
-    g_rand_state = g_rand_state * 1103515245u + 12345u;
-    return (g_rand_state >> 16) & 0x7fffu;
-}
 
 static void fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c) {
     if (x < 0) {
@@ -226,7 +221,7 @@ static void start_game(void) {
 
 static void restart_game(void) {
     g_state = rhythm_state_ready;
-    g_rand_state = Game_Runtime_Get_Tick_Ms();
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0x7E95761Eu);
     draw_static_scene();
     Game_Graphics_Draw_Text(g_hardware.lcd, 52, 140, "^/v START", 1, COLOR_WHITE);
     Game_Graphics_Draw_Text(g_hardware.lcd, 46, 158, "< > MODE", 1, COLOR_GRAY);
@@ -243,7 +238,7 @@ static void spawn_note(void) {
             g_chart_index = (uint8_t)((g_chart_index + 1u) & (LOOP_CHART_LEN - 1u));
         } else {
             g_notes[i].tone_index = 0;
-            g_notes[i].dir = (uint8_t)(1u + (fast_rand() & 3u));
+            g_notes[i].dir = (uint8_t)(1u + Game_Rng_Range(&g_rng, 4u));
         }
         g_notes[i].y = NOTE_SPAWN_Y;
         g_spawn_count++;

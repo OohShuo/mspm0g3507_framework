@@ -329,7 +329,7 @@ static const Attack g_level[] = {
 
 static uint8_t g_laser_track_pos[ATTACK_COUNT];
 static uint8_t g_laser_track_pos_valid[ATTACK_COUNT];
-static uint32_t g_rng_state = 0x4d595df4u;
+static Game_rng g_rng;
 
 static uint8_t bullet_slot_from_attack_index(uint8_t attack_index) {
     uint8_t slot = 0;
@@ -351,14 +351,9 @@ static int16_t clamp_i16(int16_t v, int16_t lo, int16_t hi) {
     return v;
 }
 
-static uint32_t rng_next(void) {
-    g_rng_state = g_rng_state * 1664525u + 1013904223u;
-    return g_rng_state;
-}
-
 static int16_t rng_jitter_pm5(void) {
-    return (
-        int16_t)((int32_t)(rng_next() % (uint32_t)(LASER_TRACK_JITTER_PX * 2 + 1)) - LASER_TRACK_JITTER_PX);
+    return (int16_t)((int32_t)Game_Rng_Range(&g_rng, (uint32_t)(LASER_TRACK_JITTER_PX * 2 + 1)) -
+                     LASER_TRACK_JITTER_PX);
 }
 
 static uint8_t laser_pos_is_tracking(const Attack* a) {
@@ -1492,7 +1487,7 @@ static void reset_game(void) {
     g_all_attacks_done = 0;
     g_all_attacks_done_ms = 0;
     g_start_ms = Game_Runtime_Get_Tick_Ms();
-    g_rng_state = 0x4d595df4u ^ g_start_ms;
+    Game_Rng_Seed(&g_rng, g_start_ms ^ 0x4D595DF4u);
     g_last_ms = g_start_ms;
     g_survive_ms = 0;
     g_player_x256 = ((ARENA_W - PLAYER_SIZE) / 2) << 8;

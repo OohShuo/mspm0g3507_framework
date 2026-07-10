@@ -49,7 +49,7 @@ static uint8_t g_gravity_acc, g_up_prev, g_ground_offset;
 static Pipe g_pipes[MAX_PIPES];
 static uint32_t g_score, g_old_score, g_pipe_timer;
 static uint16_t g_speed_acc;
-static uint32_t g_rand_state;
+static Game_rng g_rng;
 static uint32_t g_start_ms;
 static uint32_t g_last_tick;
 static uint32_t g_glide_end_ms;
@@ -58,11 +58,6 @@ static uint8_t g_gliding;
 static uint8_t g_glide_fall_acc;
 static uint8_t g_glide_ui_state;
 static uint8_t g_glide_ui_seconds;
-
-static uint32_t fast_rand(void) {
-    g_rand_state = g_rand_state * 1103515245 + 12345;
-    return (g_rand_state >> 16) & 0x7FFF;
-}
 
 /* ── Fill helpers: bar_fill (full screen) / play_fill (game area only) ── */
 
@@ -182,7 +177,8 @@ static void draw_ground(void) {
 static void spawn_pipe(void) {
     for (uint8_t i = 0; i < MAX_PIPES; i++) {
         if (!g_pipes[i].active) {
-            g_pipes[i].gap_y = (uint16_t)(60 + (fast_rand() % (GROUND_Y - PIPE_GAP - 120)));
+            g_pipes[i].gap_y =
+                (uint16_t)(60 + Game_Rng_Range(&g_rng, GROUND_Y - PIPE_GAP - 120));
             g_pipes[i].x = SCREEN_WIDTH + 10;
             g_pipes[i].scored = 0;
             g_pipes[i].active = 1;
@@ -229,7 +225,7 @@ static void restart_game(void) {
     g_glide_fall_acc = 0;
     g_glide_ui_state = 0xffu;
     g_glide_ui_seconds = 0xffu;
-    g_rand_state = Game_Runtime_Get_Tick_Ms();
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0xAD90777Du);
     for (uint8_t i = 0; i < MAX_PIPES; i++) { g_pipes[i].active = 0; }
 
     Game_Graphics_Clear_Game_Area(g_hardware.lcd);
@@ -365,7 +361,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
         /* Pipe spawn */
         if (g_pipe_timer == 0) {
             spawn_pipe();
-            g_pipe_timer = PIPE_SPACING / (speed_scaled(tick_ms) >> 8) + (fast_rand() % 30);
+            g_pipe_timer = PIPE_SPACING / (speed_scaled(tick_ms) >> 8) + Game_Rng_Range(&g_rng, 30u);
         } else {
             g_pipe_timer--;
         }

@@ -109,7 +109,7 @@ static uint8_t g_level = 1;
 static uint32_t g_last_player_move = 0;
 static uint32_t g_last_ghost_move = 0;
 static uint32_t g_power_until = 0;
-static uint32_t g_random_state = 0x13579bdu;
+static Game_rng g_rng;
 
 static void render_cell(int8_t map_x, int8_t map_y);
 static void render_full_map(void);
@@ -141,11 +141,6 @@ static uint8_t can_move(Position pos, Direction direction) {
 }
 
 static uint8_t power_active(void) { return (int32_t)(g_power_until - Game_Runtime_Get_Tick_Ms()) > 0; }
-
-static uint32_t random_next(void) {
-    g_random_state = g_random_state * 1664525u + 1013904223u;
-    return g_random_state;
-}
 
 static void fill_rect(int32_t x, int32_t y, int32_t width, int32_t height, uint16_t color) {
     if (g_lcd == NULL || width <= 0 || height <= 0 || width > SCREEN_WIDTH) { return; }
@@ -300,6 +295,7 @@ static void load_level(void) {
 }
 
 static void restart_game(void) {
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0x013579BDu);
     g_score = 0;
     g_lives = 3;
     g_level = 1;
@@ -398,8 +394,8 @@ static int32_t ghost_direction_score(uint32_t ghost_index, Direction direction) 
         target_x += g_dir_x[g_player_direction] * 3;
         target_y += g_dir_y[g_player_direction] * 3;
     } else if (ghost_index == 2) {
-        target_x = (int32_t)(random_next() % MAP_WIDTH);
-        target_y = (int32_t)(random_next() % MAP_HEIGHT);
+        target_x = (int32_t)Game_Rng_Range(&g_rng, MAP_WIDTH);
+        target_y = (int32_t)Game_Rng_Range(&g_rng, MAP_HEIGHT);
     } else if (ghost_index == 3) {
         const int32_t current_distance =
             (g_player.x - next_x < 0 ? next_x - g_player.x : g_player.x - next_x) +
@@ -429,7 +425,7 @@ static Direction choose_ghost_direction(uint32_t ghost_index) {
 
         const int32_t score = ghost_direction_score(ghost_index, direction);
         if (best == direction_none || score < best_score ||
-            (score == best_score && (random_next() & 1u) != 0)) {
+            (score == best_score && Game_Rng_Range(&g_rng, 2u) != 0u)) {
             best = direction;
             best_score = score;
         }

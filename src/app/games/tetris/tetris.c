@@ -79,18 +79,10 @@ static uint8_t g_das_fired = 0;
 static uint8_t g_das_direction = 0;
 static uint32_t g_last_das_down = 0;
 static uint8_t g_das_down_fired = 0;
-static uint32_t g_random_state = 0x2e71b864u;
-
-static uint32_t random_next(void) {
-    g_random_state = g_random_state * 1664525u + 1013904223u;
-    return g_random_state;
-}
+static Game_rng g_rng;
 
 static int8_t random_piece_kind(void) {
-    const uint32_t limit = UINT32_MAX - (UINT32_MAX % PIECE_KIND_COUNT);
-    uint32_t value;
-    do { value = random_next(); } while (value >= limit);
-    return (int8_t)(value % PIECE_KIND_COUNT);
+    return (int8_t)Game_Rng_Range(&g_rng, PIECE_KIND_COUNT);
 }
 
 static uint8_t collides(int8_t px, int8_t py, int8_t kind, int8_t rotation) {
@@ -276,7 +268,7 @@ static void restart_game(void) {
     g_das_fired = 0;
     g_das_down_fired = 0;
 
-    g_random_state = Game_Runtime_Get_Tick_Ms() ^ 0x2e71b864u;
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0x2E71B864u);
     g_next.kind = random_piece_kind();
     g_next.rotation = 0;
     new_piece();

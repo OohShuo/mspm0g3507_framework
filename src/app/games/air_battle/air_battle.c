@@ -135,14 +135,9 @@ static uint32_t g_invincible_until = 0;
 static uint32_t g_last_world_step = 0;
 static uint32_t g_last_spawn = 0;
 static uint8_t g_fire_step_count = 0;
-static uint32_t g_random_state = 0x6d2b79f5u;
+static Game_rng g_rng;
 static uint16_t* g_line_buffer = NULL;
 static Image_asset g_external_background;
-
-static uint32_t random_next(void) {
-    g_random_state = g_random_state * 1664525u + 1013904223u;
-    return g_random_state;
-}
 
 static int16_t clamp_i16(int16_t value, int16_t minimum, int16_t maximum) {
     if (value < minimum) { return minimum; }
@@ -455,10 +450,12 @@ static void spawn_enemy(uint32_t now) {
             kind = enemy_elite;
         }
         const Air_sprite* sprite = enemy_sprite(kind);
-        const int16_t x = (int16_t)(8 + random_next() % (SCREEN_WIDTH - sprite->width - 16));
+        const int16_t x =
+            (int16_t)(8 + Game_Rng_Range(&g_rng, (uint32_t)(SCREEN_WIDTH - sprite->width - 16)));
         const uint8_t hp = kind == enemy_mob ? 1 : (kind == enemy_elite ? 3 : 5);
-        const int8_t vx = kind == enemy_mob ? 0 : ((random_next() & 1u) ? 2 : -2);
-        g_enemies[i] = (Enemy){x, HUD_HEIGHT, vx, 1, hp, kind, now + 550u + random_next() % 700u};
+        const int8_t vx = kind == enemy_mob ? 0 : (Game_Rng_Range(&g_rng, 2u) != 0u ? 2 : -2);
+        g_enemies[i] =
+            (Enemy){x, HUD_HEIGHT, vx, 1, hp, kind, now + 550u + Game_Rng_Range(&g_rng, 700u)};
         g_spawned++;
         mark_sprite(x, HUD_HEIGHT, sprite);
         return;
@@ -482,10 +479,10 @@ static void spawn_boss(uint32_t now) {
 }
 
 static void spawn_pickup(int16_t x, int16_t y) {
-    if ((random_next() % 100u) >= 38u) { return; }
+    if (Game_Rng_Range(&g_rng, 100u) >= 38u) { return; }
     for (uint8_t i = 0; i < MAX_PICKUPS; i++) {
         if (g_pickups[i].active) { continue; }
-        g_pickups[i] = (Pickup){x, y, 1, (Pickup_kind)(random_next() % 3u)};
+        g_pickups[i] = (Pickup){x, y, 1, (Pickup_kind)Game_Rng_Range(&g_rng, 3u)};
         mark_sprite(x, y, pickup_sprite(g_pickups[i].kind));
         return;
     }
@@ -662,7 +659,7 @@ static void update_enemy_fire(Enemy* enemy, uint32_t now) {
         enemy->next_fire_at = now + 650u;
     } else {
         spawn_bullet(center, enemy->y + sprite->height - 2, 0, enemy->kind == enemy_mob ? 3 : 4, 1);
-        enemy->next_fire_at = now + 900u + random_next() % 900u;
+        enemy->next_fire_at = now + 900u + Game_Rng_Range(&g_rng, 900u);
     }
 }
 
@@ -755,6 +752,7 @@ static void update_bullets(uint32_t now) {
 }
 
 static void restart_game(void) {
+    Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ 0x6D2B79F5u);
     Image_Asset_Close(&g_external_background);
     if (Image_Asset_Open(&g_external_background, EXTERNAL_BACKGROUND_PATH) &&
         (g_external_background.width != SCREEN_WIDTH || g_external_background.height != SCREEN_HEIGHT)) {
