@@ -22,17 +22,17 @@ VM 目标直接使用 `assets/vm_flash/` 目录下的文件，无需构建闪存
 
 推荐步骤：
 
-1. 创建 `src/app/games/<token>/<token>.c`，在文件内实现静态回调并导出唯一的 `game_<token>_entry` 描述符。无需创建普通游戏头文件。
+1. 创建 `src/app/games/<token>.c`，在文件内实现静态回调并导出唯一的 `game_<token>_entry` 描述符。无需创建普通游戏头文件。如需图片/贴图等资源文件，放入 `src/app/game_assets/`。
 2. 回调形式如下：
 
 ```c
-static void Xxx_Init(const Game_hardware* hardware);
-static Game_result Xxx_Update(const Game_input* input);
-static uint32_t Xxx_Get_Score(void);
+static void xxx_init(const Game_hardware* hardware);
+static Game_result xxx_update(const Game_input* input);
+static uint32_t xxx_get_score(void);
 static void xxx_draw_icon(St7789* lcd, int32_t x, int32_t y);
 ```
 
-`Xxx_Update()` 在正常运行时返回 `game_result_running`，请求退出时返回 `game_result_exit`，并在进入终态的当帧立即返回 `game_result_won` 或 `game_result_lost`。不要在游戏内显示结局/重玩提示或播放通用胜负反馈；控制台统一处理结算、排行榜和重玩。非游戏工具只使用 `running` 与 `exit`。
+`xxx_update()` 在正常运行时返回 `game_result_running`，请求退出时返回 `game_result_exit`，并在进入终态的当帧立即返回 `game_result_won` 或 `game_result_lost`。不要在游戏内显示结局/重玩提示或播放通用胜负反馈；控制台统一处理结算、排行榜和重玩。非游戏工具只使用 `running` 与 `exit`。
 
 3. 在 `src/app/game_console/game_entries.inc` 的目标菜单位置添加 `game_entry(<token>)`。该顺序同时生成连续 `Game_id` 和注册数组顺序，不需要手改 `game_registry.c`。
 4. 描述符中的 `draw_icon` 使用 48x40 局部画布，`name_color` 指定未选中标题颜色。

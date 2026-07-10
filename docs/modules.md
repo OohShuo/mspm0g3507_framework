@@ -40,7 +40,7 @@ typedef struct {
 } Game_descriptor;
 ```
 
-新增条目只需创建 `src/app/games/<token>/<token>.c`（生命周期和图标回调均为 `static`），再在 `game_entries.inc` 添加 `game_entry(<token>)`。排行榜存储版本 4 使用该连续 ID 顺序；加载版本 1 或 3 数据时会迁移旧 ID，并丢弃已移除的 Racing 槽位。
+新增条目只需创建 `src/app/games/<token>.c`（生命周期和图标回调均为 `static`），再在 `game_entries.inc` 添加 `game_entry(<token>)`。排行榜存储版本 4 使用该连续 ID 顺序；加载版本 1 或 3 数据时会迁移旧 ID，并丢弃已移除的槽位。
 
 `update` 直接报告生命周期结果：
 
