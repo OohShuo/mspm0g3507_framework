@@ -11,13 +11,12 @@ if(BUILD_PLATFORM STREQUAL "VM")
 endif()
 
 get_subdirs_and_self(${CMAKE_CURRENT_SOURCE_DIR} APP_INC)
-get_subdirs(${CMAKE_CURRENT_SOURCE_DIR}/games GAMES_INC)
 
 add_library(app STATIC "${APP_SRC}")
 
 target_include_directories(app PUBLIC
     "${APP_INC}"
-    "${GAMES_INC}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game_assets"
     "${CFG_DIR}"
 )
 
