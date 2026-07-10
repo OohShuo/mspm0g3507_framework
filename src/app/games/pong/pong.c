@@ -142,13 +142,13 @@ static void restart_game(void) {
     render_full();
 }
 
-static void Pong_Init(const Game_hardware* hardware) {
+static void pong_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Pong_Update(const Game_input* input) {
+static Game_result pong_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -297,7 +297,7 @@ static Game_result Pong_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Pong_Get_Score(void) { return (uint32_t)(g_player_score * 100u); }
+static uint32_t pong_get_score(void) { return (uint32_t)(g_player_score * 100u); }
 
 static void pong_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 2;
@@ -322,7 +322,7 @@ const Game_descriptor game_pong_entry = {
         "DESCRIPTION\nClassic paddle duel against AI.\nReturn the ball past your rival.\n\nGOAL\nReach "
         "the winning score first.\n\nCONTROLS\nJOY MOVE PADDLE\nA SERVE\nX/B PAUSE",
     .is_game = 1,
-    .init = Pong_Init,
-    .update = Pong_Update,
-    .get_score = Pong_Get_Score,
+    .init = pong_init,
+    .update = pong_update,
+    .get_score = pong_get_score,
 };

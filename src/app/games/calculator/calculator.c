@@ -345,7 +345,7 @@ static uint8_t press_button(uint8_t row, uint8_t col) {
 }
 
 /* ── Public API ── */
-static void Calc_Init(const Game_hardware* hardware) {
+static void calc_init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_vib_motor = hardware->vib_motor;
     g_expr_len = 0;
@@ -358,7 +358,7 @@ static void Calc_Init(const Game_hardware* hardware) {
     render_all();
 }
 
-static Game_result Calc_Update(const Game_input* input) {
+static Game_result calc_update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     uint8_t cursor_changed = 0;
@@ -400,7 +400,7 @@ static Game_result Calc_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Calc_Get_Score(void) { return 0; }
+static uint32_t calc_get_score(void) { return 0; }
 
 static void calculator_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     y += -2;
@@ -432,7 +432,7 @@ const Game_descriptor game_calculator_entry = {
         "DESCRIPTION\nA compact four-function tool.\nEnter numbers and operators.\n\nGOAL\nCalculate a "
         "numeric result.\n\nCONTROLS\nJOY MOVE CURSOR\nA PRESS KEY\nB BACK",
     .is_game = 0,
-    .init = Calc_Init,
-    .update = Calc_Update,
-    .get_score = Calc_Get_Score,
+    .init = calc_init,
+    .update = calc_update,
+    .get_score = calc_get_score,
 };

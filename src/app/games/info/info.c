@@ -210,7 +210,7 @@ static void render_easter_egg(void) {
     Storage_Unlock();
 }
 
-static void Info_Init(const Game_hardware* hardware) {
+static void info_init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_vib_motor = hardware->vib_motor;
     g_current_page = 0;
@@ -220,7 +220,7 @@ static void Info_Init(const Game_hardware* hardware) {
     draw_version_text();
 }
 
-static Game_result Info_Update(const Game_input* input) {
+static Game_result info_update(const Game_input* input) {
     /* ── Easter egg state: B returns to normal info ── */
     if (g_is_easter_egg) {
         if (input->back_requested) {
@@ -268,7 +268,7 @@ static Game_result Info_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Info_Get_Score(void) { return 0; }
+static uint32_t info_get_score(void) { return 0; }
 
 static void info_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     y += -2;
@@ -296,7 +296,7 @@ const Game_descriptor game_info_entry = {
         "DESCRIPTION\nView project and team pages.\nBrowse the built-in gallery.\n\nGOAL\nRead "
         "each information page.\n\nCONTROLS\nJOY LEFT OR RIGHT\nB BACK",
     .is_game = 0,
-    .init = Info_Init,
-    .update = Info_Update,
-    .get_score = Info_Get_Score,
+    .init = info_init,
+    .update = info_update,
+    .get_score = info_get_score,
 };

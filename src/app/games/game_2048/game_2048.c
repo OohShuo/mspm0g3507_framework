@@ -262,13 +262,13 @@ static void restart_game(void) {
     render_hud();
 }
 
-static void Game_2048_Init(const Game_hardware* hardware) {
+static void game_2048_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Game_2048_Update(const Game_input* input) {
+static Game_result game_2048_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -311,7 +311,7 @@ static Game_result Game_2048_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Game_2048_Get_Score(void) { return g_score; }
+static uint32_t game_2048_get_score(void) { return g_score; }
 
 static void game_2048_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 6;
@@ -337,7 +337,7 @@ const Game_descriptor game_game_2048_entry = {
         "DESCRIPTION\nSlide and merge matching tiles.\nEach move creates a new "
         "tile.\n\nGOAL\nBuild the 2048 tile.\n\nCONTROLS\nJOY SLIDE\nX/B PAUSE",
     .is_game = 1,
-    .init = Game_2048_Init,
-    .update = Game_2048_Update,
-    .get_score = Game_2048_Get_Score,
+    .init = game_2048_init,
+    .update = game_2048_update,
+    .get_score = game_2048_get_score,
 };

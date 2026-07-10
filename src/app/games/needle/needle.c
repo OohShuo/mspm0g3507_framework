@@ -256,7 +256,7 @@ static void restart_game(void) {
 
 /* ── Init ── */
 
-static void Needle_Init(const Game_hardware* hardware) {
+static void needle_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -322,7 +322,7 @@ static void resolve_impact(uint8_t angle) {
 
 /* ── Update ── */
 
-static Game_result Needle_Update(const Game_input* input) {
+static Game_result needle_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
     if (g_state == needle_state_over) { return game_result_lost; }
@@ -390,7 +390,7 @@ static Game_result Needle_Update(const Game_input* input) {
 
 /* ── Score / Finished ── */
 
-static uint32_t Needle_Get_Score(void) { return g_score; }
+static uint32_t needle_get_score(void) { return g_score; }
 
 static void needle_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 0;
@@ -419,7 +419,7 @@ const Game_descriptor game_needle_entry = {
         "DESCRIPTION\nFire needles at a spinning disk.\nDo not strike another needle.\n\nGOAL\nPlace "
         "every needle safely.\n\nCONTROLS\nJOY AIM\nA LAUNCH\nY QUICK STICK\nX/B PAUSE",
     .is_game = 1,
-    .init = Needle_Init,
-    .update = Needle_Update,
-    .get_score = Needle_Get_Score,
+    .init = needle_init,
+    .update = needle_update,
+    .get_score = needle_get_score,
 };

@@ -458,7 +458,7 @@ static Direction convert_direction(Game_direction direction) {
     return direction_none;
 }
 
-static void Pacman_Init(const Game_hardware* hardware) {
+static void pacman_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     g_lcd = hardware->lcd;
@@ -467,7 +467,7 @@ static void Pacman_Init(const Game_hardware* hardware) {
     restart_game();
 }
 
-static Game_result Pacman_Update(const Game_input* input) {
+static Game_result pacman_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -498,7 +498,7 @@ static Game_result Pacman_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Pacman_Get_Score(void) { return g_score; }
+static uint32_t pacman_get_score(void) { return g_score; }
 
 static void pacman_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 24;
@@ -526,7 +526,7 @@ const Game_descriptor game_pacman_entry = {
         "DESCRIPTION\nClassic maze chase.\nEat dots while ghosts hunt you.\n\nGOAL\nClear the "
         "maze and stay alive.\n\nCONTROLS\nJOY MOVE\nX/B PAUSE",
     .is_game = 1,
-    .init = Pacman_Init,
-    .update = Pacman_Update,
-    .get_score = Pacman_Get_Score,
+    .init = pacman_init,
+    .update = pacman_update,
+    .get_score = pacman_get_score,
 };

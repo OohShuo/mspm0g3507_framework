@@ -126,7 +126,7 @@ static void tune_update(void) {
 
 #endif /* FRAMEWORK_USE_LFS */
 
-static void Bad_Apple_Init(const Game_hardware* hardware) {
+static void bad_apple_init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_buzzer = hardware->buzzer;
 
@@ -161,7 +161,7 @@ static void Bad_Apple_Init(const Game_hardware* hardware) {
 #endif
 }
 
-static Game_result Bad_Apple_Update(const Game_input* input) {
+static Game_result bad_apple_update(const Game_input* input) {
     if (input->back_requested) {
         Badapple_Video_Stop();
 #if FRAMEWORK_USE_LFS
@@ -179,7 +179,7 @@ static Game_result Bad_Apple_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Bad_Apple_Get_Score(void) { return 0; }
+static uint32_t bad_apple_get_score(void) { return 0; }
 
 static void bad_apple_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 24;
@@ -216,7 +216,7 @@ const Game_descriptor game_bad_apple_entry = {
         "DESCRIPTION\nBad Apple shadow art video.\nBlack-and-white animation.\n\n"
         "CONTROLS\nB BACK",
     .is_game = 0,
-    .init = Bad_Apple_Init,
-    .update = Bad_Apple_Update,
-    .get_score = Bad_Apple_Get_Score,
+    .init = bad_apple_init,
+    .update = bad_apple_update,
+    .get_score = bad_apple_get_score,
 };

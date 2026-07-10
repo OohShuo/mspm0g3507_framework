@@ -174,13 +174,13 @@ static void restart_game(void) {
     render_full();
 }
 
-static void Breakout_Init(const Game_hardware* hardware) {
+static void breakout_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Breakout_Update(const Game_input* input) {
+static Game_result breakout_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -299,7 +299,7 @@ static Game_result Breakout_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Breakout_Get_Score(void) { return g_score; }
+static uint32_t breakout_get_score(void) { return g_score; }
 
 static void breakout_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 6;
@@ -327,7 +327,7 @@ const Game_descriptor game_breakout_entry = {
         "DESCRIPTION\nBounce the ball with a paddle.\nBreak every brick above.\n\nGOAL\nClear "
         "the wall without a miss.\n\nCONTROLS\nJOY MOVE PADDLE\nA LAUNCH\nX/B PAUSE",
     .is_game = 1,
-    .init = Breakout_Init,
-    .update = Breakout_Update,
-    .get_score = Breakout_Get_Score,
+    .init = breakout_init,
+    .update = breakout_update,
+    .get_score = breakout_get_score,
 };

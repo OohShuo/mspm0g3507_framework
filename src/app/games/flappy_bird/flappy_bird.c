@@ -233,7 +233,7 @@ static void restart_game(void) {
     update_glide_status(Game_Runtime_Get_Tick_Ms());
 }
 
-static void Flappy_Bird_Init(const Game_hardware* hardware) {
+static void flappy_bird_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -241,7 +241,7 @@ static void Flappy_Bird_Init(const Game_hardware* hardware) {
 
 /* ── Update ── */
 
-static Game_result Flappy_Bird_Update(const Game_input* input) {
+static Game_result flappy_bird_update(const Game_input* input) {
     uint8_t flapped = 0;
     uint8_t scored = 0;
     if (input == NULL) { return game_result_running; }
@@ -392,7 +392,7 @@ static Game_result Flappy_Bird_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Flappy_Bird_Get_Score(void) { return g_score; }
+static uint32_t flappy_bird_get_score(void) { return g_score; }
 
 static void flappy_bird_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 0;
@@ -425,7 +425,7 @@ const Game_descriptor game_flappy_bird_entry = {
         "DESCRIPTION\nFly between narrow pipe gaps.\nGlide briefly when ready.\n\nGOAL\nPass as "
         "many pipes as possible.\n\nCONTROLS\nA FLAP\nY GLIDE\nX/B PAUSE",
     .is_game = 1,
-    .init = Flappy_Bird_Init,
-    .update = Flappy_Bird_Update,
-    .get_score = Flappy_Bird_Get_Score,
+    .init = flappy_bird_init,
+    .update = flappy_bird_update,
+    .get_score = flappy_bird_get_score,
 };

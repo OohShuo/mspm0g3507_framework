@@ -258,13 +258,13 @@ static void miss_note(uint8_t i) {
 
 static void finish_game(void) { g_state = rhythm_state_over; }
 
-static void Rhythm_Init(const Game_hardware* hardware) {
+static void rhythm_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Rhythm_Update(const Game_input* input) {
+static Game_result rhythm_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -360,7 +360,7 @@ static Game_result Rhythm_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Rhythm_Get_Score(void) { return g_score; }
+static uint32_t rhythm_get_score(void) { return g_score; }
 
 static void rhythm_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 24;
@@ -385,7 +385,7 @@ const Game_descriptor game_rhythm_entry = {
         "DESCRIPTION\nMatch arrows to falling notes.\nKeep your timing and combo.\n\nGOAL\nFinish with "
         "the highest score.\n\nCONTROLS\nJOY MATCH ARROWS\nA START\nX/B PAUSE",
     .is_game = 1,
-    .init = Rhythm_Init,
-    .update = Rhythm_Update,
-    .get_score = Rhythm_Get_Score,
+    .init = rhythm_init,
+    .update = rhythm_update,
+    .get_score = rhythm_get_score,
 };

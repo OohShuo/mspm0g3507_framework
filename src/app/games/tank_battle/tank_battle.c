@@ -546,13 +546,13 @@ static void update_enemies(void) {
     }
 }
 
-static void Tank_Battle_Init(const Game_hardware* hardware) {
+static void tank_battle_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Tank_Battle_Update(const Game_input* input) {
+static Game_result tank_battle_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -596,7 +596,7 @@ static Game_result Tank_Battle_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Tank_Battle_Get_Score(void) { return g_score; }
+static uint32_t tank_battle_get_score(void) { return g_score; }
 
 static void tank_battle_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 2;
@@ -618,7 +618,7 @@ const Game_descriptor game_tank_battle_entry = {
         "DESCRIPTION\nTop-down tank combat.\nEnemy tanks patrol the field.\n\nGOAL\nDestroy all "
         "enemies and survive.\n\nCONTROLS\nJOY MOVE AND AIM\nA FIRE\nX/B PAUSE",
     .is_game = 1,
-    .init = Tank_Battle_Init,
-    .update = Tank_Battle_Update,
-    .get_score = Tank_Battle_Get_Score,
+    .init = tank_battle_init,
+    .update = tank_battle_update,
+    .get_score = tank_battle_get_score,
 };

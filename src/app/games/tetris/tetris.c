@@ -304,13 +304,13 @@ static void settle_piece(void) {
     }
 }
 
-static void Tetris_Init(const Game_hardware* hardware) {
+static void tetris_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Tetris_Update(const Game_input* input) {
+static Game_result tetris_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -444,7 +444,7 @@ static Game_result Tetris_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Tetris_Get_Score(void) { return g_score; }
+static uint32_t tetris_get_score(void) { return g_score; }
 
 static void tetris_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 4;
@@ -472,7 +472,7 @@ const Game_descriptor game_tetris_entry = {
         "DESCRIPTION\nStack seven kinds of blocks.\nComplete rows to clear them.\n\nGOAL\nClear lines "
         "and score high.\n\nCONTROLS\nJOY MOVE\nJOY DOWN SOFT DROP\nA ROTATE\nY HARD DROP\nX/B PAUSE",
     .is_game = 1,
-    .init = Tetris_Init,
-    .update = Tetris_Update,
-    .get_score = Tetris_Get_Score,
+    .init = tetris_init,
+    .update = tetris_update,
+    .get_score = tetris_get_score,
 };

@@ -205,13 +205,13 @@ static void move_snake(void) {
     render_cell(g_body[0]);
 }
 
-static void Snake_Init(const Game_hardware* hardware) {
+static void snake_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Snake_Update(const Game_input* input) {
+static Game_result snake_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -236,7 +236,7 @@ static Game_result Snake_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Snake_Get_Score(void) { return g_score; }
+static uint32_t snake_get_score(void) { return g_score; }
 
 static void snake_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 1;
@@ -258,7 +258,7 @@ const Game_descriptor game_snake_entry = {
         "DESCRIPTION\nGuide a growing snake.\nEat food and avoid every wall.\n\nGOAL\nGrow as "
         "long as you can.\n\nCONTROLS\nJOY TURN\nX/B PAUSE",
     .is_game = 1,
-    .init = Snake_Init,
-    .update = Snake_Update,
-    .get_score = Snake_Get_Score,
+    .init = snake_init,
+    .update = snake_update,
+    .get_score = snake_get_score,
 };

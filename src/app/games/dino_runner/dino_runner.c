@@ -305,7 +305,7 @@ static void restart_game(void) {
     Game_Graphics_Draw_Text(g_hardware.lcd, 58, 140, "A TO START", 1, COLOR_WHITE);
 }
 
-static void Dino_Runner_Init(const Game_hardware* hardware) {
+static void dino_runner_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -313,7 +313,7 @@ static void Dino_Runner_Init(const Game_hardware* hardware) {
 
 /* ── Update ── */
 
-static Game_result Dino_Runner_Update(const Game_input* input) {
+static Game_result dino_runner_update(const Game_input* input) {
     uint8_t jumped = 0;
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
@@ -409,7 +409,7 @@ static Game_result Dino_Runner_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Dino_Runner_Get_Score(void) { return g_score; }
+static uint32_t dino_runner_get_score(void) { return g_score; }
 
 static void dino_runner_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 0;
@@ -440,7 +440,7 @@ const Game_descriptor game_dino_runner_entry = {
         "DESCRIPTION\nRun through an endless desert.\nDodge ground and air hazards.\n\nGOAL\nSurvive and "
         "travel farther.\n\nCONTROLS\nA JUMP\nY DUCK OR FAST DROP\nX/B PAUSE",
     .is_game = 1,
-    .init = Dino_Runner_Init,
-    .update = Dino_Runner_Update,
-    .get_score = Dino_Runner_Get_Score,
+    .init = dino_runner_init,
+    .update = dino_runner_update,
+    .get_score = dino_runner_get_score,
 };

@@ -128,7 +128,7 @@ static void render_screen(void) {
 }
 
 /* ── Game lifecycle ── */
-static void Volume_Control_Init(const Game_hardware* hardware) {
+static void volume_control_init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_buzzer = hardware->buzzer;
     g_vib_motor = hardware->vib_motor;
@@ -136,7 +136,7 @@ static void Volume_Control_Init(const Game_hardware* hardware) {
     render_screen();
 }
 
-static Game_result Volume_Control_Update(const Game_input* input) {
+static Game_result volume_control_update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     /* mute toggle on button press */
@@ -182,7 +182,7 @@ static Game_result Volume_Control_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Volume_Control_Get_Score(void) { return 0; }
+static uint32_t volume_control_get_score(void) { return 0; }
 
 static void volume_control_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 2;
@@ -219,7 +219,7 @@ const Game_descriptor game_volume_control_entry = {
         "DESCRIPTION\nAdjust the console sound level.\nChanges apply immediately.\n\nGOAL\nChoose a "
         "comfortable volume.\n\nCONTROLS\nJOY ADJUST\nA MUTE OR UNMUTE\nB BACK",
     .is_game = 0,
-    .init = Volume_Control_Init,
-    .update = Volume_Control_Update,
-    .get_score = Volume_Control_Get_Score,
+    .init = volume_control_init,
+    .update = volume_control_update,
+    .get_score = volume_control_get_score,
 };

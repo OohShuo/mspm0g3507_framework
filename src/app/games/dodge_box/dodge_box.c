@@ -1495,7 +1495,7 @@ static void reset_game(void) {
     draw_player(COLOR_WHITE);
 }
 
-static void Dodge_Box_Init(const Game_hardware* hardware) {
+static void dodge_box_init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_vib_motor = hardware->vib_motor;
     reset_game();
@@ -1514,7 +1514,7 @@ static void move_player(const Game_input* input, uint32_t dt_ms) {
     if (g_player_y256 > (ARENA_H - PLAYER_SIZE) * 256) { g_player_y256 = (ARENA_H - PLAYER_SIZE) * 256; }
 }
 
-static Game_result Dodge_Box_Update(const Game_input* input) {
+static Game_result dodge_box_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -1555,7 +1555,7 @@ static Game_result Dodge_Box_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Dodge_Box_Get_Score(void) { return g_survive_ms / 100u; }
+static uint32_t dodge_box_get_score(void) { return g_survive_ms / 100u; }
 
 static void dodge_box_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 24;
@@ -1587,7 +1587,7 @@ const Game_descriptor game_dodge_box_entry = {
         "DESCRIPTION\nMove inside a hostile arena.\nPatterns become more "
         "dangerous.\n\nGOAL\nSurvive every attack pattern.\n\nCONTROLS\nJOY MOVE\nX/B PAUSE",
     .is_game = 1,
-    .init = Dodge_Box_Init,
-    .update = Dodge_Box_Update,
-    .get_score = Dodge_Box_Get_Score,
+    .init = dodge_box_init,
+    .update = dodge_box_update,
+    .get_score = dodge_box_get_score,
 };

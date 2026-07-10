@@ -87,7 +87,7 @@ static void fill_middle(void) {
 
 /* Full-screen render replaced by per-component drawing in Init/Update */
 
-static void Fps_Test_Init(const Game_hardware* hardware) {
+static void fps_test_init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_state = fps_state_idle;
     g_frame_count = 0;
@@ -97,7 +97,7 @@ static void Fps_Test_Init(const Game_hardware* hardware) {
     draw_top_bar();
 }
 
-static Game_result Fps_Test_Update(const Game_input* input) {
+static Game_result fps_test_update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     const uint32_t now = Game_Runtime_Get_Tick_Ms();
@@ -139,7 +139,7 @@ static Game_result Fps_Test_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Fps_Test_Get_Score(void) { return g_last_fps; }
+static uint32_t fps_test_get_score(void) { return g_last_fps; }
 
 static void fps_test_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     y += -2;
@@ -172,7 +172,7 @@ const Game_descriptor game_fps_test_entry = {
         "DESCRIPTION\nMeasure display frame speed.\nThe test runs a color workload.\n\nGOAL\nRead the "
         "measured FPS result.\n\nCONTROLS\nA START OR RESTART\nB BACK",
     .is_game = 0,
-    .init = Fps_Test_Init,
-    .update = Fps_Test_Update,
-    .get_score = Fps_Test_Get_Score,
+    .init = fps_test_init,
+    .update = fps_test_update,
+    .get_score = fps_test_get_score,
 };

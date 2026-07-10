@@ -418,7 +418,7 @@ static void restart_game(void) {
 
 /* ── Init ── */
 
-static void Maze_Init(const Game_hardware* hardware) {
+static void maze_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -450,7 +450,7 @@ static void move_player(uint8_t dir_enum) {
 
 /* ── Update ── */
 
-static Game_result Maze_Update(const Game_input* input) {
+static Game_result maze_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -526,7 +526,7 @@ static Game_result Maze_Update(const Game_input* input) {
 
 /* ── Score / Finished ── */
 
-static uint32_t Maze_Get_Score(void) { return g_score; }
+static uint32_t maze_get_score(void) { return g_score; }
 
 static void maze_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 2;
@@ -566,7 +566,7 @@ const Game_descriptor game_maze_entry = {
         "DESCRIPTION\nExplore a changing maze.\nCollect gems along the route.\n\nGOAL\nFind the "
         "marked exit quickly.\n\nCONTROLS\nJOY MOVE\nX/B PAUSE",
     .is_game = 1,
-    .init = Maze_Init,
-    .update = Maze_Update,
-    .get_score = Maze_Get_Score,
+    .init = maze_init,
+    .update = maze_update,
+    .get_score = maze_get_score,
 };

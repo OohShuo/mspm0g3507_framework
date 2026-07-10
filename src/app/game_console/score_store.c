@@ -37,29 +37,7 @@ static uint8_t g_dirty = 0;
 
 uint8_t Score_Store_Map_Legacy_Id(uint8_t legacy_id) {
     static const uint8_t legacy_to_current[] = {
-        0u,
-        1u,
-        0xffu,
-        2u,
-        3u,
-        4u,
-        5u,
-        6u,
-        7u,
-        8u,
-        9u,
-        10u,
-        11u,
-        12u,
-        16u,
-        17u,
-        20u,
-        15u,
-        18u,
-        13u,
-        14u,
-        19u,
-    };
+        0u, 1u, 0xffu, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 11u, 12u, 16u, 17u, 20u, 15u, 18u, 13u, 14u, 19u};
     return legacy_id < sizeof(legacy_to_current) ? legacy_to_current[legacy_id] : 0xffu;
 }
 

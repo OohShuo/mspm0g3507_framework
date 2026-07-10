@@ -180,7 +180,7 @@ static uint8_t move_cursor(Game_direction dir) {
  *  API
  * ══════════════════════════════════════════════════════════════════════ */
 
-static void Sfx_Lib_Init(const Game_hardware* hardware) {
+static void sfx_lib_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     g_cursor = 0;
@@ -193,7 +193,7 @@ static void Sfx_Lib_Init(const Game_hardware* hardware) {
     draw_full_page();
 }
 
-static Game_result Sfx_Lib_Update(const Game_input* input) {
+static Game_result sfx_lib_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -252,7 +252,7 @@ static Game_result Sfx_Lib_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Sfx_Lib_Get_Score(void) { return 0; }
+static uint32_t sfx_lib_get_score(void) { return 0; }
 
 static void sfx_lib_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 2;
@@ -282,7 +282,7 @@ const Game_descriptor game_sfx_lib_entry = {
         "DESCRIPTION\nBrowse the sound effect library.\nPreview each built-in "
         "sound.\n\nGOAL\nFind and test an effect.\n\nCONTROLS\nJOY SELECT\nA PLAY\nB BACK",
     .is_game = 0,
-    .init = Sfx_Lib_Init,
-    .update = Sfx_Lib_Update,
-    .get_score = Sfx_Lib_Get_Score,
+    .init = sfx_lib_init,
+    .update = sfx_lib_update,
+    .get_score = sfx_lib_get_score,
 };

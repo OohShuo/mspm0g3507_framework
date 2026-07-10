@@ -303,13 +303,13 @@ static void restart_game(void) {
     draw_cursor_at(g_cursor_x, g_cursor_y);
 }
 
-static void Gomoku_Init(const Game_hardware* hardware) {
+static void gomoku_init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-static Game_result Gomoku_Update(const Game_input* input) {
+static Game_result gomoku_update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -413,7 +413,7 @@ static Game_result Gomoku_Update(const Game_input* input) {
     return game_result_running;
 }
 
-static uint32_t Gomoku_Get_Score(void) { return g_score; }
+static uint32_t gomoku_get_score(void) { return g_score; }
 
 static void gomoku_draw_icon(St7789* lcd, int32_t x, int32_t y) {
     x += 4;
@@ -449,7 +449,7 @@ const Game_descriptor game_gomoku_entry = {
         "DESCRIPTION\nPlay Gomoku against the CPU.\nBuild a line on the board.\n\nGOAL\nConnect "
         "five stones first.\n\nCONTROLS\nJOY MOVE CURSOR\nA PLACE\nX/B PAUSE",
     .is_game = 1,
-    .init = Gomoku_Init,
-    .update = Gomoku_Update,
-    .get_score = Gomoku_Get_Score,
+    .init = gomoku_init,
+    .update = gomoku_update,
+    .get_score = gomoku_get_score,
 };
