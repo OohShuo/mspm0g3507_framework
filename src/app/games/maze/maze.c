@@ -1,11 +1,10 @@
-#include "maze.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "buzzer.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 /* ── 屏幕常量 ── */
 #define SCREEN_WIDTH  240
@@ -419,7 +418,7 @@ static void restart_game(void) {
 
 /* ── Init ── */
 
-void Maze_Init(const Game_hardware* hardware) {
+static void Maze_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -451,7 +450,7 @@ static void move_player(uint8_t dir_enum) {
 
 /* ── Update ── */
 
-Game_result Maze_Update(const Game_input* input) {
+static Game_result Maze_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -527,4 +526,47 @@ Game_result Maze_Update(const Game_input* input) {
 
 /* ── Score / Finished ── */
 
-uint32_t Maze_Get_Score(void) { return g_score; }
+static uint32_t Maze_Get_Score(void) { return g_score; }
+
+static void maze_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 2;
+    y += 2;
+    /* 迷你迷宫：5x4 网格，外框 + 一条蜿蜒路径 */
+    const int32_t grid_left = x;
+    const int32_t grid_top = y;
+    const int32_t s = 9; /* 格大小 */
+
+    /* 外框 */
+    Game_Graphics_Fill_Rect(lcd, grid_left, grid_top, s * 5, 1, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, grid_left, grid_top, 1, s * 4, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, grid_left, grid_top + s * 4 - 1, s * 5, 1, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, grid_left + s * 5 - 1, grid_top, 1, s * 4, 0xA514u);
+
+    /* 内部迷宫路径 */
+    Game_Graphics_Fill_Rect(lcd, grid_left + 1, grid_top + s, s * 2, 1, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, grid_left + s, grid_top + s * 3 - 1, s * 3, 1, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, grid_left + s * 3 - 1, grid_top + 1, 1, s, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, grid_left + s * 2 - 1, grid_top + s, 1, s * 2, 0xA514u);
+
+    /* 起点（青色小方块） */
+    Game_Graphics_Fill_Rect(lcd, grid_left + 2, grid_top + 2, 4, 4, 0x07ffu);
+    /* 终点（红色小方块） */
+    Game_Graphics_Fill_Rect(lcd, grid_left + s * 4 + 2, grid_top + s * 3 + 2, 4, 4, 0xf800u);
+    /* 宝石（黄色小点） */
+    Game_Graphics_Fill_Rect(lcd, grid_left + s * 3 + 2, grid_top + s * 2 + 2, 3, 3, 0xffe0u);
+}
+
+const Game_descriptor game_maze_entry = {
+    .draw_icon = maze_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "MAZE",
+    .id = game_id_maze,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nExplore a changing maze.\nCollect gems along the route.\n\nGOAL\nFind the "
+        "marked exit quickly.\n\nCONTROLS\nJOY MOVE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Maze_Init,
+    .update = Maze_Update,
+    .get_score = Maze_Get_Score,
+};

@@ -1,9 +1,8 @@
-#include "fps_test.h"
-
 #include <stddef.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH     240
 #define SCREEN_HEIGHT    320
@@ -88,7 +87,7 @@ static void fill_middle(void) {
 
 /* Full-screen render replaced by per-component drawing in Init/Update */
 
-void Fps_Test_Init(const Game_hardware* hardware) {
+static void Fps_Test_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_state = fps_state_idle;
     g_frame_count = 0;
@@ -98,7 +97,7 @@ void Fps_Test_Init(const Game_hardware* hardware) {
     draw_top_bar();
 }
 
-Game_result Fps_Test_Update(const Game_input* input) {
+static Game_result Fps_Test_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     const uint32_t now = Game_Runtime_Get_Tick_Ms();
@@ -140,4 +139,40 @@ Game_result Fps_Test_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Fps_Test_Get_Score(void) { return g_last_fps; }
+static uint32_t Fps_Test_Get_Score(void) { return g_last_fps; }
+
+static void fps_test_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    y += -2;
+    /* Screen outline */
+    Game_Graphics_Fill_Rect(lcd, x + 6, y + 2, 36, 30, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 4, 32, 26, 0x0000u);
+
+    /* Top bar */
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 4, 32, 5, 0x07ffu);
+    /* "FPS" text hint in top bar */
+    Game_Graphics_Draw_Text(lcd, x + 21, y + 4, "F", 1, 0x0000u);
+
+    /* Bottom bar */
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 25, 32, 5, 0xA514u);
+
+    /* Color bars in middle — simulate refresh cycling */
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 9, 8, 16, 0xf800u);
+    Game_Graphics_Fill_Rect(lcd, x + 16, y + 9, 8, 16, 0x07e0u);
+    Game_Graphics_Fill_Rect(lcd, x + 24, y + 9, 8, 16, 0x0010u);
+    Game_Graphics_Fill_Rect(lcd, x + 32, y + 9, 8, 16, 0xffe0u);
+}
+
+const Game_descriptor game_fps_test_entry = {
+    .draw_icon = fps_test_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "FPS TEST",
+    .id = game_id_fps_test,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nMeasure display frame speed.\nThe test runs a color workload.\n\nGOAL\nRead the "
+        "measured FPS result.\n\nCONTROLS\nA START OR RESTART\nB BACK",
+    .is_game = 0,
+    .init = Fps_Test_Init,
+    .update = Fps_Test_Update,
+    .get_score = Fps_Test_Get_Score,
+};

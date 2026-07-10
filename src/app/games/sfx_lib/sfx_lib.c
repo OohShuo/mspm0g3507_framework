@@ -1,10 +1,9 @@
-#include "sfx_lib.h"
-
 #include <stddef.h>
 
 #include "bsp_time.h"
 #include "buzzer.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH   240
 #define SCREEN_HEIGHT  320
@@ -181,7 +180,7 @@ static uint8_t move_cursor(Game_direction dir) {
  *  API
  * ══════════════════════════════════════════════════════════════════════ */
 
-void Sfx_Lib_Init(const Game_hardware* hardware) {
+static void Sfx_Lib_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     g_cursor = 0;
@@ -194,7 +193,7 @@ void Sfx_Lib_Init(const Game_hardware* hardware) {
     draw_full_page();
 }
 
-Game_result Sfx_Lib_Update(const Game_input* input) {
+static Game_result Sfx_Lib_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -253,4 +252,37 @@ Game_result Sfx_Lib_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Sfx_Lib_Get_Score(void) { return 0; }
+static uint32_t Sfx_Lib_Get_Score(void) { return 0; }
+
+static void sfx_lib_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 2;
+    /* Note head */
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 20, 12, 4, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 6, y + 22, 16, 5, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 27, 12, 4, 0xffffu);
+    /* Stem */
+    Game_Graphics_Fill_Rect(lcd, x + 18, y + 0, 4, 24, 0xffffu);
+    /* Flag */
+    Game_Graphics_Fill_Rect(lcd, x + 22, y + 0, 10, 3, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 22, y + 3, 7, 3, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 22, y + 6, 4, 3, 0x07ffu);
+    /* Sound lines from the note */
+    Game_Graphics_Fill_Rect(lcd, x + 2, y + 18, 4, 2, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 0, y + 22, 4, 2, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 2, y + 26, 4, 2, 0x07ffu);
+}
+
+const Game_descriptor game_sfx_lib_entry = {
+    .draw_icon = sfx_lib_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "SFX",
+    .id = game_id_sfx_lib,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nBrowse the sound effect library.\nPreview each built-in "
+        "sound.\n\nGOAL\nFind and test an effect.\n\nCONTROLS\nJOY SELECT\nA PLAY\nB BACK",
+    .is_game = 0,
+    .init = Sfx_Lib_Init,
+    .update = Sfx_Lib_Update,
+    .get_score = Sfx_Lib_Get_Score,
+};

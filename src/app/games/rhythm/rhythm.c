@@ -1,10 +1,9 @@
-#include "rhythm.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH   240
 #define SCREEN_HEIGHT  320
@@ -259,13 +258,13 @@ static void miss_note(uint8_t i) {
 
 static void finish_game(void) { g_state = rhythm_state_over; }
 
-void Rhythm_Init(const Game_hardware* hardware) {
+static void Rhythm_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Rhythm_Update(const Game_input* input) {
+static Game_result Rhythm_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -361,4 +360,32 @@ Game_result Rhythm_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Rhythm_Get_Score(void) { return g_score; }
+static uint32_t Rhythm_Get_Score(void) { return g_score; }
+
+static void rhythm_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 24;
+    y += 22;
+    /* Music note stem */
+    Game_Graphics_Fill_Rect(lcd, x + 18, y - 5, 3, 26, 0x07ffu);
+    /* Note head */
+    Game_Graphics_Fill_Rect(lcd, x + 3, y + 15, 18, 10, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 5, y + 23, 4, 4, 0x07ffu);
+    /* Beat bars */
+    Game_Graphics_Fill_Rect(lcd, x - 8, y + 21, 10, 3, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x - 2, y + 17, 10, 3, 0xffe0u);
+}
+
+const Game_descriptor game_rhythm_entry = {
+    .draw_icon = rhythm_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "RHYTHM",
+    .id = game_id_rhythm,
+    .control_hint = "A START",
+    .info_text =
+        "DESCRIPTION\nMatch arrows to falling notes.\nKeep your timing and combo.\n\nGOAL\nFinish with "
+        "the highest score.\n\nCONTROLS\nJOY MATCH ARROWS\nA START\nX/B PAUSE",
+    .is_game = 1,
+    .init = Rhythm_Init,
+    .update = Rhythm_Update,
+    .get_score = Rhythm_Get_Score,
+};

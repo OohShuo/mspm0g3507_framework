@@ -1,10 +1,9 @@
-#include "game_2048.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH   240
 #define SCREEN_HEIGHT  320
@@ -263,13 +262,13 @@ static void restart_game(void) {
     render_hud();
 }
 
-void Game_2048_Init(const Game_hardware* hardware) {
+static void Game_2048_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Game_2048_Update(const Game_input* input) {
+static Game_result Game_2048_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -312,4 +311,33 @@ Game_result Game_2048_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Game_2048_Get_Score(void) { return g_score; }
+static uint32_t Game_2048_Get_Score(void) { return g_score; }
+
+static void game_2048_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 6;
+    y += 4;
+    /* 4x4 mini grid */
+    for (int32_t r = 0; r < 4; r++) {
+        for (int32_t c = 0; c < 4; c++) {
+            Game_Graphics_Fill_Rect(lcd, x + 4 + c * 10, y + 6 + r * 10, 8, 8, 0xA514u);
+        }
+    }
+    /* "2048" tile highlight */
+    Game_Graphics_Fill_Rect(lcd, x + 24, y + 16, 8, 8, 0xffe0u);
+    Game_Graphics_Draw_Text(lcd, x + 2, y + 7, "2", 1, 0x07ffu);
+}
+
+const Game_descriptor game_game_2048_entry = {
+    .draw_icon = game_2048_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "2048",
+    .id = game_id_game_2048,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nSlide and merge matching tiles.\nEach move creates a new "
+        "tile.\n\nGOAL\nBuild the 2048 tile.\n\nCONTROLS\nJOY SLIDE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Game_2048_Init,
+    .update = Game_2048_Update,
+    .get_score = Game_2048_Get_Score,
+};

@@ -1,11 +1,10 @@
-#include "pacman.h"
-
 #include <stdint.h>
 #include <string.h>
 
 #include "bsp_time.h"
 #include "buzzer.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 #include "game_runtime.h"
 #include "st7789.h"
 
@@ -459,7 +458,7 @@ static Direction convert_direction(Game_direction direction) {
     return direction_none;
 }
 
-void Pacman_Init(const Game_hardware* hardware) {
+static void Pacman_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     g_lcd = hardware->lcd;
@@ -468,7 +467,7 @@ void Pacman_Init(const Game_hardware* hardware) {
     restart_game();
 }
 
-Game_result Pacman_Update(const Game_input* input) {
+static Game_result Pacman_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -499,4 +498,35 @@ Game_result Pacman_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Pacman_Get_Score(void) { return g_score; }
+static uint32_t Pacman_Get_Score(void) { return g_score; }
+
+static void pacman_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 24;
+    y += 22;
+    for (int32_t row = -18; row <= 18; row++) {
+        int32_t half_width = 0;
+        while ((half_width + 1) * (half_width + 1) + row * row <= 18 * 18) { half_width++; }
+
+        const int32_t abs_row = row < 0 ? -row : row;
+        int32_t right = half_width;
+        if (abs_row <= half_width) { right = abs_row - 1; }
+        if (right >= -half_width) {
+            Game_Graphics_Fill_Rect(lcd, x - half_width, y + row, right + half_width + 1, 1, 0xffe0u);
+        }
+    }
+}
+
+const Game_descriptor game_pacman_entry = {
+    .draw_icon = pacman_draw_icon,
+    .name_color = 0xffe0u,
+    .name = "PAC-MAN",
+    .id = game_id_pacman,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nClassic maze chase.\nEat dots while ghosts hunt you.\n\nGOAL\nClear the "
+        "maze and stay alive.\n\nCONTROLS\nJOY MOVE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Pacman_Init,
+    .update = Pacman_Update,
+    .get_score = Pacman_Get_Score,
+};

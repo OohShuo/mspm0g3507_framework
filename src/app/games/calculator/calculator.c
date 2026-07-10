@@ -1,8 +1,7 @@
-#include "calculator.h"
-
 #include <string.h>
 
 #include "game_graphics.h"
+#include "game_registry.h"
 
 /* ── Layout ── */
 #define SCREEN_WIDTH  240
@@ -346,7 +345,7 @@ static uint8_t press_button(uint8_t row, uint8_t col) {
 }
 
 /* ── Public API ── */
-void Calc_Init(const Game_hardware* hardware) {
+static void Calc_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_vib_motor = hardware->vib_motor;
     g_expr_len = 0;
@@ -359,7 +358,7 @@ void Calc_Init(const Game_hardware* hardware) {
     render_all();
 }
 
-Game_result Calc_Update(const Game_input* input) {
+static Game_result Calc_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     uint8_t cursor_changed = 0;
@@ -401,4 +400,39 @@ Game_result Calc_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Calc_Get_Score(void) { return 0; }
+static uint32_t Calc_Get_Score(void) { return 0; }
+
+static void calculator_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    y += -2;
+    /* Calculator body */
+    Game_Graphics_Fill_Rect(lcd, x + 6, y + 4, 36, 30, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 6, 32, 26, 0x0000u);
+
+    /* Display bar */
+    Game_Graphics_Fill_Rect(lcd, x + 10, y + 8, 28, 6, 0x2104u);
+
+    /* Button grid: 4 cols × 3 rows */
+    for (int32_t r = 0; r < 3; r++) {
+        for (int32_t c = 0; c < 4; c++) {
+            Game_Graphics_Fill_Rect(lcd, x + 10 + c * 7, y + 16 + r * 5, 5, 3, 0x3186u);
+        }
+    }
+
+    /* Highlighted "=" button area */
+    Game_Graphics_Fill_Rect(lcd, x + 24, y + 26, 5, 3, 0x07ffu);
+}
+
+const Game_descriptor game_calculator_entry = {
+    .draw_icon = calculator_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "CALC",
+    .id = game_id_calculator,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nA compact four-function tool.\nEnter numbers and operators.\n\nGOAL\nCalculate a "
+        "numeric result.\n\nCONTROLS\nJOY MOVE CURSOR\nA PRESS KEY\nB BACK",
+    .is_game = 0,
+    .init = Calc_Init,
+    .update = Calc_Update,
+    .get_score = Calc_Get_Score,
+};

@@ -5,62 +5,21 @@
 #include "game_runtime.h"
 
 typedef enum {
-    game_icon_pacman,
-    game_icon_snake,
-    game_icon_racing,
-    game_icon_tank,
-    game_icon_air,
-    game_icon_tetris,
-    game_icon_breakout,
-    game_icon_pong,
-    game_icon_gomoku,
-    game_icon_2048,
-    game_icon_dino,
-    game_icon_flappy,
-    game_icon_maze,
-    game_icon_needle,
-    game_icon_calculator,
-    game_icon_fps_test,
-    game_icon_info,
-    game_icon_sfx_lib,
-    game_icon_volume_control,
-    game_icon_dodge_box,
-    game_icon_rhythm,
-    game_icon_bad_apple,
-} Game_icon;
-
-typedef enum {
-    game_id_pacman,
-    game_id_snake,
-    game_id_racing,
-    game_id_tank,
-    game_id_air,
-    game_id_tetris,
-    game_id_breakout,
-    game_id_pong,
-    game_id_gomoku,
-    game_id_2048,
-    game_id_dino,
-    game_id_flappy,
-    game_id_maze,
-    game_id_needle,
-    game_id_calculator,
-    game_id_fps_test,
-    game_id_info,
-    game_id_sfx_lib,
-    game_id_volume_control,
-    game_id_dodge_box,
-    game_id_rhythm,
-    game_id_bad_apple,
+#define game_entry(name) game_id_##name,
+#include "game_entries.inc"
+#undef game_entry
     game_id_count,
 } Game_id;
 
+typedef void (*Game_draw_icon)(St7789* lcd, int32_t x, int32_t y);
+
 typedef struct {
     const char* name;
-    Game_icon icon;
     Game_id id;
     const char* control_hint;
     const char* info_text;
+    Game_draw_icon draw_icon;
+    uint16_t name_color;
     void (*init)(const Game_hardware* hardware);
     Game_result (*update)(const Game_input* input);
     uint32_t (*get_score)(void);

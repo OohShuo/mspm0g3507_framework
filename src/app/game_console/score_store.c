@@ -10,10 +10,9 @@
 
 #include "rtt_log.h"
 
-#define SCORE_STORE_MAGIC     0x53434f52u
-#define SCORE_STORE_VERSION   3u
-#define SCORE_STORE_MAX_GAMES 24u
-#define SCORE_STORE_PATH      "/scores.bin"
+#define SCORE_STORE_MAGIC   0x53434f52u
+#define SCORE_STORE_VERSION 4u
+#define SCORE_STORE_PATH    "/scores.bin"
 
 typedef struct {
     uint32_t magic;
@@ -35,6 +34,53 @@ typedef struct {
 static Score_file g_scores;
 static uint8_t g_available = 0;
 static uint8_t g_dirty = 0;
+
+uint8_t Score_Store_Map_Legacy_Id(uint8_t legacy_id) {
+    static const uint8_t legacy_to_current[] = {
+        0u,
+        1u,
+        0xffu,
+        2u,
+        3u,
+        4u,
+        5u,
+        6u,
+        7u,
+        8u,
+        9u,
+        10u,
+        11u,
+        12u,
+        16u,
+        17u,
+        20u,
+        15u,
+        18u,
+        13u,
+        14u,
+        19u,
+    };
+    return legacy_id < sizeof(legacy_to_current) ? legacy_to_current[legacy_id] : 0xffu;
+}
+
+void Score_Store_Migrate_Legacy_Entries(uint8_t legacy_game_count,
+    const uint8_t legacy_entry_count[SCORE_STORE_MAX_GAMES],
+    const Score_entry legacy_entries[SCORE_STORE_MAX_GAMES][SCORE_STORE_TOP_COUNT],
+    uint8_t current_game_count, uint8_t current_entry_count[SCORE_STORE_MAX_GAMES],
+    Score_entry current_entries[SCORE_STORE_MAX_GAMES][SCORE_STORE_TOP_COUNT]) {
+    memset(current_entry_count, 0, SCORE_STORE_MAX_GAMES * sizeof(current_entry_count[0]));
+    memset(current_entries, 0, SCORE_STORE_MAX_GAMES * sizeof(current_entries[0]));
+    if (legacy_game_count > SCORE_STORE_MAX_GAMES) { legacy_game_count = SCORE_STORE_MAX_GAMES; }
+    if (current_game_count > SCORE_STORE_MAX_GAMES) { current_game_count = SCORE_STORE_MAX_GAMES; }
+    for (uint8_t old_id = 0; old_id < legacy_game_count; old_id++) {
+        const uint8_t new_id = Score_Store_Map_Legacy_Id(old_id);
+        if (new_id == 0xffu || new_id >= current_game_count) { continue; }
+        uint8_t count = legacy_entry_count[old_id];
+        if (count > SCORE_STORE_TOP_COUNT) { count = SCORE_STORE_TOP_COUNT; }
+        current_entry_count[new_id] = count;
+        memcpy(current_entries[new_id], legacy_entries[old_id], count * sizeof(Score_entry));
+    }
+}
 
 static void reset_scores(uint8_t game_count) {
     memset(&g_scores, 0, sizeof(g_scores));
@@ -65,14 +111,16 @@ static uint32_t calculate_v1_checksum(const Score_file_v1* file) {
 
 static void migrate_v1(const Score_file_v1* old_file, uint8_t game_count) {
     reset_scores(game_count);
-    const uint8_t copy_count = old_file->game_count < game_count ? (uint8_t)old_file->game_count : game_count;
-    for (uint8_t game = 0; game < copy_count; game++) {
-        if (old_file->scores[game] == 0) { continue; }
-        Score_entry* entry = &g_scores.entries[game][0];
+    const uint8_t copy_count =
+        old_file->game_count < SCORE_STORE_MAX_GAMES ? (uint8_t)old_file->game_count : SCORE_STORE_MAX_GAMES;
+    for (uint8_t old_id = 0; old_id < copy_count; old_id++) {
+        const uint8_t new_id = Score_Store_Map_Legacy_Id(old_id);
+        if (new_id == 0xffu || new_id >= game_count || old_file->scores[old_id] == 0) { continue; }
+        Score_entry* entry = &g_scores.entries[new_id][0];
         memcpy(entry->name, "LEGACY", SCORE_STORE_NAME_LENGTH);
         entry->name[SCORE_STORE_NAME_LENGTH] = '\0';
-        entry->score = old_file->scores[game];
-        g_scores.entry_count[game] = 1;
+        entry->score = old_file->scores[old_id];
+        g_scores.entry_count[new_id] = 1;
     }
     g_dirty = 1;
 }
@@ -92,7 +140,20 @@ static uint8_t load_scores(uint8_t game_count) {
     lfs_ssize_t read_size = -1;
     uint8_t migrated = 0;
     if (file_size == (lfs_soff_t)sizeof(Score_file)) {
-        read_size = lfs_file_read(lfs, &file, &g_scores, sizeof(g_scores));
+        Score_file loaded;
+        read_size = lfs_file_read(lfs, &file, &loaded, sizeof(loaded));
+        if (read_size == sizeof(loaded) && loaded.magic == SCORE_STORE_MAGIC &&
+            loaded.game_count <= SCORE_STORE_MAX_GAMES && loaded.checksum == calculate_checksum(&loaded)) {
+            if (loaded.version == SCORE_STORE_VERSION) {
+                g_scores = loaded;
+            } else if (loaded.version == 3u) {
+                reset_scores(game_count);
+                Score_Store_Migrate_Legacy_Entries(loaded.game_count, loaded.entry_count, loaded.entries,
+                    game_count, g_scores.entry_count, g_scores.entries);
+                g_dirty = 1;
+                migrated = 1;
+            }
+        }
     } else if (file_size == (lfs_soff_t)sizeof(Score_file_v1)) {
         Score_file_v1 old_file;
         read_size = lfs_file_read(lfs, &file, &old_file, sizeof(old_file));

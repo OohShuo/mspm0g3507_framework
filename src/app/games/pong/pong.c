@@ -1,10 +1,9 @@
-#include "pong.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH    240
 #define SCREEN_HEIGHT   320
@@ -143,13 +142,13 @@ static void restart_game(void) {
     render_full();
 }
 
-void Pong_Init(const Game_hardware* hardware) {
+static void Pong_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Pong_Update(const Game_input* input) {
+static Game_result Pong_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -298,4 +297,32 @@ Game_result Pong_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Pong_Get_Score(void) { return (uint32_t)(g_player_score * 100u); }
+static uint32_t Pong_Get_Score(void) { return (uint32_t)(g_player_score * 100u); }
+
+static void pong_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 2;
+    y += 3;
+    /* Left paddle */
+    Game_Graphics_Fill_Rect(lcd, x + 3, y + 9, 4, 20, 0x07e0u);
+    /* Right paddle */
+    Game_Graphics_Fill_Rect(lcd, x + 41, y + 9, 4, 20, 0xf800u);
+    /* Center line */
+    for (int32_t i = 0; i < 5; i++) { Game_Graphics_Fill_Rect(lcd, x + 23, y + 4 + i * 6, 2, 3, 0xA514u); }
+    /* Ball */
+    Game_Graphics_Fill_Rect(lcd, x + 17, y + 16, 5, 5, 0xffffu);
+}
+
+const Game_descriptor game_pong_entry = {
+    .draw_icon = pong_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "PONG",
+    .id = game_id_pong,
+    .control_hint = "A SERVE",
+    .info_text =
+        "DESCRIPTION\nClassic paddle duel against AI.\nReturn the ball past your rival.\n\nGOAL\nReach "
+        "the winning score first.\n\nCONTROLS\nJOY MOVE PADDLE\nA SERVE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Pong_Init,
+    .update = Pong_Update,
+    .get_score = Pong_Get_Score,
+};

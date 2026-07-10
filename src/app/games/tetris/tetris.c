@@ -1,10 +1,9 @@
-#include "tetris.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH     240
 #define SCREEN_HEIGHT    320
@@ -305,13 +304,13 @@ static void settle_piece(void) {
     }
 }
 
-void Tetris_Init(const Game_hardware* hardware) {
+static void Tetris_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Tetris_Update(const Game_input* input) {
+static Game_result Tetris_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -445,4 +444,35 @@ Game_result Tetris_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Tetris_Get_Score(void) { return g_score; }
+static uint32_t Tetris_Get_Score(void) { return g_score; }
+
+static void tetris_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 4;
+    y += 4;
+    static const uint16_t tetris_colors[] = {0x07ffu, 0xffe0u, 0x8010u, 0x07e0u};
+    /* Draw a T-tetromino */
+    Game_Graphics_Fill_Rect(lcd, x + 10, y + 8, 9, 9, tetris_colors[0]);
+    Game_Graphics_Fill_Rect(lcd, x + 19, y + 8, 9, 9, tetris_colors[1]);
+    Game_Graphics_Fill_Rect(lcd, x + 28, y + 8, 9, 9, tetris_colors[2]);
+    Game_Graphics_Fill_Rect(lcd, x + 19, y + 17, 9, 9, tetris_colors[3]);
+    /* Inner highlights */
+    Game_Graphics_Fill_Rect(lcd, x + 11, y + 9, 4, 4, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 20, y + 9, 4, 4, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 29, y + 9, 4, 4, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 20, y + 18, 4, 4, 0xffffu);
+}
+
+const Game_descriptor game_tetris_entry = {
+    .draw_icon = tetris_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "TETRIS",
+    .id = game_id_tetris,
+    .control_hint = "A ROTATE Y DROP",
+    .info_text =
+        "DESCRIPTION\nStack seven kinds of blocks.\nComplete rows to clear them.\n\nGOAL\nClear lines "
+        "and score high.\n\nCONTROLS\nJOY MOVE\nJOY DOWN SOFT DROP\nA ROTATE\nY HARD DROP\nX/B PAUSE",
+    .is_game = 1,
+    .init = Tetris_Init,
+    .update = Tetris_Update,
+    .get_score = Tetris_Get_Score,
+};

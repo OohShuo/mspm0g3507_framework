@@ -49,6 +49,7 @@ xTaskCreate(task_feedback, "Feedback_Task", 128, NULL, 1, &task_feedback_handle)
 - 维护菜单、游戏信息页、游戏运行、暂停、结束菜单等状态。
 - 统一处理 X/B 暂停、A 确认、B 返回等交互。
 - 调用当前游戏的 `init/update/get_score` 接口，并根据 `Game_result` 分发继续运行、退出菜单或胜负结算流程。
+- 游戏/工具描述符由 `game_entries.inc` 的顺序生成；控制台通过统一的 `draw_icon` 回调绘制菜单，不包含条目专用图标分支。
 - 维护 FPS 显示和 30 秒无操作屏保。
 
 ## VM 中的 FreeRTOS stub

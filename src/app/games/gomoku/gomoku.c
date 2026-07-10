@@ -1,10 +1,9 @@
-#include "gomoku.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH    240
 #define SCREEN_HEIGHT   320
@@ -304,13 +303,13 @@ static void restart_game(void) {
     draw_cursor_at(g_cursor_x, g_cursor_y);
 }
 
-void Gomoku_Init(const Game_hardware* hardware) {
+static void Gomoku_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Gomoku_Update(const Game_input* input) {
+static Game_result Gomoku_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -414,4 +413,43 @@ Game_result Gomoku_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Gomoku_Get_Score(void) { return g_score; }
+static uint32_t Gomoku_Get_Score(void) { return g_score; }
+
+static void gomoku_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 4;
+    y += 2;
+    /* Mini board grid */
+    for (int32_t i = 0; i < 4; i++) {
+        Game_Graphics_Fill_Rect(lcd, x + 6 + i * 12, y + 4, 1, 36, 0xA514u);
+        Game_Graphics_Fill_Rect(lcd, x + 4, y + 6 + i * 12, 36, 1, 0xA514u);
+    }
+    /* Black stone */
+    for (int32_t dy = -4; dy <= 4; dy++) {
+        for (int32_t dx = -4; dx <= 4; dx++) {
+            if (dx * dx + dy * dy > 16) { continue; }
+            Game_Graphics_Fill_Rect(lcd, x + 18 + dx, y + 16 + dy, 1, 1, 0x0000u);
+        }
+    }
+    /* White stone */
+    for (int32_t dy = -4; dy <= 4; dy++) {
+        for (int32_t dx = -4; dx <= 4; dx++) {
+            if (dx * dx + dy * dy > 16) { continue; }
+            Game_Graphics_Fill_Rect(lcd, x + 30 + dx, y + 28 + dy, 1, 1, 0xffffu);
+        }
+    }
+}
+
+const Game_descriptor game_gomoku_entry = {
+    .draw_icon = gomoku_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "GOMOKU",
+    .id = game_id_gomoku,
+    .control_hint = "A PLACE",
+    .info_text =
+        "DESCRIPTION\nPlay Gomoku against the CPU.\nBuild a line on the board.\n\nGOAL\nConnect "
+        "five stones first.\n\nCONTROLS\nJOY MOVE CURSOR\nA PLACE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Gomoku_Init,
+    .update = Gomoku_Update,
+    .get_score = Gomoku_Get_Score,
+};

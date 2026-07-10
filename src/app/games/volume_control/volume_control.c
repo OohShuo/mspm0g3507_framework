@@ -1,8 +1,7 @@
-#include "volume_control.h"
-
 #include <stddef.h>
 
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -129,7 +128,7 @@ static void render_screen(void) {
 }
 
 /* ── Game lifecycle ── */
-void Volume_Control_Init(const Game_hardware* hardware) {
+static void Volume_Control_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_buzzer = hardware->buzzer;
     g_vib_motor = hardware->vib_motor;
@@ -137,7 +136,7 @@ void Volume_Control_Init(const Game_hardware* hardware) {
     render_screen();
 }
 
-Game_result Volume_Control_Update(const Game_input* input) {
+static Game_result Volume_Control_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     /* mute toggle on button press */
@@ -183,4 +182,44 @@ Game_result Volume_Control_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Volume_Control_Get_Score(void) { return 0; }
+static uint32_t Volume_Control_Get_Score(void) { return 0; }
+
+static void volume_control_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 2;
+    /* Speaker body */
+    Game_Graphics_Fill_Rect(lcd, x + 4, y + 10, 8, 16, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 12, y + 6, 4, 24, 0xffffu);
+    /* Cone */
+    Game_Graphics_Fill_Rect(lcd, x + 4, y + 7, 10, 22, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, x + 6, y + 10, 6, 16, 0xffffu);
+    /* Sound waves */
+    Game_Graphics_Fill_Rect(lcd, x + 20, y + 12, 4, 12, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 28, y + 8, 4, 20, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 36, y + 4, 4, 28, 0x07ffu);
+    /* Wave gaps (black notches) */
+    Game_Graphics_Fill_Rect(lcd, x + 20, y + 16, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 20, y + 18, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 28, y + 12, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 28, y + 15, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 28, y + 18, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 36, y + 8, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 36, y + 12, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 36, y + 16, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 36, y + 20, 4, 1, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 36, y + 24, 4, 1, 0x0000u);
+}
+
+const Game_descriptor game_volume_control_entry = {
+    .draw_icon = volume_control_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "VOLUME",
+    .id = game_id_volume_control,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nAdjust the console sound level.\nChanges apply immediately.\n\nGOAL\nChoose a "
+        "comfortable volume.\n\nCONTROLS\nJOY ADJUST\nA MUTE OR UNMUTE\nB BACK",
+    .is_game = 0,
+    .init = Volume_Control_Init,
+    .update = Volume_Control_Update,
+    .get_score = Volume_Control_Get_Score,
+};

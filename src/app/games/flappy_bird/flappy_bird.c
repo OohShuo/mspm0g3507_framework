@@ -1,10 +1,9 @@
-#include "flappy_bird.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH      240
 #define SCREEN_HEIGHT     320
@@ -234,7 +233,7 @@ static void restart_game(void) {
     update_glide_status(Game_Runtime_Get_Tick_Ms());
 }
 
-void Flappy_Bird_Init(const Game_hardware* hardware) {
+static void Flappy_Bird_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -242,7 +241,7 @@ void Flappy_Bird_Init(const Game_hardware* hardware) {
 
 /* ── Update ── */
 
-Game_result Flappy_Bird_Update(const Game_input* input) {
+static Game_result Flappy_Bird_Update(const Game_input* input) {
     uint8_t flapped = 0;
     uint8_t scored = 0;
     if (input == NULL) { return game_result_running; }
@@ -393,4 +392,40 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Flappy_Bird_Get_Score(void) { return g_score; }
+static uint32_t Flappy_Bird_Get_Score(void) { return g_score; }
+
+static void flappy_bird_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 0;
+    y += 1;
+    /* Ground */
+    Game_Graphics_Fill_Rect(lcd, x + 2, y + 34, 44, 2, 0xA514u);
+    /* Bird body */
+    Game_Graphics_Fill_Rect(lcd, x + 14, y + 14, 10, 8, 0xffe0u);
+    /* Beak */
+    Game_Graphics_Fill_Rect(lcd, x + 24, y + 16, 4, 2, 0xf800u);
+    /* Eye */
+    Game_Graphics_Fill_Rect(lcd, x + 22, y + 14, 2, 2, 0xffffu);
+    /* Wing */
+    Game_Graphics_Fill_Rect(lcd, x + 12, y + 16, 4, 3, 0xA514u);
+    /* Top pipe */
+    Game_Graphics_Fill_Rect(lcd, x + 4, y + 2, 10, 10, 0x07e0u);
+    Game_Graphics_Fill_Rect(lcd, x + 2, y + 9, 14, 3, 0x07e0u);
+    /* Bottom pipe */
+    Game_Graphics_Fill_Rect(lcd, x + 34, y + 20, 10, 14, 0x07e0u);
+    Game_Graphics_Fill_Rect(lcd, x + 32, y + 20, 14, 3, 0x07e0u);
+}
+
+const Game_descriptor game_flappy_bird_entry = {
+    .draw_icon = flappy_bird_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "FLAPPY",
+    .id = game_id_flappy_bird,
+    .control_hint = "A FLAP Y GLIDE",
+    .info_text =
+        "DESCRIPTION\nFly between narrow pipe gaps.\nGlide briefly when ready.\n\nGOAL\nPass as "
+        "many pipes as possible.\n\nCONTROLS\nA FLAP\nY GLIDE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Flappy_Bird_Init,
+    .update = Flappy_Bird_Update,
+    .get_score = Flappy_Bird_Get_Score,
+};

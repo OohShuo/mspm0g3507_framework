@@ -1,5 +1,3 @@
-#include "bad_apple.h"
-
 #include <stddef.h>
 #include <string.h>
 
@@ -7,6 +5,7 @@
 #include "bsp_time.h"
 #include "buzzer.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 #include "st7789.h"
 
 #if FRAMEWORK_USE_LFS
@@ -127,7 +126,7 @@ static void tune_update(void) {
 
 #endif /* FRAMEWORK_USE_LFS */
 
-void Bad_Apple_Init(const Game_hardware* hardware) {
+static void Bad_Apple_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_buzzer = hardware->buzzer;
 
@@ -162,7 +161,7 @@ void Bad_Apple_Init(const Game_hardware* hardware) {
 #endif
 }
 
-Game_result Bad_Apple_Update(const Game_input* input) {
+static Game_result Bad_Apple_Update(const Game_input* input) {
     if (input->back_requested) {
         Badapple_Video_Stop();
 #if FRAMEWORK_USE_LFS
@@ -180,4 +179,44 @@ Game_result Bad_Apple_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Bad_Apple_Get_Score(void) { return 0; }
+static uint32_t Bad_Apple_Get_Score(void) { return 0; }
+
+static void bad_apple_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 24;
+    y += 22;
+    /* White background */
+    Game_Graphics_Fill_Rect(lcd, x - 16, y - 17, 32, 36, 0xffffu);
+
+    /* Stem */
+    Game_Graphics_Fill_Rect(lcd, x - 1, y - 15, 3, 7, 0x0000u);
+
+    /* Apple body: two top lobes */
+    Game_Graphics_Fill_Rect(lcd, x - 10, y - 11, 9, 3, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x + 2, y - 11, 10, 3, 0x0000u);
+
+    /* Apple body: main silhouette */
+    Game_Graphics_Fill_Rect(lcd, x - 13, y - 8, 27, 4, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x - 15, y - 4, 31, 5, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x - 15, y + 1, 31, 5, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x - 14, y + 6, 29, 4, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x - 12, y + 10, 25, 4, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x - 9, y + 14, 19, 3, 0x0000u);
+
+    /* Top notch */
+    Game_Graphics_Fill_Rect(lcd, x - 1, y - 11, 3, 3, 0xffffu);
+}
+
+const Game_descriptor game_bad_apple_entry = {
+    .draw_icon = bad_apple_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "?",
+    .id = game_id_bad_apple,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nBad Apple shadow art video.\nBlack-and-white animation.\n\n"
+        "CONTROLS\nB BACK",
+    .is_game = 0,
+    .init = Bad_Apple_Init,
+    .update = Bad_Apple_Update,
+    .get_score = Bad_Apple_Get_Score,
+};

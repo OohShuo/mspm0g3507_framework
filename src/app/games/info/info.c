@@ -1,9 +1,8 @@
-#include "info.h"
-
 #include <string.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 #include "global_config.h"
 #include "info_image_hitsz.h"
 #include "info_image_morrow.h"
@@ -211,7 +210,7 @@ static void render_easter_egg(void) {
     Storage_Unlock();
 }
 
-void Info_Init(const Game_hardware* hardware) {
+static void Info_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_vib_motor = hardware->vib_motor;
     g_current_page = 0;
@@ -221,7 +220,7 @@ void Info_Init(const Game_hardware* hardware) {
     draw_version_text();
 }
 
-Game_result Info_Update(const Game_input* input) {
+static Game_result Info_Update(const Game_input* input) {
     /* ── Easter egg state: B returns to normal info ── */
     if (g_is_easter_egg) {
         if (input->back_requested) {
@@ -269,4 +268,35 @@ Game_result Info_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Info_Get_Score(void) { return 0; }
+static uint32_t Info_Get_Score(void) { return 0; }
+
+static void info_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    y += -2;
+    /* Circle */
+    const int32_t cx = x + 22;
+    const int32_t cy = y + 18;
+    for (int32_t row = -16; row <= 16; row++) {
+        int32_t half = 0;
+        while ((half + 1) * (half + 1) + row * row <= 16 * 16) { half++; }
+        Game_Graphics_Fill_Rect(lcd, cx - half, cy + row, half * 2 + 1, 1, 0x07ffu);
+    }
+    /* "i" dot */
+    Game_Graphics_Fill_Rect(lcd, cx - 2, cy - 7, 4, 4, 0xffffu);
+    /* "i" stem */
+    Game_Graphics_Fill_Rect(lcd, cx - 2, cy + 1, 4, 10, 0xffffu);
+}
+
+const Game_descriptor game_info_entry = {
+    .draw_icon = info_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "INFO",
+    .id = game_id_info,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nView project and team pages.\nBrowse the built-in gallery.\n\nGOAL\nRead "
+        "each information page.\n\nCONTROLS\nJOY LEFT OR RIGHT\nB BACK",
+    .is_game = 0,
+    .init = Info_Init,
+    .update = Info_Update,
+    .get_score = Info_Get_Score,
+};

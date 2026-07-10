@@ -1,10 +1,9 @@
-#include "dino_runner.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH       240
 #define SCREEN_HEIGHT      320
@@ -306,7 +305,7 @@ static void restart_game(void) {
     Game_Graphics_Draw_Text(g_hardware.lcd, 58, 140, "A TO START", 1, COLOR_WHITE);
 }
 
-void Dino_Runner_Init(const Game_hardware* hardware) {
+static void Dino_Runner_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -314,7 +313,7 @@ void Dino_Runner_Init(const Game_hardware* hardware) {
 
 /* ── Update ── */
 
-Game_result Dino_Runner_Update(const Game_input* input) {
+static Game_result Dino_Runner_Update(const Game_input* input) {
     uint8_t jumped = 0;
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
@@ -410,4 +409,38 @@ Game_result Dino_Runner_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Dino_Runner_Get_Score(void) { return g_score; }
+static uint32_t Dino_Runner_Get_Score(void) { return g_score; }
+
+static void dino_runner_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 0;
+    y += 1;
+    /* Ground line */
+    Game_Graphics_Fill_Rect(lcd, x + 2, y + 32, 44, 3, 0xA514u);
+    /* Back leg */
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 22, 4, 10, 0x07e0u);
+    /* Front leg */
+    Game_Graphics_Fill_Rect(lcd, x + 22, y + 22, 4, 10, 0x07e0u);
+    /* Body */
+    Game_Graphics_Fill_Rect(lcd, x + 10, y + 12, 16, 12, 0x07e0u);
+    /* Head */
+    Game_Graphics_Fill_Rect(lcd, x + 22, y + 4, 16, 12, 0x07e0u);
+    /* Eye */
+    Game_Graphics_Fill_Rect(lcd, x + 32, y + 6, 3, 3, 0xffffu);
+    /* Tail */
+    Game_Graphics_Fill_Rect(lcd, x + 4, y + 16, 8, 4, 0x07e0u);
+}
+
+const Game_descriptor game_dino_runner_entry = {
+    .draw_icon = dino_runner_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "DINO",
+    .id = game_id_dino_runner,
+    .control_hint = "A JUMP Y DUCK",
+    .info_text =
+        "DESCRIPTION\nRun through an endless desert.\nDodge ground and air hazards.\n\nGOAL\nSurvive and "
+        "travel farther.\n\nCONTROLS\nA JUMP\nY DUCK OR FAST DROP\nX/B PAUSE",
+    .is_game = 1,
+    .init = Dino_Runner_Init,
+    .update = Dino_Runner_Update,
+    .get_score = Dino_Runner_Get_Score,
+};

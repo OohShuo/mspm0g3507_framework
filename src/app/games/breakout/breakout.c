@@ -1,10 +1,9 @@
-#include "breakout.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH    240
 #define SCREEN_HEIGHT   320
@@ -175,13 +174,13 @@ static void restart_game(void) {
     render_full();
 }
 
-void Breakout_Init(const Game_hardware* hardware) {
+static void Breakout_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Breakout_Update(const Game_input* input) {
+static Game_result Breakout_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -300,4 +299,35 @@ Game_result Breakout_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Breakout_Get_Score(void) { return g_score; }
+static uint32_t Breakout_Get_Score(void) { return g_score; }
+
+static void breakout_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 6;
+    y += 4;
+    /* Paddle */
+    Game_Graphics_Fill_Rect(lcd, x + 8, y + 30, 32, 6, 0x07e0u);
+    /* Ball */
+    Game_Graphics_Fill_Rect(lcd, x + 26, y + 24, 5, 5, 0xffffu);
+    /* Bricks */
+    for (int32_t r = 0; r < 3; r++) {
+        const uint16_t color = r == 0 ? 0xf800u : (r == 1 ? 0xffe0u : 0x07ffu);
+        for (int32_t c = 0; c < 5; c++) {
+            Game_Graphics_Fill_Rect(lcd, x + 3 + c * 9, y + 2 + r * 6, 7, 4, color);
+        }
+    }
+}
+
+const Game_descriptor game_breakout_entry = {
+    .draw_icon = breakout_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "BREAKOUT",
+    .id = game_id_breakout,
+    .control_hint = "A LAUNCH",
+    .info_text =
+        "DESCRIPTION\nBounce the ball with a paddle.\nBreak every brick above.\n\nGOAL\nClear "
+        "the wall without a miss.\n\nCONTROLS\nJOY MOVE PADDLE\nA LAUNCH\nX/B PAUSE",
+    .is_game = 1,
+    .init = Breakout_Init,
+    .update = Breakout_Update,
+    .get_score = Breakout_Get_Score,
+};

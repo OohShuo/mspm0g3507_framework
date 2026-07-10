@@ -1,11 +1,10 @@
-#include "dodge_box.h"
-
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH           240
 #define SCREEN_HEIGHT          320
@@ -1496,7 +1495,7 @@ static void reset_game(void) {
     draw_player(COLOR_WHITE);
 }
 
-void Dodge_Box_Init(const Game_hardware* hardware) {
+static void Dodge_Box_Init(const Game_hardware* hardware) {
     g_lcd = hardware->lcd;
     g_vib_motor = hardware->vib_motor;
     reset_game();
@@ -1515,7 +1514,7 @@ static void move_player(const Game_input* input, uint32_t dt_ms) {
     if (g_player_y256 > (ARENA_H - PLAYER_SIZE) * 256) { g_player_y256 = (ARENA_H - PLAYER_SIZE) * 256; }
 }
 
-Game_result Dodge_Box_Update(const Game_input* input) {
+static Game_result Dodge_Box_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -1556,4 +1555,39 @@ Game_result Dodge_Box_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Dodge_Box_Get_Score(void) { return g_survive_ms / 100u; }
+static uint32_t Dodge_Box_Get_Score(void) { return g_survive_ms / 100u; }
+
+static void dodge_box_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 24;
+    y += 22;
+    /* Arena border — the "box" */
+    Game_Graphics_Fill_Rect(lcd, x - 14, y - 11, 28, 22, 0x0000u);
+    Game_Graphics_Fill_Rect(lcd, x - 15, y - 12, 30, 1, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x - 15, y + 11, 30, 1, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x - 15, y - 12, 1, 24, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 14, y - 12, 1, 24, 0xffffu);
+
+    /* Player square in center */
+    Game_Graphics_Fill_Rect(lcd, x - 2, y - 2, 5, 5, 0xffffu);
+
+    /* Incoming laser warning — horizontal line above player */
+    Game_Graphics_Fill_Rect(lcd, x - 12, y - 7, 24, 1, 0xf800u);
+
+    /* Incoming rect attack — small block on the right */
+    Game_Graphics_Fill_Rect(lcd, x + 7, y + 3, 5, 5, 0xf800u);
+}
+
+const Game_descriptor game_dodge_box_entry = {
+    .draw_icon = dodge_box_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "DODGE",
+    .id = game_id_dodge_box,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nMove inside a hostile arena.\nPatterns become more "
+        "dangerous.\n\nGOAL\nSurvive every attack pattern.\n\nCONTROLS\nJOY MOVE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Dodge_Box_Init,
+    .update = Dodge_Box_Update,
+    .get_score = Dodge_Box_Get_Score,
+};

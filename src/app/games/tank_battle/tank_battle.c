@@ -1,11 +1,10 @@
-#include "tank_battle.h"
-
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH      240
 #define SCREEN_HEIGHT     320
@@ -547,13 +546,13 @@ static void update_enemies(void) {
     }
 }
 
-void Tank_Battle_Init(const Game_hardware* hardware) {
+static void Tank_Battle_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Tank_Battle_Update(const Game_input* input) {
+static Game_result Tank_Battle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -597,4 +596,29 @@ Game_result Tank_Battle_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Tank_Battle_Get_Score(void) { return g_score; }
+static uint32_t Tank_Battle_Get_Score(void) { return g_score; }
+
+static void tank_battle_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 2;
+    y += 2;
+    Game_Graphics_Fill_Rect(lcd, x + 2, y + 5, 8, 28, 0x07e0u);
+    Game_Graphics_Fill_Rect(lcd, x + 34, y + 5, 8, 28, 0x07e0u);
+    Game_Graphics_Fill_Rect(lcd, x + 10, y + 9, 24, 20, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, x + 17, y + 12, 10, 10, 0x07e0u);
+    Game_Graphics_Fill_Rect(lcd, x + 21, y, 3, 15, 0x07e0u);
+}
+
+const Game_descriptor game_tank_battle_entry = {
+    .draw_icon = tank_battle_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "TANK",
+    .id = game_id_tank_battle,
+    .control_hint = "A FIRE",
+    .info_text =
+        "DESCRIPTION\nTop-down tank combat.\nEnemy tanks patrol the field.\n\nGOAL\nDestroy all "
+        "enemies and survive.\n\nCONTROLS\nJOY MOVE AND AIM\nA FIRE\nX/B PAUSE",
+    .is_game = 1,
+    .init = Tank_Battle_Init,
+    .update = Tank_Battle_Update,
+    .get_score = Tank_Battle_Get_Score,
+};

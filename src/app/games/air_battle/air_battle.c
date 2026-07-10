@@ -1,5 +1,3 @@
-#include "air_battle.h"
-
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -7,6 +5,7 @@
 #include "air_assets.h"
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 #include "image_asset.h"
 
 #define SCREEN_WIDTH                 240
@@ -780,14 +779,14 @@ static void restart_game(void) {
     render_full();
 }
 
-void Air_Battle_Init(const Game_hardware* hardware) {
+static void Air_Battle_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     g_line_buffer = Game_Graphics_Get_Line_Buffer();
     restart_game();
 }
 
-Game_result Air_Battle_Update(const Game_input* input) {
+static Game_result Air_Battle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) {
         Image_Asset_Close(&g_external_background);
@@ -828,4 +827,29 @@ Game_result Air_Battle_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Air_Battle_Get_Score(void) { return g_score; }
+static uint32_t Air_Battle_Get_Score(void) { return g_score; }
+
+static void air_battle_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 2;
+    y += 1;
+    Game_Graphics_Fill_Rect(lcd, x + 20, y, 7, 35, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 12, y + 10, 23, 15, 0x0010u);
+    Game_Graphics_Fill_Rect(lcd, x + 4, y + 17, 39, 7, 0x07ffu);
+    Game_Graphics_Fill_Rect(lcd, x + 16, y + 27, 15, 5, 0xffffu);
+    Game_Graphics_Fill_Rect(lcd, x + 22, y - 3, 3, 7, 0xffe0u);
+}
+
+const Game_descriptor game_air_battle_entry = {
+    .draw_icon = air_battle_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "AIR FORCE",
+    .id = game_id_air_battle,
+    .control_hint = "A BOMB",
+    .info_text =
+        "DESCRIPTION\nFast arcade air combat.\nYour cannon fires automatically.\n\nGOAL\nDefeat "
+        "each wave and the boss.\n\nCONTROLS\nJOY MOVE\nA BOMB\nX/B PAUSE",
+    .is_game = 1,
+    .init = Air_Battle_Init,
+    .update = Air_Battle_Update,
+    .get_score = Air_Battle_Get_Score,
+};

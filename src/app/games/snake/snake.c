@@ -1,10 +1,9 @@
-#include "snake.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 #define SCREEN_WIDTH    240
 #define SCREEN_HEIGHT   320
@@ -206,13 +205,13 @@ static void move_snake(void) {
     render_cell(g_body[0]);
 }
 
-void Snake_Init(const Game_hardware* hardware) {
+static void Snake_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
 }
 
-Game_result Snake_Update(const Game_input* input) {
+static Game_result Snake_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
@@ -237,4 +236,29 @@ Game_result Snake_Update(const Game_input* input) {
     return game_result_running;
 }
 
-uint32_t Snake_Get_Score(void) { return g_score; }
+static uint32_t Snake_Get_Score(void) { return g_score; }
+
+static void snake_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 1;
+    y += 4;
+    static const int8_t cells[][2] = {{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}, {3, 2}, {4, 2}};
+    for (uint32_t i = 0; i < sizeof(cells) / sizeof(cells[0]); i++) {
+        Game_Graphics_Fill_Rect(lcd, x + cells[i][0] * 9, y + cells[i][1] * 9, 8, 8, 0x07e0u);
+    }
+    Game_Graphics_Fill_Rect(lcd, x + 39, y + 19, 2, 2, 0x0000u);
+}
+
+const Game_descriptor game_snake_entry = {
+    .draw_icon = snake_draw_icon,
+    .name_color = 0x07e0u,
+    .name = "SNAKE",
+    .id = game_id_snake,
+    .control_hint = NULL,
+    .info_text =
+        "DESCRIPTION\nGuide a growing snake.\nEat food and avoid every wall.\n\nGOAL\nGrow as "
+        "long as you can.\n\nCONTROLS\nJOY TURN\nX/B PAUSE",
+    .is_game = 1,
+    .init = Snake_Init,
+    .update = Snake_Update,
+    .get_score = Snake_Get_Score,
+};

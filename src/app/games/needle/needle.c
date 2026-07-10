@@ -1,11 +1,10 @@
-#include "needle.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "bsp_time.h"
 #include "buzzer.h"
 #include "game_graphics.h"
+#include "game_registry.h"
 
 /* ── 屏幕常量 ── */
 #define SCREEN_WIDTH      240
@@ -257,7 +256,7 @@ static void restart_game(void) {
 
 /* ── Init ── */
 
-void Needle_Init(const Game_hardware* hardware) {
+static void Needle_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
     g_hardware = *hardware;
     restart_game();
@@ -323,7 +322,7 @@ static void resolve_impact(uint8_t angle) {
 
 /* ── Update ── */
 
-Game_result Needle_Update(const Game_input* input) {
+static Game_result Needle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
     if (g_state == needle_state_over) { return game_result_lost; }
@@ -391,4 +390,36 @@ Game_result Needle_Update(const Game_input* input) {
 
 /* ── Score / Finished ── */
 
-uint32_t Needle_Get_Score(void) { return g_score; }
+static uint32_t Needle_Get_Score(void) { return g_score; }
+
+static void needle_draw_icon(St7789* lcd, int32_t x, int32_t y) {
+    x += 0;
+    y += -2;
+    /* 圆盘（三层方形） */
+    const int32_t cx = x + 22;
+    const int32_t cy = y + 18;
+    Game_Graphics_Fill_Rect(lcd, cx - 16, cy - 16, 32, 32, 0xA514u);
+    Game_Graphics_Fill_Rect(lcd, cx - 10, cy - 10, 20, 20, 0x8410u);
+    Game_Graphics_Fill_Rect(lcd, cx - 4, cy - 4, 8, 8, 0xffffu);
+    /* 针尖 */
+    Game_Graphics_Fill_Rect(lcd, cx + 12, cy + 12, 4, 4, 0xf800u);
+    Game_Graphics_Fill_Rect(lcd, cx - 16, cy - 4, 4, 4, 0xffe0u);
+    Game_Graphics_Fill_Rect(lcd, cx + 2, cy - 18, 4, 4, 0x07e0u);
+    /* 下方待发射针 */
+    Game_Graphics_Fill_Rect(lcd, cx - 1, cy + 22, 2, 10, 0xffffu);
+}
+
+const Game_descriptor game_needle_entry = {
+    .draw_icon = needle_draw_icon,
+    .name_color = 0x07ffu,
+    .name = "NEEDLE",
+    .id = game_id_needle,
+    .control_hint = "A LAUNCH Y QUICK",
+    .info_text =
+        "DESCRIPTION\nFire needles at a spinning disk.\nDo not strike another needle.\n\nGOAL\nPlace "
+        "every needle safely.\n\nCONTROLS\nJOY AIM\nA LAUNCH\nY QUICK STICK\nX/B PAUSE",
+    .is_game = 1,
+    .init = Needle_Init,
+    .update = Needle_Update,
+    .get_score = Needle_Get_Score,
+};
