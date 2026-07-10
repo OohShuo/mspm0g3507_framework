@@ -270,5 +270,3 @@ Game_result Info_Update(const Game_input* input) {
 }
 
 uint32_t Info_Get_Score(void) { return 0; }
-
-uint8_t Info_Is_Finished(void) { return 0; }

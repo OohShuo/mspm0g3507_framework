@@ -64,7 +64,6 @@ typedef struct {
     void (*init)(const Game_hardware* hardware);
     Game_result (*update)(const Game_input* input);
     uint32_t (*get_score)(void);
-    uint8_t (*is_finished)(void);
     uint8_t is_game;
 } Game_descriptor;
 

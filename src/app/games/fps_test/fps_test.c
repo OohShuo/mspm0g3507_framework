@@ -141,5 +141,3 @@ Game_result Fps_Test_Update(const Game_input* input) {
 }
 
 uint32_t Fps_Test_Get_Score(void) { return g_last_fps; }
-
-uint8_t Fps_Test_Is_Finished(void) { return 0; }

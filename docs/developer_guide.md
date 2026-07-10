@@ -29,8 +29,9 @@ VM 目标直接使用 `assets/vm_flash/` 目录下的文件，无需构建闪存
 void Xxx_Init(const Game_hardware* hardware);
 Game_result Xxx_Update(const Game_input* input);
 uint32_t Xxx_Get_Score(void);
-uint8_t Xxx_Is_Finished(void);
 ```
+
+`Xxx_Update()` 在正常运行时返回 `game_result_running`，请求退出时返回 `game_result_exit`，并在进入终态的当帧立即返回 `game_result_won` 或 `game_result_lost`。不要在游戏内显示结局/重玩提示或播放通用胜负反馈；控制台统一处理结算、排行榜和重玩。非游戏工具只使用 `running` 与 `exit`。
 
 3. 在 `src/app/game_console/game_registry.h` 中添加 `Game_id` 和 `Game_icon`。
 4. 在 `src/app/game_console/game_registry.c` 中加入 `Game_descriptor`。
@@ -48,6 +49,19 @@ uint8_t Xxx_Is_Finished(void);
 - `back_requested`：兼容返回输入，目前映射到 B。
 
 不要在游戏中直接读取 GPIO、ADC 或 SDL 键盘。
+
+### 游戏随机数规范
+
+需要随机数时，在游戏私有状态中保存独立的 `Game_rng`：
+
+```c
+static Game_rng g_rng;
+
+Game_Rng_Seed(&g_rng, Game_Runtime_Get_Tick_Ms() ^ GAME_SEED_CONSTANT);
+uint32_t choice = Game_Rng_Range(&g_rng, upper_bound);
+```
+
+每个游戏使用不同的非零 `GAME_SEED_CONSTANT`。有界选择必须使用 `Game_Rng_Range()`；不要自行实现 LCG 或用 `% upper_bound` 缩减随机值。
 
 ## 添加新 HAL 设备
 

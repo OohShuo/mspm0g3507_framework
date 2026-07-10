@@ -273,10 +273,7 @@ Game_result Game_2048_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    if (g_state == state_over) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
-    }
+    if (g_state == state_over) { return game_result_lost; }
 
     /* Handle swipe */
     if (input->direction_pressed && input->direction != game_direction_none) {
@@ -304,9 +301,8 @@ Game_result Game_2048_Update(const Game_input* input) {
             }
             if (!can_move()) {
                 g_state = state_over;
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-                Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
                 render_hud();
+                return game_result_lost;
             } else if (g_merged) {
                 Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_merge);
             }
@@ -317,5 +313,3 @@ Game_result Game_2048_Update(const Game_input* input) {
 }
 
 uint32_t Game_2048_Get_Score(void) { return g_score; }
-
-uint8_t Game_2048_Is_Finished(void) { return g_state == state_over; }

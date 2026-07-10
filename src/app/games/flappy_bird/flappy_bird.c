@@ -177,8 +177,7 @@ static void draw_ground(void) {
 static void spawn_pipe(void) {
     for (uint8_t i = 0; i < MAX_PIPES; i++) {
         if (!g_pipes[i].active) {
-            g_pipes[i].gap_y =
-                (uint16_t)(60 + Game_Rng_Range(&g_rng, GROUND_Y - PIPE_GAP - 120));
+            g_pipes[i].gap_y = (uint16_t)(60 + Game_Rng_Range(&g_rng, GROUND_Y - PIPE_GAP - 120));
             g_pipes[i].x = SCREEN_WIDTH + 10;
             g_pipes[i].scored = 0;
             g_pipes[i].active = 1;
@@ -248,12 +247,7 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
     uint8_t scored = 0;
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
-    St7789* lcd = g_hardware.lcd;
-
-    if (g_state == flappy_state_over) {
-        if (input->a_pressed) { restart_game(); }
-        return game_result_running;
-    }
+    if (g_state == flappy_state_over) { return game_result_lost; }
 
     if (g_state == flappy_state_ready) {
         int16_t bob = (int16_t)((Game_Runtime_Get_Tick_Ms() / 300u) % 2u);
@@ -388,15 +382,8 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
 
     if (check_collision()) {
         g_state = flappy_state_over;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
-        play_fill(BIRD_X - 1, g_bird_y - 1, BIRD_W + 3, BIRD_H + 2, COLOR_RED);
         update_score();
-        play_fill(50, 148, 140, 9, COLOR_BLACK);
-        Game_Graphics_Draw_Text(lcd, 60, 150, "GAME OVER", 1, COLOR_RED);
-        play_fill(25, 168, 190, 9, COLOR_BLACK);
-        Game_Graphics_Draw_Text(lcd, 48, 170, "A TO RESTART", 1, COLOR_WHITE);
+        return game_result_lost;
     } else if (scored) {
         Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_score);
     } else if (flapped) {
@@ -407,4 +394,3 @@ Game_result Flappy_Bird_Update(const Game_input* input) {
 }
 
 uint32_t Flappy_Bird_Get_Score(void) { return g_score; }
-uint8_t Flappy_Bird_Is_Finished(void) { return g_state == flappy_state_over; }

@@ -169,7 +169,6 @@ static Dodge_state g_state = game_state_ready;
 static uint32_t g_start_ms = 0;
 static uint32_t g_last_ms = 0;
 static uint32_t g_survive_ms = 0;
-static uint8_t g_finished = 0;
 /* 已完成攻击扫描索引：攻击完成后递增；全部完成后再等待 2s 判定胜利。 */
 static uint8_t g_attack_scan_index = 0;
 static uint8_t g_all_attacks_done = 0;
@@ -631,12 +630,6 @@ static void draw_player(uint16_t color) {
     const int16_t x = (int16_t)(g_player_x256 >> 8);
     const int16_t y = (int16_t)(g_player_y256 >> 8);
     arena_fill(x, y, PLAYER_SIZE, PLAYER_SIZE, color);
-}
-
-static void draw_text_centered(int16_t y, const char* text, uint8_t scale, uint16_t color) {
-    int16_t len = 0;
-    while (text[len] != '\0') { len++; }
-    Game_Graphics_Draw_Text(g_lcd, (SCREEN_WIDTH - len * 6 * scale) / 2, y, text, scale, color);
 }
 
 static void draw_hline_dashed(int16_t y, int16_t thickness, uint16_t color, uint8_t phase) {
@@ -1482,7 +1475,6 @@ static void render_static_screen(void) {
 }
 static void reset_game(void) {
     g_state = game_state_playing;
-    g_finished = 0;
     g_attack_scan_index = 0;
     g_all_attacks_done = 0;
     g_all_attacks_done_ms = 0;
@@ -1528,8 +1520,7 @@ Game_result Dodge_Box_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == game_state_failed || g_state == game_state_clear) {
-        if (input->a_pressed) { reset_game(); }
-        return game_result_running;
+        return g_state == game_state_clear ? game_result_won : game_result_lost;
     }
 
     const uint32_t now = Game_Runtime_Get_Tick_Ms();
@@ -1549,12 +1540,7 @@ Game_result Dodge_Box_Update(const Game_input* input) {
 #ifndef GOD_MODE
     if (player_hits_active_attacks(now_rel)) {
         g_state = game_state_failed;
-        g_finished = 1;
-        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_defeat);
-        render_dirty_scene(now_rel, COLOR_RED);
-        Game_Graphics_Fill_Rect(g_lcd, 0, 258, SCREEN_WIDTH, 14, COLOR_BLACK);
-        draw_text_centered(260, "FAILED - PRESS", 1, COLOR_RED);
-        return game_result_running;
+        return game_result_lost;
     }
 #endif
 
@@ -1564,15 +1550,10 @@ Game_result Dodge_Box_Update(const Game_input* input) {
 
     if (g_all_attacks_done && (now_rel - g_all_attacks_done_ms >= 2000u)) {
         g_state = game_state_clear;
-        g_finished = 1;
-        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_victory);
-        Game_Graphics_Fill_Rect(g_lcd, 0, 258, SCREEN_WIDTH, 14, COLOR_BLACK);
-        draw_text_centered(260, "CLEAR - PRESS", 1, COLOR_GREEN);
+        return game_result_won;
     }
 
     return game_result_running;
 }
 
 uint32_t Dodge_Box_Get_Score(void) { return g_survive_ms / 100u; }
-
-uint8_t Dodge_Box_Is_Finished(void) { return g_finished; }

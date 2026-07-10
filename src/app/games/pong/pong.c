@@ -154,8 +154,7 @@ Game_result Pong_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == pong_state_over) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
+        return g_player_score > g_ai_score ? game_result_won : game_result_lost;
     }
 
     /* ── Paddle dt (shared by player + AI) ── */
@@ -269,8 +268,6 @@ Game_result Pong_Update(const Game_input* input) {
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_pong_score);
         if (g_ai_score >= WIN_SCORE) {
             g_state = pong_state_over;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         } else {
             Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_score);
             g_state = pong_state_serving;
@@ -278,7 +275,7 @@ Game_result Pong_Update(const Game_input* input) {
             serve_ball(0);
         }
         render_hud();
-        return game_result_running;
+        return g_state == pong_state_over ? game_result_lost : game_result_running;
     }
 
     if (g_ball_x > SCREEN_WIDTH) {
@@ -287,8 +284,6 @@ Game_result Pong_Update(const Game_input* input) {
         Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_pong_score);
         if (g_player_score >= WIN_SCORE) {
             g_state = pong_state_over;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
-            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
         } else {
             Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_score);
             g_state = pong_state_serving;
@@ -296,7 +291,7 @@ Game_result Pong_Update(const Game_input* input) {
             serve_ball(1);
         }
         render_hud();
-        return game_result_running;
+        return g_state == pong_state_over ? game_result_won : game_result_running;
     }
 
     render_ball(old_ball_x, old_ball_y);
@@ -304,5 +299,3 @@ Game_result Pong_Update(const Game_input* input) {
 }
 
 uint32_t Pong_Get_Score(void) { return (uint32_t)(g_player_score * 100u); }
-
-uint8_t Pong_Is_Finished(void) { return g_state == pong_state_over; }

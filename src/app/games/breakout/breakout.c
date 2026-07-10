@@ -186,8 +186,7 @@ Game_result Breakout_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state == breakout_state_over || g_state == breakout_state_win) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
+        return g_state == breakout_state_win ? game_result_won : game_result_lost;
     }
 
     /* Paddle movement — dt-scaled, independent of task frequency */
@@ -259,13 +258,12 @@ Game_result Breakout_Update(const Game_input* input) {
         if (g_bricks_remaining == 0) {
             g_state = breakout_state_win;
             g_score += 1000u;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
-            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
             render_hud();
         } else {
             Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_hit_light);
         }
     }
+    if (g_state == breakout_state_win) { return game_result_won; }
 
     /* Paddle collision */
     if (g_ball_y + BALL_SIZE >= PADDLE_Y && g_ball_y + BALL_SIZE <= PADDLE_Y + PADDLE_HEIGHT + 4 &&
@@ -292,9 +290,8 @@ Game_result Breakout_Update(const Game_input* input) {
         } else {
             g_lives = 0;
             g_state = breakout_state_over;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
             render_hud();
+            return game_result_lost;
         }
         return game_result_running;
     }
@@ -304,5 +301,3 @@ Game_result Breakout_Update(const Game_input* input) {
 }
 
 uint32_t Breakout_Get_Score(void) { return g_score; }
-
-uint8_t Breakout_Is_Finished(void) { return g_state == breakout_state_over || g_state == breakout_state_win; }

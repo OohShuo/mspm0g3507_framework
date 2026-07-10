@@ -315,9 +315,6 @@ static uint8_t active_enemy_count(void) {
 static void end_game(Tank_state state) {
     if (g_state != tank_state_playing) { return; }
     g_state = state;
-    Buzzer_Play_Sfx(g_hardware.buzzer, state == tank_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
-    Vib_Motor_Gpio_Play_Effect(
-        g_hardware.vib_motor, state == tank_state_win ? vib_effect_victory : vib_effect_defeat);
     render_hud();
 }
 
@@ -426,7 +423,6 @@ static void hit_player(void) {
     const int8_t old_x = g_player.x;
     const int8_t old_y = g_player.y;
     if (g_lives > 0) { g_lives--; }
-    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
     g_player.alive = 0;
     render_cell(old_x, old_y);
     if (g_lives == 0) {
@@ -434,6 +430,7 @@ static void hit_player(void) {
         return;
     }
     if (reset_player_position()) {
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
         Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_life_lost);
         render_cell(g_player.x, g_player.y);
         render_hud();
@@ -561,12 +558,14 @@ Game_result Tank_Battle_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state != tank_state_playing) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
+        return g_state == tank_state_win ? game_result_won : game_result_lost;
     }
 
     if (input->direction != game_direction_none) { g_player.direction = (uint8_t)input->direction; }
     if (input->confirm_pressed) { fire_bullet(&g_player, 1); }
+    if (g_state != tank_state_playing) {
+        return g_state == tank_state_win ? game_result_won : game_result_lost;
+    }
 
     const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (input->direction != game_direction_none && now - g_last_player_move >= PLAYER_MOVE_MS) {
@@ -577,7 +576,9 @@ Game_result Tank_Battle_Update(const Game_input* input) {
         g_last_enemy_move = now;
         update_enemies();
     }
-    if (g_state != tank_state_playing) { return game_result_running; }
+    if (g_state != tank_state_playing) {
+        return g_state == tank_state_win ? game_result_won : game_result_lost;
+    }
 
     if (now - g_last_bullet_move >= BULLET_MOVE_MS) {
         g_last_bullet_move = now;
@@ -586,7 +587,9 @@ Game_result Tank_Battle_Update(const Game_input* input) {
             if (g_state != tank_state_playing) { break; }
         }
     }
-    if (g_state != tank_state_playing) { return game_result_running; }
+    if (g_state != tank_state_playing) {
+        return g_state == tank_state_win ? game_result_won : game_result_lost;
+    }
 
     if (now - g_last_spawn >= ENEMY_SPAWN_MS) {
         if (spawn_enemy()) { g_last_spawn = now; }
@@ -595,5 +598,3 @@ Game_result Tank_Battle_Update(const Game_input* input) {
 }
 
 uint32_t Tank_Battle_Get_Score(void) { return g_score; }
-
-uint8_t Tank_Battle_Is_Finished(void) { return g_state != tank_state_playing; }

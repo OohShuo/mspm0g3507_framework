@@ -254,5 +254,3 @@ Game_result Sfx_Lib_Update(const Game_input* input) {
 }
 
 uint32_t Sfx_Lib_Get_Score(void) { return 0; }
-
-uint8_t Sfx_Lib_Is_Finished(void) { return 0; }

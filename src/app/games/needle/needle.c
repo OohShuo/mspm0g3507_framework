@@ -297,10 +297,6 @@ static uint8_t impact_collides(uint8_t angle) {
 static void resolve_impact(uint8_t angle) {
     if (impact_collides(angle) || g_needle_count >= MAX_NEEDLES) {
         g_state = needle_state_over;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
-        draw_bottom_text("GAME OVER  A RESTART", COLOR_RED);
         return;
     }
 
@@ -330,6 +326,7 @@ static void resolve_impact(uint8_t angle) {
 Game_result Needle_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
+    if (g_state == needle_state_over) { return game_result_lost; }
 
     /* ══ 时间驱动的 dt 计算（旋转 + 飞行共用） ══ */
     const uint32_t now = Game_Runtime_Get_Tick_Ms();
@@ -341,15 +338,6 @@ Game_result Needle_Update(const Game_input* input) {
     g_disk_accum += (uint32_t)g_ang_vel * dt / BASE_TICK_MS;
     g_disk_angle = (uint8_t)(g_disk_accum >> 8);
     rotate_needles();
-
-    St7789* lcd = g_hardware.lcd;
-    (void)lcd;
-
-    /* ── Game Over ── */
-    if (g_state == needle_state_over) {
-        if (input->a_pressed) { restart_game(); }
-        return game_result_running;
-    }
 
     /* ── Flying ── */
     if (g_state == needle_state_flying) {
@@ -371,6 +359,7 @@ Game_result Needle_Update(const Game_input* input) {
             Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 2, g_fly_y - 2, 4, 4, COLOR_BLACK);
             Game_Graphics_Fill_Rect(g_hardware.lcd, g_fly_x - 1, g_fly_y - 2, 2, 4, COLOR_GRAY);
             resolve_impact(fly_angle);
+            if (g_state == needle_state_over) { return game_result_lost; }
         }
         return game_result_running;
     }
@@ -393,6 +382,7 @@ Game_result Needle_Update(const Game_input* input) {
             draw_quick_sticks();
             const uint8_t angle = atan2_approx(g_launch_x - DISK_CX, LAUNCH_Y - DISK_CY);
             resolve_impact(angle);
+            if (g_state == needle_state_over) { return game_result_lost; }
         }
     }
 
@@ -402,5 +392,3 @@ Game_result Needle_Update(const Game_input* input) {
 /* ── Score / Finished ── */
 
 uint32_t Needle_Get_Score(void) { return g_score; }
-
-uint8_t Needle_Is_Finished(void) { return g_state == needle_state_over; }

@@ -198,8 +198,6 @@ static void ai_move(void) {
             g_state = gomoku_state_over;
             g_score = 0;
             g_place_feedback_pending = 0;
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-            Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         }
     }
 }
@@ -316,10 +314,7 @@ Game_result Gomoku_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    if (g_state == gomoku_state_over) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
-    }
+    if (g_state == gomoku_state_over) { return g_winner == 1u ? game_result_won : game_result_lost; }
 
     if (g_state == gomoku_state_player) {
         const uint32_t now = Game_Runtime_Get_Tick_Ms();
@@ -395,8 +390,6 @@ Game_result Gomoku_Update(const Game_input* input) {
                         g_score = 1;
                     }
                 }
-                Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_victory);
-                Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_victory);
             } else {
                 g_state = gomoku_state_ai;
                 g_place_feedback_pending = 1;
@@ -417,9 +410,8 @@ Game_result Gomoku_Update(const Game_input* input) {
             }
         }
     }
+    if (g_state == gomoku_state_over) { return g_winner == 1u ? game_result_won : game_result_lost; }
     return game_result_running;
 }
 
 uint32_t Gomoku_Get_Score(void) { return g_score; }
-
-uint8_t Gomoku_Is_Finished(void) { return g_state == gomoku_state_over; }

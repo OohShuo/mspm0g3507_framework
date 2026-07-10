@@ -36,7 +36,6 @@ static const Game_descriptor g_games[] = {
         .init = Pacman_Init,
         .update = Pacman_Update,
         .get_score = Pacman_Get_Score,
-        .is_finished = Pacman_Is_Finished,
     },
     {
         .name = "SNAKE",
@@ -49,7 +48,6 @@ static const Game_descriptor g_games[] = {
         .init = Snake_Init,
         .update = Snake_Update,
         .get_score = Snake_Get_Score,
-        .is_finished = Snake_Is_Finished,
     },
     {
         .name = "TANK",
@@ -62,7 +60,6 @@ static const Game_descriptor g_games[] = {
         .init = Tank_Battle_Init,
         .update = Tank_Battle_Update,
         .get_score = Tank_Battle_Get_Score,
-        .is_finished = Tank_Battle_Is_Finished,
     },
     {
         .name = "AIR FORCE",
@@ -75,7 +72,6 @@ static const Game_descriptor g_games[] = {
         .init = Air_Battle_Init,
         .update = Air_Battle_Update,
         .get_score = Air_Battle_Get_Score,
-        .is_finished = Air_Battle_Is_Finished,
     },
     {
         .name = "TETRIS",
@@ -89,7 +85,6 @@ static const Game_descriptor g_games[] = {
         .init = Tetris_Init,
         .update = Tetris_Update,
         .get_score = Tetris_Get_Score,
-        .is_finished = Tetris_Is_Finished,
     },
     {
         .name = "BREAKOUT",
@@ -102,7 +97,6 @@ static const Game_descriptor g_games[] = {
         .init = Breakout_Init,
         .update = Breakout_Update,
         .get_score = Breakout_Get_Score,
-        .is_finished = Breakout_Is_Finished,
     },
     {
         .name = "PONG",
@@ -116,7 +110,6 @@ static const Game_descriptor g_games[] = {
         .init = Pong_Init,
         .update = Pong_Update,
         .get_score = Pong_Get_Score,
-        .is_finished = Pong_Is_Finished,
     },
     {
         .name = "GOMOKU",
@@ -129,7 +122,6 @@ static const Game_descriptor g_games[] = {
         .init = Gomoku_Init,
         .update = Gomoku_Update,
         .get_score = Gomoku_Get_Score,
-        .is_finished = Gomoku_Is_Finished,
     },
     {
         .name = "2048",
@@ -142,7 +134,6 @@ static const Game_descriptor g_games[] = {
         .init = Game_2048_Init,
         .update = Game_2048_Update,
         .get_score = Game_2048_Get_Score,
-        .is_finished = Game_2048_Is_Finished,
     },
     {
         .name = "DINO",
@@ -156,7 +147,6 @@ static const Game_descriptor g_games[] = {
         .init = Dino_Runner_Init,
         .update = Dino_Runner_Update,
         .get_score = Dino_Runner_Get_Score,
-        .is_finished = Dino_Runner_Is_Finished,
     },
     {
         .name = "FLAPPY",
@@ -169,7 +159,6 @@ static const Game_descriptor g_games[] = {
         .init = Flappy_Bird_Init,
         .update = Flappy_Bird_Update,
         .get_score = Flappy_Bird_Get_Score,
-        .is_finished = Flappy_Bird_Is_Finished,
     },
     {
         .name = "MAZE",
@@ -182,7 +171,6 @@ static const Game_descriptor g_games[] = {
         .init = Maze_Init,
         .update = Maze_Update,
         .get_score = Maze_Get_Score,
-        .is_finished = Maze_Is_Finished,
     },
     {
         .name = "NEEDLE",
@@ -196,7 +184,6 @@ static const Game_descriptor g_games[] = {
         .init = Needle_Init,
         .update = Needle_Update,
         .get_score = Needle_Get_Score,
-        .is_finished = Needle_Is_Finished,
     },
     {
         .name = "DODGE",
@@ -209,7 +196,6 @@ static const Game_descriptor g_games[] = {
         .init = Dodge_Box_Init,
         .update = Dodge_Box_Update,
         .get_score = Dodge_Box_Get_Score,
-        .is_finished = Dodge_Box_Is_Finished,
     },
     {
         .name = "RHYTHM",
@@ -223,7 +209,6 @@ static const Game_descriptor g_games[] = {
         .init = Rhythm_Init,
         .update = Rhythm_Update,
         .get_score = Rhythm_Get_Score,
-        .is_finished = Rhythm_Is_Finished,
     },
     {
         .name = "SFX",
@@ -235,7 +220,6 @@ static const Game_descriptor g_games[] = {
         .init = Sfx_Lib_Init,
         .update = Sfx_Lib_Update,
         .get_score = Sfx_Lib_Get_Score,
-        .is_finished = Sfx_Lib_Is_Finished,
     },
     {
         .name = "CALC",
@@ -248,7 +232,6 @@ static const Game_descriptor g_games[] = {
         .init = Calc_Init,
         .update = Calc_Update,
         .get_score = Calc_Get_Score,
-        .is_finished = Calc_Is_Finished,
     },
     {
         .name = "FPS TEST",
@@ -261,7 +244,6 @@ static const Game_descriptor g_games[] = {
         .init = Fps_Test_Init,
         .update = Fps_Test_Update,
         .get_score = Fps_Test_Get_Score,
-        .is_finished = Fps_Test_Is_Finished,
     },
 
     {
@@ -275,7 +257,6 @@ static const Game_descriptor g_games[] = {
         .init = Volume_Control_Init,
         .update = Volume_Control_Update,
         .get_score = Volume_Control_Get_Score,
-        .is_finished = Volume_Control_Is_Finished,
     },
     {
         .name = "?",
@@ -288,7 +269,6 @@ static const Game_descriptor g_games[] = {
         .init = Bad_Apple_Init,
         .update = Bad_Apple_Update,
         .get_score = Bad_Apple_Get_Score,
-        .is_finished = Bad_Apple_Is_Finished,
     },
     {
         .name = "INFO",
@@ -300,7 +280,6 @@ static const Game_descriptor g_games[] = {
         .init = Info_Init,
         .update = Info_Update,
         .get_score = Info_Get_Score,
-        .is_finished = Info_Is_Finished,
     },
 };
 

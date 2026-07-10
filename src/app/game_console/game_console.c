@@ -849,9 +849,9 @@ static Game_result update_active_game(const Game_input* input) {
 
     const Game_result result = game->update(input);
     if (result == game_result_exit) { return result; }
-    if (game->is_finished()) {
+    if (result == game_result_won || result == game_result_lost) {
         g_console_state = console_state_game_over;
-        Game_Over_Menu_Open(g_lcd, g_buzzer, g_vib_motor, game->id, game->name, game->get_score());
+        Game_Over_Menu_Open(g_lcd, g_buzzer, g_vib_motor, result, game->id, game->name, game->get_score());
     }
     return game_result_running;
 }

@@ -7,4 +7,3 @@
 void Bad_Apple_Init(const Game_hardware* hardware);
 Game_result Bad_Apple_Update(const Game_input* input);
 uint32_t Bad_Apple_Get_Score(void);
-uint8_t Bad_Apple_Is_Finished(void);

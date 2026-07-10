@@ -181,5 +181,3 @@ Game_result Bad_Apple_Update(const Game_input* input) {
 }
 
 uint32_t Bad_Apple_Get_Score(void) { return 0; }
-
-uint8_t Bad_Apple_Is_Finished(void) { return 0; }

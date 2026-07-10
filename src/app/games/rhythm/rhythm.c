@@ -254,16 +254,10 @@ static void miss_note(uint8_t i) {
     if (g_lives > 0) { g_lives--; }
     g_flash_frames = 4;
     show_feedback(3u);
-    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
+    if (g_lives > 0u) { Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost); }
 }
 
-static void finish_game(void) {
-    g_state = rhythm_state_over;
-    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-    fill(45, 146, 150, 34, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 70, 150, "GAME OVER", 1, COLOR_RED);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 46, 168, "PUSH TO RESTART", 1, COLOR_WHITE);
-}
+static void finish_game(void) { g_state = rhythm_state_over; }
 
 void Rhythm_Init(const Game_hardware* hardware) {
     if (hardware == NULL) { return; }
@@ -275,10 +269,7 @@ Game_result Rhythm_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    if (g_state == rhythm_state_over) {
-        if (input->direction_pressed) { restart_game(); }
-        return game_result_running;
-    }
+    if (g_state == rhythm_state_over) { return game_result_lost; }
     if (g_state == rhythm_state_ready) {
         if (input->direction_pressed &&
             (input->direction == game_direction_left || input->direction == game_direction_right)) {
@@ -333,7 +324,7 @@ Game_result Rhythm_Update(const Game_input* input) {
             if (g_lives > 0) { g_lives--; }
             g_flash_frames = 4;
             show_feedback(3u);
-            Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
+            if (g_lives > 0u) { Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost); }
         }
         g_need_center = 1;
     }
@@ -363,9 +354,11 @@ Game_result Rhythm_Update(const Game_input* input) {
     draw_feedback();
     draw_hud();
 
-    if (g_lives == 0u) { finish_game(); }
+    if (g_lives == 0u) {
+        finish_game();
+        return game_result_lost;
+    }
     return game_result_running;
 }
 
 uint32_t Rhythm_Get_Score(void) { return g_score; }
-uint8_t Rhythm_Is_Finished(void) { return g_state == rhythm_state_over; }

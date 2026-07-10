@@ -221,8 +221,8 @@ static void spawn_obstacle(void) {
     if ((g_score > 400u) && r < 20) {
         uint8_t s = next_free();
         if (s < MAX_OBSTACLES)
-            add_ptero(s, SCREEN_WIDTH + 20,
-                Game_Rng_Range(&g_rng, 2u) != 0u ? obs_ptero_high : obs_ptero_low);
+            add_ptero(
+                s, SCREEN_WIDTH + 20, Game_Rng_Range(&g_rng, 2u) != 0u ? obs_ptero_high : obs_ptero_low);
         return;
     }
     if ((g_score > 600u) && r < 65 && r >= 35) {
@@ -318,12 +318,7 @@ Game_result Dino_Runner_Update(const Game_input* input) {
     uint8_t jumped = 0;
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
-    St7789* lcd = g_hardware.lcd;
-
-    if (g_state == dino_state_over) {
-        if (input->a_pressed) { restart_game(); }
-        return game_result_running;
-    }
+    if (g_state == dino_state_over) { return game_result_lost; }
 
     if (g_state == dino_state_ready) {
         if (input->a_pressed) {
@@ -406,15 +401,8 @@ Game_result Dino_Runner_Update(const Game_input* input) {
 
     if (check_collision()) {
         g_state = dino_state_over;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
-        draw_dino(g_dino_y, g_crouching, COLOR_RED);
         update_score();
-        play_fill(50, 148, 140, 9, COLOR_BLACK);
-        Game_Graphics_Draw_Text(lcd, 60, 150, "GAME OVER", 1, COLOR_RED);
-        play_fill(25, 168, 190, 9, COLOR_BLACK);
-        Game_Graphics_Draw_Text(lcd, 48, 170, "A TO RESTART", 1, COLOR_WHITE);
+        return game_result_lost;
     } else if (jumped) {
         Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_jump);
     }
@@ -423,4 +411,3 @@ Game_result Dino_Runner_Update(const Game_input* input) {
 }
 
 uint32_t Dino_Runner_Get_Score(void) { return g_score; }
-uint8_t Dino_Runner_Is_Finished(void) { return g_state == dino_state_over; }

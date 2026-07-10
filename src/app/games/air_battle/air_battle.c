@@ -454,8 +454,7 @@ static void spawn_enemy(uint32_t now) {
             (int16_t)(8 + Game_Rng_Range(&g_rng, (uint32_t)(SCREEN_WIDTH - sprite->width - 16)));
         const uint8_t hp = kind == enemy_mob ? 1 : (kind == enemy_elite ? 3 : 5);
         const int8_t vx = kind == enemy_mob ? 0 : (Game_Rng_Range(&g_rng, 2u) != 0u ? 2 : -2);
-        g_enemies[i] =
-            (Enemy){x, HUD_HEIGHT, vx, 1, hp, kind, now + 550u + Game_Rng_Range(&g_rng, 700u)};
+        g_enemies[i] = (Enemy){x, HUD_HEIGHT, vx, 1, hp, kind, now + 550u + Game_Rng_Range(&g_rng, 700u)};
         g_spawned++;
         mark_sprite(x, HUD_HEIGHT, sprite);
         return;
@@ -491,15 +490,6 @@ static void spawn_pickup(int16_t x, int16_t y) {
 static void finish_game(Air_state state) {
     if (g_state != air_state_playing) { return; }
     g_state = state;
-    Buzzer_Play_Sfx(g_hardware.buzzer, state == air_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
-    Vib_Motor_Gpio_Play_Effect(
-        g_hardware.vib_motor, state == air_state_win ? vib_effect_victory : vib_effect_defeat);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 31, 133, 178, 70, COLOR_BLUE_DARK);
-    Game_Graphics_Fill_Rect(g_hardware.lcd, 35, 137, 170, 62, COLOR_BLACK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, state == air_state_win ? 42 : 37, 148,
-        state == air_state_win ? "MISSION CLEAR" : "MISSION FAILED", 2,
-        state == air_state_win ? COLOR_CYAN : COLOR_PINK);
-    Game_Graphics_Draw_Text(g_hardware.lcd, 73, 181, "PRESS RESTART", 1, COLOR_WHITE);
 }
 
 static void destroy_enemy(Enemy* enemy) {
@@ -548,12 +538,12 @@ static void hit_player(uint32_t now) {
     add_explosion(g_player_x + air_sprite_hero.width / 2, g_player_y + air_sprite_hero.height / 2);
     if (g_lives > 0) { g_lives--; }
     g_invincible_until = now + INVINCIBLE_MS;
-    Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
     render_hud();
     if (g_lives == 0) {
         flush_dirty();
         finish_game(air_state_over);
     } else {
+        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_life_lost);
         Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_hit_heavy);
     }
 }
@@ -804,12 +794,13 @@ Game_result Air_Battle_Update(const Game_input* input) {
         return game_result_exit;
     }
     if (g_state != air_state_playing) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
+        return g_state == air_state_win ? game_result_won : game_result_lost;
     }
 
     if (input->confirm_pressed) { use_bomb(); }
-    if (g_state != air_state_playing) { return game_result_running; }
+    if (g_state != air_state_playing) {
+        return g_state == air_state_win ? game_result_won : game_result_lost;
+    }
 
     const uint32_t now = Game_Runtime_Get_Tick_Ms();
     if (now - g_last_spawn >= ENEMY_SPAWN_MS && g_spawned < NORMAL_ENEMIES) {
@@ -822,9 +813,13 @@ Game_result Air_Battle_Update(const Game_input* input) {
         g_last_world_step = now;
         if (input->direction != game_direction_none) { move_player(input->direction); }
         update_bullets(now);
-        if (g_state != air_state_playing) { return game_result_running; }
+        if (g_state != air_state_playing) {
+            return g_state == air_state_win ? game_result_won : game_result_lost;
+        }
         update_enemies(now);
-        if (g_state != air_state_playing) { return game_result_running; }
+        if (g_state != air_state_playing) {
+            return g_state == air_state_win ? game_result_won : game_result_lost;
+        }
         update_pickups();
         update_explosions();
         if (++g_fire_step_count >= PLAYER_FIRE_STEPS && player_fire()) { g_fire_step_count = 0; }
@@ -834,5 +829,3 @@ Game_result Air_Battle_Update(const Game_input* input) {
 }
 
 uint32_t Air_Battle_Get_Score(void) { return g_score; }
-
-uint8_t Air_Battle_Is_Finished(void) { return g_state != air_state_playing; }

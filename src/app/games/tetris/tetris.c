@@ -81,9 +81,7 @@ static uint32_t g_last_das_down = 0;
 static uint8_t g_das_down_fired = 0;
 static Game_rng g_rng;
 
-static int8_t random_piece_kind(void) {
-    return (int8_t)Game_Rng_Range(&g_rng, PIECE_KIND_COUNT);
-}
+static int8_t random_piece_kind(void) { return (int8_t)Game_Rng_Range(&g_rng, PIECE_KIND_COUNT); }
 
 static uint8_t collides(int8_t px, int8_t py, int8_t kind, int8_t rotation) {
     for (uint8_t i = 0; i < 4; i++) {
@@ -283,8 +281,6 @@ static uint32_t drop_interval(void) {
 static void settle_piece(void) {
     if (g_piece.y < 0) {
         g_state = tetris_state_over;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         render_hud();
         return;
     }
@@ -301,8 +297,6 @@ static void settle_piece(void) {
 
     if (collides(g_piece.x, g_piece.y, g_piece.kind, g_piece.rotation)) {
         g_state = tetris_state_over;
-        Buzzer_Play_Sfx(g_hardware.buzzer, buzzer_sfx_defeat);
-        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         render_hud();
     } else if (cleared > 0) {
         Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_merge);
@@ -321,10 +315,7 @@ Game_result Tetris_Update(const Game_input* input) {
     if (input == NULL) { return game_result_running; }
     if (input->back_requested) { return game_result_exit; }
 
-    if (g_state != tetris_state_playing) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
-    }
+    if (g_state != tetris_state_playing) { return game_result_lost; }
 
     const uint32_t now = Game_Runtime_Get_Tick_Ms();
 
@@ -433,7 +424,7 @@ Game_result Tetris_Update(const Game_input* input) {
         g_score += (uint32_t)rows * 2u;
         render_piece(&g_piece, -1);
         settle_piece();
-        return game_result_running;
+        return g_state == tetris_state_over ? game_result_lost : game_result_running;
     }
 
     /* Gravity */
@@ -449,10 +440,9 @@ Game_result Tetris_Update(const Game_input* input) {
         }
 
         settle_piece();
+        if (g_state == tetris_state_over) { return game_result_lost; }
     }
     return game_result_running;
 }
 
 uint32_t Tetris_Get_Score(void) { return g_score; }
-
-uint8_t Tetris_Is_Finished(void) { return g_state != tetris_state_playing; }

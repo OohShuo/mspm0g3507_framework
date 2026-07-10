@@ -5,4 +5,3 @@
 void Rhythm_Init(const Game_hardware* hardware);
 Game_result Rhythm_Update(const Game_input* input);
 uint32_t Rhythm_Get_Score(void);
-uint8_t Rhythm_Is_Finished(void);

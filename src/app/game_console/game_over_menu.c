@@ -38,6 +38,7 @@ static St7789* g_lcd = NULL;
 static Buzzer* g_buzzer = NULL;
 static Vib_motor_gpio* g_vib_motor = NULL;
 static const char* g_game_name = NULL;
+static Game_result g_result = game_result_lost;
 static End_stage g_stage = end_stage_prompt;
 static uint32_t g_score = 0;
 static uint8_t g_game_id = 0;
@@ -77,7 +78,8 @@ static void draw_prompt_button(uint8_t selection, uint8_t selected) {
 
 static void render_prompt(void) {
     Game_Graphics_Fill_Rect(g_lcd, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_BLACK);
-    draw_centered(18, "GAME RESULT", 2, COLOR_RED);
+    draw_centered(18, g_result == game_result_won ? "YOU WIN" : "YOU LOSE", 2,
+        g_result == game_result_won ? COLOR_GREEN : COLOR_RED);
     draw_centered(53, g_game_name, 2, COLOR_CYAN);
     draw_centered(93, "YOUR SCORE", 1, COLOR_WHITE);
     Game_Graphics_Draw_U32(g_lcd, 84, 114, g_score, 6, 2, COLOR_YELLOW);
@@ -322,12 +324,13 @@ static Game_over_action update_leaderboard(const Game_input* input) {
     return g_board_selection == 0 ? game_over_action_replay : game_over_action_menu;
 }
 
-void Game_Over_Menu_Open(St7789* lcd, Buzzer* buzzer, Vib_motor_gpio* vib_motor, uint8_t game_id,
-    const char* game_name, uint32_t score) {
+void Game_Over_Menu_Open(St7789* lcd, Buzzer* buzzer, Vib_motor_gpio* vib_motor, Game_result result,
+    uint8_t game_id, const char* game_name, uint32_t score) {
     g_lcd = lcd;
     g_buzzer = buzzer;
     g_vib_motor = vib_motor;
     g_game_id = game_id;
+    g_result = result;
     g_game_name = game_name;
     g_score = score;
     g_score_qualifies = Score_Store_Qualifies(game_id, score);
@@ -335,6 +338,13 @@ void Game_Over_Menu_Open(St7789* lcd, Buzzer* buzzer, Vib_motor_gpio* vib_motor,
     g_board_selection = 0;
     g_new_rank = 0xffu;
     g_stage = end_stage_prompt;
+    if (result == game_result_won) {
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_victory);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_victory);
+    } else {
+        Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_defeat);
+        Vib_Motor_Gpio_Play_Effect(g_vib_motor, vib_effect_defeat);
+    }
     render_prompt();
 }
 

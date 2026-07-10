@@ -333,8 +333,6 @@ static void lose_life(void) {
 
     if (g_lives == 0) {
         g_game_state = game_state_over;
-        if (g_buzzer != NULL) { Buzzer_Play_Sfx(g_buzzer, buzzer_sfx_defeat); }
-        Vib_Motor_Gpio_Play_Effect(g_hardware.vib_motor, vib_effect_defeat);
         render_hud();
         return;
     }
@@ -478,14 +476,11 @@ Game_result Pacman_Update(const Game_input* input) {
     if (direction != direction_none) { g_wanted_direction = direction; }
 
     if (g_game_state != game_state_playing) {
+        if (g_game_state == game_state_over) { return game_result_lost; }
         if (input->confirm_pressed) {
-            if (g_game_state == game_state_level_clear) {
-                g_level++;
-                load_level();
-                render_full_map();
-            } else {
-                restart_game();
-            }
+            g_level++;
+            load_level();
+            render_full_map();
         }
         return game_result_running;
     }
@@ -494,14 +489,14 @@ Game_result Pacman_Update(const Game_input* input) {
     if (now - g_last_player_move >= PLAYER_MOVE_MS) {
         g_last_player_move = now;
         move_player();
+        if (g_game_state == game_state_over) { return game_result_lost; }
     }
     if (g_game_state == game_state_playing && now - g_last_ghost_move >= GHOST_MOVE_MS) {
         g_last_ghost_move = now;
         move_ghosts();
+        if (g_game_state == game_state_over) { return game_result_lost; }
     }
     return game_result_running;
 }
 
 uint32_t Pacman_Get_Score(void) { return g_score; }
-
-uint8_t Pacman_Is_Finished(void) { return g_game_state == game_state_over; }

@@ -35,12 +35,32 @@ typedef struct {
     void (*init)(const Game_hardware* hardware);
     Game_result (*update)(const Game_input* input);
     uint32_t (*get_score)(void);
-    uint8_t (*is_finished)(void);
     uint8_t is_game;
 } Game_descriptor;
 ```
 
-这样控制台不需要知道每个游戏的内部实现，只需要调用统一生命周期接口。
+`update` 直接报告生命周期结果：
+
+```c
+typedef enum {
+    game_result_running,
+    game_result_exit,
+    game_result_won,
+    game_result_lost,
+} Game_result;
+```
+
+游戏在进入终态的当帧返回 `won` 或 `lost`；工具只返回 `running` 或 `exit`。控制台统一负责终态音效与振动、分数录入、排行榜和重玩，因此不需要轮询游戏内部状态。
+
+需要随机数的游戏在自身私有状态中保存 `Game_rng`，通过运行时接口操作：
+
+```c
+void Game_Rng_Seed(Game_rng* rng, uint32_t seed);
+uint32_t Game_Rng_Next(Game_rng* rng);
+uint32_t Game_Rng_Range(Game_rng* rng, uint32_t upper_bound);
+```
+
+初始化时使用 `Game_Runtime_Get_Tick_Ms()` 与游戏专属非零常量异或后播种；有界随机选择使用无偏的 `Game_Rng_Range()`，不要在游戏中定义私有 PRNG。
 
 ## HAL：设备对象层
 

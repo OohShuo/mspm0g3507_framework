@@ -166,9 +166,6 @@ static uint32_t move_interval(void) {
 
 static void end_game(Snake_state state) {
     g_state = state;
-    Buzzer_Play_Sfx(g_hardware.buzzer, state == snake_state_win ? buzzer_sfx_victory : buzzer_sfx_defeat);
-    Vib_Motor_Gpio_Play_Effect(
-        g_hardware.vib_motor, state == snake_state_win ? vib_effect_victory : vib_effect_defeat);
     render_hud();
 }
 
@@ -220,8 +217,7 @@ Game_result Snake_Update(const Game_input* input) {
     if (input->back_requested) { return game_result_exit; }
 
     if (g_state != snake_state_playing) {
-        if (input->confirm_pressed) { restart_game(); }
-        return game_result_running;
+        return g_state == snake_state_win ? game_result_won : game_result_lost;
     }
 
     if (input->direction_pressed && input->direction != game_direction_none &&
@@ -234,10 +230,11 @@ Game_result Snake_Update(const Game_input* input) {
     if (now - g_last_move >= move_interval()) {
         g_last_move = now;
         move_snake();
+        if (g_state != snake_state_playing) {
+            return g_state == snake_state_win ? game_result_won : game_result_lost;
+        }
     }
     return game_result_running;
 }
 
 uint32_t Snake_Get_Score(void) { return g_score; }
-
-uint8_t Snake_Is_Finished(void) { return g_state != snake_state_playing; }
