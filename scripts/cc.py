@@ -74,22 +74,6 @@ def resolve_runtime_mode(target: dict) -> str:
     return mode
 
 
-def validate_runtime_dependencies(target: dict, mode: str) -> None:
-    if mode != "flash_mgr":
-        return
-    missing = [
-        key
-        for key in ("FRAMEWORK_USE_LFS", "FRAMEWORK_USE_UART")
-        if not _is_truthy(target.get(key))
-    ]
-    if missing:
-        name = target.get("name", "<unnamed>")
-        sys.exit(
-            f"-- [cc.py] target {name!r}: runtime_mode 'flash_mgr' requires "
-            + " and ".join(f"{key}=ON" for key in missing)
-        )
-
-
 def resolve_config_path(
     value: object,
     default_relative: str,
@@ -106,7 +90,6 @@ def cmake_cache_args(target: dict, root: pathlib.Path = ROOT) -> list[str]:
     args: list[str] = []
     is_arm = str(target.get("platform", "ARM")).upper() == "ARM"
     runtime_mode = resolve_runtime_mode(target)
-    validate_runtime_dependencies(target, runtime_mode)
     args.append(f"-DFRAMEWORK_RUNTIME_MODE={runtime_mode}")
 
     if is_arm:

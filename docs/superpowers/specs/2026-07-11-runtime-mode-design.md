@@ -46,7 +46,7 @@ The build defines three numeric mode constants and one selected mode value, allo
 
 An absent `runtime_mode` resolves to `game`. Any present value outside the three supported lowercase names terminates `cc.py` before CMake runs and reports the target name, invalid value, and allowed values.
 
-`flash_mgr` additionally requires both `FRAMEWORK_USE_LFS` and `FRAMEWORK_USE_UART` to be truthy. If either dependency is disabled, `cc.py` rejects the target with a direct configuration error. This prevents a firmware that creates a nonfunctional Flash manager task.
+`flash_mgr` additionally requires both `FRAMEWORK_USE_LFS` and `FRAMEWORK_USE_UART` to be truthy. Configuration headers enforce runtime and test dependencies with compile-time `#error` checks; `cc.py` only validates and forwards the runtime-mode value.
 
 The same mode field is supported for ARM and VM targets so their configuration model stays uniform.
 
@@ -57,8 +57,7 @@ Automated Python tests for `scripts/cc.py` will cover:
 - defaulting an absent field to `game`;
 - mapping each of the three valid values to the correct CMake argument;
 - rejecting an invalid value before invoking CMake;
-- rejecting `flash_mgr` without LittleFS;
-- rejecting `flash_mgr` without UART;
+- rejecting incompatible application and test dependencies during preprocessing;
 - confirming mode metadata is not converted to an ON/OFF argument.
 
 Build verification will configure at least the `game` and `test` ARM variants. The Flash manager variant will also be configured with both dependencies enabled. Existing project formatting and relevant tests will run after implementation.

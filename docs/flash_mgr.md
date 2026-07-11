@@ -46,7 +46,7 @@ W25Q32 (4 MiB)
 | `FRAMEWORK_USE_UART: ON` | `config.yaml` | 编译 UART0 DMA 驱动和 Com_uart HAL |
 | `runtime_mode: flash_mgr` | `config.yaml` | 创建 Flash Manager FreeRTOS 任务，并关闭游戏和测试入口 |
 
-`runtime_mode`、`FRAMEWORK_USE_LFS` 和 `FRAMEWORK_USE_UART` 由 `scripts/cc.py` 校验并转为 CMake 参数。缺少 LittleFS 或 UART 时，构建会在运行 CMake 前直接报错。
+`runtime_mode`、`FRAMEWORK_USE_LFS` 和 `FRAMEWORK_USE_UART` 由 `scripts/cc.py` 转为 CMake 参数。缺少 LittleFS 或 UART 时，`config/app_config.h` 中的静态检查会通过 `#error` 终止编译。
 
 ## 编译与烧录
 
