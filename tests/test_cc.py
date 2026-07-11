@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import re
 import subprocess
+import tempfile
 import unittest
 
 
@@ -63,6 +65,9 @@ class RuntimeHeaderTests(unittest.TestCase):
                 "-DFRAMEWORK_RUNTIME_MODE_FLASH_MGR=2",
                 "-DFRAMEWORK_RUNTIME_MODE_TEST=3",
                 f"-DFRAMEWORK_RUNTIME_MODE_CURRENT={current}",
+                "-DFRAMEWORK_USE_FREERTOS=1",
+                "-DFRAMEWORK_USE_LFS=1",
+                "-DFRAMEWORK_USE_UART=1",
                 "-include",
                 str(ROOT / "config" / "app_config.h"),
                 "/dev/null",
@@ -109,6 +114,59 @@ class RuntimeIntegrationSourceTests(unittest.TestCase):
     def test_user_guidance_does_not_request_manual_legacy_macro(self) -> None:
         cli = (ROOT / "scripts" / "flashmgr" / "cli.py").read_text(encoding="utf-8")
         self.assertNotIn("FLASH_MGR_ENABLE=1", cli)
+
+
+class StaticConfigurationCheckTests(unittest.TestCase):
+    def preprocess(self, header: str, *definitions: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["cc", "-E", "-x", "c", *(f"-D{item}" for item in definitions), "-include", str(ROOT / "config" / header), "/dev/null"],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_flash_manager_rejects_missing_lfs_or_uart(self) -> None:
+        base = (
+            "FRAMEWORK_RUNTIME_MODE_GAME=1",
+            "FRAMEWORK_RUNTIME_MODE_FLASH_MGR=2",
+            "FRAMEWORK_RUNTIME_MODE_TEST=3",
+            "FRAMEWORK_RUNTIME_MODE_CURRENT=2",
+            "FRAMEWORK_USE_FREERTOS=1",
+        )
+        for available in ("FRAMEWORK_USE_LFS=1", "FRAMEWORK_USE_UART=1"):
+            with self.subTest(available=available):
+                result = self.preprocess("app_config.h", *base, available)
+                self.assertNotEqual(0, result.returncode)
+
+    def test_test_features_reject_missing_framework_dependencies(self) -> None:
+        cases = {
+            "TEST_LFS_ENABLE=1": "FRAMEWORK_USE_LFS",
+            "TEST_LVGL_BALL_ENABLE=1": "FRAMEWORK_USE_LVGL",
+            "TEST_LVGL_HELLO_ENABLE=1": "FRAMEWORK_USE_LVGL",
+            "TEST_RTT_ENABLE=1": "FRAMEWORK_USE_RTT",
+            "TEST_COM_UART_ENABLE=1": "FRAMEWORK_USE_UART",
+            "TEST_SLIP_RECV_ENABLE=1": "FRAMEWORK_USE_UART",
+        }
+        for enabled_test, dependency in cases.items():
+            with self.subTest(enabled_test=enabled_test):
+                macro = enabled_test.split("=", maxsplit=1)[0]
+                source = (ROOT / "config" / "test_config.h").read_text(encoding="utf-8")
+                source = re.sub(
+                    rf"^#define {re.escape(macro)}\s+0$",
+                    f"#define {macro} 1",
+                    source,
+                    count=1,
+                    flags=re.MULTILINE,
+                )
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".h", encoding="utf-8") as header:
+                    header.write(source)
+                    header.flush()
+                    result = subprocess.run(
+                        ["cc", "-E", "-x", "c", "-include", header.name, "/dev/null"],
+                        capture_output=True,
+                        text=True,
+                    )
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn(dependency, result.stderr)
 
 
 if __name__ == "__main__":
