@@ -27,7 +27,7 @@ Bsp_Init()
 Hal_Init()
 App_Init()
 Hal_Task_Def()
-Test_Task_Def()   # 由 TEST_ANY_ENABLE 控制
+Test_Task_Def()   # 由 runtime_mode: test 和 TEST_ANY_ENABLE 共同控制
 App_Task_Def()
 Platform_Start()
 ```

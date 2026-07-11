@@ -18,7 +18,7 @@ int main(void) {
     App_Init();
 
     Hal_Task_Def();
-#if TEST_ANY_ENABLE
+#if FRAMEWORK_RUNTIME_MODE_CURRENT == FRAMEWORK_RUNTIME_MODE_TEST && TEST_ANY_ENABLE
     Test_Task_Def();
 #endif
     App_Task_Def();

@@ -33,14 +33,9 @@ W25Q32 (4 MiB)
 ```yaml
 - name: arm
   platform: ARM
+  runtime_mode: flash_mgr # 启用 Flash Manager 后台任务
   FRAMEWORK_USE_LFS: ON    # 启用 LittleFS 文件系统
   FRAMEWORK_USE_UART: ON   # 启用 UART0（Flash Manager 通信口）
-```
-
-编辑 `config/app_config.h`：
-
-```c
-#define FLASH_MGR_ENABLE  1   // 启用 Flash Manager 后台任务
 ```
 
 三个开关必须同时打开，缺少任意一个 Flash Manager 都不会启动：
@@ -49,9 +44,9 @@ W25Q32 (4 MiB)
 |------|------|------|
 | `FRAMEWORK_USE_LFS: ON` | `config.yaml` | 编译 LittleFS 和 Storage 模块 |
 | `FRAMEWORK_USE_UART: ON` | `config.yaml` | 编译 UART0 DMA 驱动和 Com_uart HAL |
-| `FLASH_MGR_ENABLE 1` | `app_config.h` | 创建 Flash Manager FreeRTOS 任务 |
+| `runtime_mode: flash_mgr` | `config.yaml` | 创建 Flash Manager FreeRTOS 任务，并关闭游戏和测试入口 |
 
-`FRAMEWORK_USE_LFS` 和 `FRAMEWORK_USE_UART` 通过 `scripts/cc.py` 转为 CMake `-D` 参数，最终以 `#define` 形式传给编译器。
+`runtime_mode`、`FRAMEWORK_USE_LFS` 和 `FRAMEWORK_USE_UART` 由 `scripts/cc.py` 校验并转为 CMake 参数。缺少 LittleFS 或 UART 时，构建会在运行 CMake 前直接报错。
 
 ## 编译与烧录
 

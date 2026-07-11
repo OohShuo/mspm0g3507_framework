@@ -152,7 +152,7 @@ VM 用 SDL2 提供虚拟设备：
 #define TEST_W25Q32_ENABLE         0
 ```
 
-只要任意测试开启，`TEST_ANY_ENABLE` 为真，`main.c` 会调用 `Test_Task_Def()` 创建对应测试任务。
+当 `config/config.yaml` 选择 `runtime_mode: test`，且任意测试开启使 `TEST_ANY_ENABLE` 为真时，`main.c` 才会调用 `Test_Task_Def()` 创建对应测试任务。
 
 ## CONFIG：配置层
 
@@ -162,7 +162,7 @@ VM 用 SDL2 提供虚拟设备：
 
 | 文件 | 说明 |
 | --- | --- |
-| `config.yaml` | 构建目标与功能开关 |
+| `config.yaml` | 构建目标、顶层运行模式与功能开关 |
 | `board_config.h` | GPIO/PWM/ADC/SPI/UART 索引、引脚、摇杆校准、LCD 方向等 |
 | `app_config.h` | 应用层功能开关 |
 | `test_config.h` | 测试任务开关 |

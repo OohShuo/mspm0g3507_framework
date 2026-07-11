@@ -88,12 +88,18 @@ uint32_t choice = Game_Rng_Range(&g_rng, upper_bound);
 FRAMEWORK_USE_UART: ON
 ```
 
-应用级开关放入 `config/app_config.h`，测试级开关放入 `config/test_config.h`。
+顶层运行模式也在 `config/config.yaml` 中选择：
+
+```yaml
+runtime_mode: game # game | flash_mgr | test
+```
+
+游戏机和 Flash Manager 的任务开关由该字段自动派生，不直接编辑 `config/app_config.h`。测试级开关仍放在 `config/test_config.h`；选择 `runtime_mode: test` 后，可手动启用一个或多个 `TEST_*_ENABLE`。
 
 建议：
 
 - 构建开关控制是否编译/链接大型模块。
-- 应用开关控制是否创建任务或启用功能。
+- `runtime_mode` 控制创建哪个顶层应用任务。
 - 测试开关只影响测试任务，不应改变正式逻辑。
 
 ## 调试资源占用

@@ -45,6 +45,7 @@ python3 scripts/dep_check.py
 build:
   - name: vm
     platform: VM
+    runtime_mode: game
     build_type: Release
     generator: ninja
     graphviz: ON
@@ -53,6 +54,7 @@ build:
     
   - name: arm
     platform: ARM
+    runtime_mode: game # game | flash_mgr | test
     build_type: MinSizeRel # Debug | Release | RelWithDebInfo | MinSizeRel
     generator: ninja       # ninja | make | auto
     graphviz: ON           # ON | OFF
@@ -68,6 +70,7 @@ build:
 
 - `name` 是构建目标名，对应 `--target` 参数。
 - `platform` 决定使用 ARM 平台还是 VM 平台。
+- `runtime_mode` 选择 `game`、`flash_mgr` 或 `test`；测试项目仍在 `config/test_config.h` 中选择。
 - `build_type` 传递给 CMake，例如 `Debug`、`Release`、`RelWithDebInfo`、`MinSizeRel`。
 - `FRAMEWORK_USE_*` 字段会被 `scripts/cc.py` 转换成 CMake 定义。
 

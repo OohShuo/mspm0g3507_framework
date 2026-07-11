@@ -209,7 +209,7 @@ def cli_main(argv: list) -> int:
         if "no response" in str(exc).lower() or "未返回" in str(exc):
             print(
                 "串口已经打开，但 MCU 没有返回协议帧。请确认：\n"
-                "  1. 已烧录 FLASH_MGR_ENABLE=1 的最新固件并复位；\n"
+                "  1. 已烧录 runtime_mode: flash_mgr 的最新固件并复位；\n"
                 "  2. 调试器 UART TX 接 PA11（MCU RX）；\n"
                 "  3. 调试器 UART RX 接 PA10（MCU TX）；\n"
                 "  4. 调试器与 MCU 共地，串口为 2000000 8N1；\n"
