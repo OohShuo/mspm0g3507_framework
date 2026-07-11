@@ -56,7 +56,7 @@ python3 scripts/cc.py --target arm
 | `skip_syscfg` | 跳过首次编译时自动调用 SysConfig（`ON`/`OFF`） |
 | `FRAMEWORK_USE_*` | 功能开关，最终变成编译宏 |
 
-`runtime_mode` 的三个值互斥：`game` 创建游戏机任务，`flash_mgr` 创建 Flash Manager 任务，`test` 按 `config/test_config.h` 中启用的 `TEST_*_ENABLE` 创建测试任务。选择 `flash_mgr` 时必须同时设置 `FRAMEWORK_USE_LFS: ON` 和 `FRAMEWORK_USE_UART: ON`，否则 `cc.py` 会拒绝该配置。
+`runtime_mode` 的三个值互斥：`game` 创建游戏机任务，`flash_mgr` 创建 Flash Manager 任务，`test` 按 `config/test_config.h` 中启用的 `TEST_*_ENABLE` 创建测试任务。选择 `flash_mgr` 时必须同时设置 `FRAMEWORK_USE_LFS: ON` 和 `FRAMEWORK_USE_UART: ON`，否则配置头中的静态检查会通过 `#error` 终止编译。
 
 ## CMake 静态库结构
 

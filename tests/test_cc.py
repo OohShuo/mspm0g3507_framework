@@ -41,16 +41,13 @@ class RuntimeModeTests(unittest.TestCase):
             self.cache_args(runtime_mode="console")
         self.assertIn("game, flash_mgr, test", str(raised.exception))
 
-    def test_flash_manager_requires_littlefs(self) -> None:
-        with self.assertRaises(SystemExit) as raised:
-            self.cache_args(runtime_mode="flash_mgr", FRAMEWORK_USE_LFS="OFF")
-        self.assertIn("FRAMEWORK_USE_LFS", str(raised.exception))
-
-    def test_flash_manager_requires_uart(self) -> None:
-        with self.assertRaises(SystemExit) as raised:
-            self.cache_args(runtime_mode="flash_mgr", FRAMEWORK_USE_UART="OFF")
-        self.assertIn("FRAMEWORK_USE_UART", str(raised.exception))
-
+    def test_dependency_validation_is_deferred_to_config_headers(self) -> None:
+        args = self.cache_args(
+            runtime_mode="flash_mgr",
+            FRAMEWORK_USE_LFS="OFF",
+            FRAMEWORK_USE_UART="OFF",
+        )
+        self.assertIn("-DFRAMEWORK_RUNTIME_MODE=flash_mgr", args)
 
 class RuntimeHeaderTests(unittest.TestCase):
     def macros_for(self, current: int) -> dict[str, str]:
