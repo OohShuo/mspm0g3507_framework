@@ -7,9 +7,11 @@
 #undef game_entry
 
 static const Game_descriptor* const g_games[] = {
+
 #define game_entry(name) &game_##name##_entry,
 #include "game_entries.inc"
 #undef game_entry
+
 };
 
 typedef char

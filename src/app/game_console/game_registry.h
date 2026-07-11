@@ -5,9 +5,11 @@
 #include "game_runtime.h"
 
 typedef enum {
+
 #define game_entry(name) game_id_##name,
 #include "game_entries.inc"
 #undef game_entry
+
     game_id_count,
 } Game_id;
 
