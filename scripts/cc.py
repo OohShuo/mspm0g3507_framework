@@ -29,9 +29,10 @@ BUILD_ROOT = ROOT / "build"
 
 GENERATOR_MAP = {"ninja": "Ninja", "make": "Unix Makefiles"}
 
-META_KEYS = {"name", "platform", "build_type", "generator", "graphviz", "skip_syscfg"}
+META_KEYS = {"name", "platform", "build_type", "generator", "graphviz", "skip_syscfg", "runtime_mode"}
 PATH_KEYS = {"arm_tool_chain_path", "sysconfig_path"}
 STRING_KEYS = set()  # reserved for future non-boolean keys
+RUNTIME_MODES = ("game", "flash_mgr", "test")
 
 
 def load_targets() -> list[dict]:
@@ -61,6 +62,34 @@ def _is_truthy(value: object) -> bool:
     return False
 
 
+def resolve_runtime_mode(target: dict) -> str:
+    mode = str(target.get("runtime_mode", "game")).strip()
+    if mode not in RUNTIME_MODES:
+        name = target.get("name", "<unnamed>")
+        allowed = ", ".join(RUNTIME_MODES)
+        sys.exit(
+            f"-- [cc.py] target {name!r}: invalid runtime_mode {mode!r}; "
+            f"expected one of: {allowed}"
+        )
+    return mode
+
+
+def validate_runtime_dependencies(target: dict, mode: str) -> None:
+    if mode != "flash_mgr":
+        return
+    missing = [
+        key
+        for key in ("FRAMEWORK_USE_LFS", "FRAMEWORK_USE_UART")
+        if not _is_truthy(target.get(key))
+    ]
+    if missing:
+        name = target.get("name", "<unnamed>")
+        sys.exit(
+            f"-- [cc.py] target {name!r}: runtime_mode 'flash_mgr' requires "
+            + " and ".join(f"{key}=ON" for key in missing)
+        )
+
+
 def resolve_config_path(
     value: object,
     default_relative: str,
@@ -76,6 +105,9 @@ def resolve_config_path(
 def cmake_cache_args(target: dict, root: pathlib.Path = ROOT) -> list[str]:
     args: list[str] = []
     is_arm = str(target.get("platform", "ARM")).upper() == "ARM"
+    runtime_mode = resolve_runtime_mode(target)
+    validate_runtime_dependencies(target, runtime_mode)
+    args.append(f"-DFRAMEWORK_RUNTIME_MODE={runtime_mode}")
 
     if is_arm:
         args.append(

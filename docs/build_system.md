@@ -27,6 +27,7 @@ python3 scripts/cc.py --target arm
 ```yaml
 - name: arm
   platform: ARM
+  runtime_mode: game
   build_type: MinSizeRel
   generator: ninja
   graphviz: ON
@@ -46,6 +47,7 @@ python3 scripts/cc.py --target arm
 | --- | --- |
 | `name` | 目标名称，例如 `arm`、`vm` |
 | `platform` | `ARM` 或 `VM` |
+| `runtime_mode` | `game`、`flash_mgr` 或 `test`；缺省为 `game` |
 | `build_type` | CMake 构建类型 |
 | `generator` | `ninja`、`make` 或 `auto` |
 | `graphviz` | 是否生成 CMake 目标关系图 |
@@ -53,6 +55,8 @@ python3 scripts/cc.py --target arm
 | `sysconfig_path` | TI SysConfig 根目录；为空时使用 `tools/sysconfig` |
 | `skip_syscfg` | 跳过首次编译时自动调用 SysConfig（`ON`/`OFF`） |
 | `FRAMEWORK_USE_*` | 功能开关，最终变成编译宏 |
+
+`runtime_mode` 的三个值互斥：`game` 创建游戏机任务，`flash_mgr` 创建 Flash Manager 任务，`test` 按 `config/test_config.h` 中启用的 `TEST_*_ENABLE` 创建测试任务。选择 `flash_mgr` 时必须同时设置 `FRAMEWORK_USE_LFS: ON` 和 `FRAMEWORK_USE_UART: ON`，否则 `cc.py` 会拒绝该配置。
 
 ## CMake 静态库结构
 

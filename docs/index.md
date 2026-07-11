@@ -131,6 +131,7 @@ graph TD
     build:
       - name: arm
         platform: ARM
+        runtime_mode: game # game | flash_mgr | test
         build_type: MinSizeRel
         arm_tool_chain_path: ""
         sysconfig_path: ""
@@ -139,15 +140,17 @@ graph TD
         FRAMEWORK_USE_LVGL: OFF
         FRAMEWORK_USE_LFS: ON
         FRAMEWORK_USE_RTT: OFF
+        FRAMEWORK_USE_UART: OFF
 
       - name: vm
         platform: VM
+        runtime_mode: game
         build_type: Release
         FRAMEWORK_USE_FREERTOS: ON
         FRAMEWORK_USE_LFS: ON
     ```
 
-    `name` 决定 `build/<name>/` 目录；`platform` 决定 ARM 固件或 VM 仿真；`FRAMEWORK_USE_*` 控制中间件和模块裁剪。
+    `name` 决定 `build/<name>/` 目录；`platform` 决定 ARM 固件或 VM 仿真；`runtime_mode` 在游戏机、Flash Manager 和测试固件之间选择；`FRAMEWORK_USE_*` 控制中间件和模块裁剪。测试模式中的具体测试项仍在 `config/test_config.h` 中选择。
 
 === "3. 构建"
 
