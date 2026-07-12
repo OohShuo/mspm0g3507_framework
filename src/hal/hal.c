@@ -3,6 +3,9 @@
 #include "FreeRTOS.h"
 #include "button.h"
 #include "buzzer.h"
+#if FRAMEWORK_USE_WIZNET
+    #include "com_udp.h"
+#endif
 #include "com_uart.h"
 #include "joystick.h"
 #include "led_breath.h"
@@ -27,6 +30,9 @@ void Hal_Init(void) {
     Vib_Motor_Pwm_Init();
 #if FRAMEWORK_USE_UART
     Com_Uart_Init();
+#endif
+#if FRAMEWORK_USE_WIZNET
+    Com_Udp_Init();
 #endif
 }
 
