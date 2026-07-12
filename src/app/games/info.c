@@ -8,8 +8,11 @@
 #include "info_image_morrow.h"
 #include "info_image_oooshuo.h"
 #include "info_image_polaris.h"
-#include "lfs.h"
-#include "storage.h"
+
+#if FRAMEWORK_USE_LFS
+    #include "lfs.h"
+    #include "storage.h"
+#endif
 
 #define SCREEN_WIDTH  240
 #define SCREEN_HEIGHT 320
@@ -149,7 +152,9 @@ static void render_info_screen(void) {
 /* ── Easter egg: nailong image from W25Q32 ── */
 #define EE_R565_HEADER_SIZE 16u
 
+#if FRAMEWORK_USE_LFS
 static uint16_t ee_rd_u16_le(const uint8_t* p) { return (uint16_t)p[0] | ((uint16_t)p[1] << 8); }
+#endif
 
 static void render_easter_egg(void) {
     /* Draw status bars first */
@@ -157,6 +162,7 @@ static void render_easter_egg(void) {
     Game_Graphics_Clear_Game_Area(g_lcd);
     Game_Graphics_Draw_Bottom_Bar(g_lcd, "B BACK", 0);
 
+#if FRAMEWORK_USE_LFS
     /* Open image directly via LittleFS */
     lfs_t* lfs = Storage_Get_Lfs();
     if (lfs == NULL) { return; }
@@ -208,6 +214,9 @@ static void render_easter_egg(void) {
     Storage_Lock();
     lfs_file_close(lfs, &file);
     Storage_Unlock();
+#else
+    Game_Graphics_Draw_Text(g_lcd, 54, 150, "LFS DISABLED", 2, COLOR_GRAY);
+#endif
 }
 
 static void info_init(const Game_hardware* hardware) {

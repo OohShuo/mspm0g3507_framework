@@ -14,7 +14,7 @@ build:
 
   - name: arm
     platform: ARM
-    runtime_mode: game # game | flash_mgr | test
+    runtime_mode: test # game | flash_mgr | test
     build_type: MinSizeRel # Debug | Release | RelWithDebInfo | MinSizeRel
     generator: ninja # ninja | make | auto
     graphviz: ON # ON | OFF
@@ -26,5 +26,5 @@ build:
     FRAMEWORK_USE_FREERTOS: ON
     FRAMEWORK_USE_RTT: OFF
     FRAMEWORK_USE_LVGL: OFF
-    FRAMEWORK_USE_LFS: ON
+    FRAMEWORK_USE_LFS: OFF
     FRAMEWORK_USE_UART: OFF

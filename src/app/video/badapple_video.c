@@ -5,7 +5,7 @@
 
 /* ── Bad Apple video config ── */
 #define BADAPPLE_VIDEO_USE_BUILTIN  0
-#define BADAPPLE_VIDEO_USE_LFS_FILE 1
+#define BADAPPLE_VIDEO_USE_LFS_FILE FRAMEWORK_USE_LFS
 #define BADAPPLE_VIDEO_LFS_PATH     "/badapple.bard"
 
 #include "bsp_time.h"

@@ -1,28 +1,28 @@
 #pragma once
 
 #if FRAMEWORK_RUNTIME_MODE_CURRENT == FRAMEWORK_RUNTIME_MODE_FLASH_MGR
-#define FLASH_MGR_ENABLE 1
+    #define FLASH_MGR_ENABLE 1
 #else
-#define FLASH_MGR_ENABLE 0
+    #define FLASH_MGR_ENABLE 0
 #endif
 
 #if FRAMEWORK_RUNTIME_MODE_CURRENT == FRAMEWORK_RUNTIME_MODE_GAME
-#define GAME_CONSOLE_ENABLE 1
+    #define GAME_CONSOLE_ENABLE 1
 #else
-#define GAME_CONSOLE_ENABLE 0
+    #define GAME_CONSOLE_ENABLE 0
 #endif
 
 #define GAME_RUNTIME_MONITOR_ENABLE      0
 #define GAME_RUNTIME_MONITOR_INTERVAL_MS 5000u
 
 #if (GAME_CONSOLE_ENABLE || FLASH_MGR_ENABLE) && !FRAMEWORK_USE_FREERTOS
-#error "game and flash_mgr runtime modes require FRAMEWORK_USE_FREERTOS=ON"
+    #error "game and flash_mgr runtime modes require FRAMEWORK_USE_FREERTOS=ON"
 #endif
 
 #if FLASH_MGR_ENABLE && !FRAMEWORK_USE_LFS
-#error "flash_mgr runtime mode requires FRAMEWORK_USE_LFS=ON"
+    #error "flash_mgr runtime mode requires FRAMEWORK_USE_LFS=ON"
 #endif
 
 #if FLASH_MGR_ENABLE && !FRAMEWORK_USE_UART
-#error "flash_mgr runtime mode requires FRAMEWORK_USE_UART=ON"
+    #error "flash_mgr runtime mode requires FRAMEWORK_USE_UART=ON"
 #endif

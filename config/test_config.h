@@ -25,21 +25,21 @@
         TEST_W25Q32_ENABLE)
 
 #if TEST_ANY_ENABLE && !FRAMEWORK_USE_FREERTOS
-#error "enabled tests require FRAMEWORK_USE_FREERTOS=ON"
+    #error "enabled tests require FRAMEWORK_USE_FREERTOS=ON"
 #endif
 
 #if TEST_LFS_ENABLE && !FRAMEWORK_USE_LFS
-#error "TEST_LFS_ENABLE requires FRAMEWORK_USE_LFS=ON"
+    #error "TEST_LFS_ENABLE requires FRAMEWORK_USE_LFS=ON"
 #endif
 
 #if (TEST_LVGL_BALL_ENABLE || TEST_LVGL_HELLO_ENABLE) && !FRAMEWORK_USE_LVGL
-#error "LVGL tests require FRAMEWORK_USE_LVGL=ON"
+    #error "LVGL tests require FRAMEWORK_USE_LVGL=ON"
 #endif
 
 #if TEST_RTT_ENABLE && !FRAMEWORK_USE_RTT
-#error "TEST_RTT_ENABLE requires FRAMEWORK_USE_RTT=ON"
+    #error "TEST_RTT_ENABLE requires FRAMEWORK_USE_RTT=ON"
 #endif
 
 #if (TEST_COM_UART_ENABLE || TEST_SLIP_RECV_ENABLE) && !FRAMEWORK_USE_UART
-#error "UART tests require FRAMEWORK_USE_UART=ON"
+    #error "UART tests require FRAMEWORK_USE_UART=ON"
 #endif
