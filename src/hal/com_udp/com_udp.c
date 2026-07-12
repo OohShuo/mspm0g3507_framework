@@ -19,18 +19,28 @@
 static uint8_t g_wizchip_ready = 0;
 static Vector* g_instances = NULL;
 
+    #define COM_UDP_SOCKET_COUNT 8u
+
 /* ------------------------------------------------------------------ */
 /* Public API                                                           */
 /* ------------------------------------------------------------------ */
 
 void Com_Udp_Init(void) {
     if (g_instances != NULL) return;
-    g_instances = Vector_Init(sizeof(Com_udp*), 4);
+    g_instances = Vector_Init(sizeof(Com_udp*), COM_UDP_SOCKET_COUNT);
 }
 
 Com_udp* Com_Udp_Create(const Com_udp_config* cfg) {
     if (cfg == NULL || g_instances == NULL || cfg->wiz == NULL) return NULL;
-    if (cfg->sock_n >= 8 || cfg->rx_buf_size == 0 || cfg->tx_buf_size == 0) return NULL;
+    if (cfg->sock_n >= COM_UDP_SOCKET_COUNT || cfg->rx_buf_size == 0 || cfg->tx_buf_size == 0) {
+        return NULL;
+    }
+    if (Vector_Get_Size(g_instances) >= COM_UDP_SOCKET_COUNT) return NULL;
+
+    for (uint32_t i = 0; i < Vector_Get_Size(g_instances); i++) {
+        Com_udp* existing = *(Com_udp**)Vector_Get_At(g_instances, i);
+        if (existing != NULL && existing->config.sock_n == cfg->sock_n) return NULL;
+    }
 
     /* ---- one-time wizchip init (shared by all instances) ---- */
     if (!g_wizchip_ready) {
@@ -105,10 +115,16 @@ void Com_Udp_Poll(void) {
                 int32_t rlen = recvfrom(sn, obj->rx_buf, avail, obj->last_src_ip, &obj->last_src_port);
                 if (rlen <= 0) break;
 
+                uint8_t pack_info = PACK_COMPLETED;
+                if (getsockopt(sn, SO_PACKINFO, &pack_info) != SOCK_OK) break;
+
                 if (obj->config.on_rx) {
-                    obj->config.on_rx(obj, obj->rx_buf, (uint32_t)rlen,
-                        PROTOCOL_CHUNK_FIRST | PROTOCOL_CHUNK_LAST, obj->config.on_rx_arg);
+                    uint8_t flags = 0;
+                    if (!obj->rx_in_progress) flags |= PROTOCOL_CHUNK_FIRST;
+                    if ((pack_info & PACK_REMAINED) == 0u) flags |= PROTOCOL_CHUNK_LAST;
+                    obj->config.on_rx(obj, obj->rx_buf, (uint32_t)rlen, flags, obj->config.on_rx_arg);
                 }
+                obj->rx_in_progress = (uint8_t)((pack_info & PACK_REMAINED) != 0u);
                 break;
             }
             case SOCK_CLOSED:
@@ -120,14 +136,14 @@ void Com_Udp_Poll(void) {
     }
 }
 
-void Com_Udp_Send(
+int32_t Com_Udp_Send(
     Com_udp* obj, const uint8_t* data, uint32_t len, const uint8_t* dest_ip, uint16_t dest_port) {
-    if (obj == NULL || data == NULL || dest_ip == NULL || len == 0) return;
-    if (len > obj->config.tx_buf_size) return;
-    if (getSn_SR(obj->config.sock_n) != SOCK_UDP) return;
+    if (obj == NULL || data == NULL || dest_ip == NULL) return SOCKERR_ARG;
+    if (len == 0 || len > obj->config.tx_buf_size || len > UINT16_MAX) return SOCKERR_DATALEN;
+    if (getSn_SR(obj->config.sock_n) != SOCK_UDP) return SOCKERR_SOCKSTATUS;
 
     memcpy(obj->tx_buf, data, len);
-    sendto(obj->config.sock_n, obj->tx_buf, (uint16_t)len, (uint8_t*)dest_ip, dest_port);
+    return sendto(obj->config.sock_n, obj->tx_buf, (uint16_t)len, (uint8_t*)dest_ip, dest_port);
 }
 
 void Com_Udp_Get_Src(Com_udp* obj, uint8_t* out_ip, uint16_t* out_port) {

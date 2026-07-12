@@ -16,7 +16,19 @@
 #define TEST_VIB_MOTOR_GPIO_ENABLE 0
 #define TEST_VIB_MOTOR_PWM_ENABLE  0
 #define TEST_W25Q32_ENABLE         0
-#define TEST_W5500_UDP_ENABLE      0
+#ifndef TEST_W5500_UDP_ENABLE
+    #define TEST_W5500_UDP_ENABLE 0
+#endif
+
+#ifndef TEST_W5500_SPI_IDX
+    #define TEST_W5500_SPI_IDX 0xFFFFFFFFu
+#endif
+#ifndef TEST_W5500_CS_GPIO_IDX
+    #define TEST_W5500_CS_GPIO_IDX 0xFFFFFFFFu
+#endif
+#ifndef TEST_W5500_RST_GPIO_IDX
+    #define TEST_W5500_RST_GPIO_IDX 0xFFFFFFFFu
+#endif
 
 #define TEST_ANY_ENABLE                                                                                \
     (TEST_BUTTON_ENABLE || TEST_BUZZER_ENABLE || TEST_COM_UART_ENABLE || TEST_JOYSTICK_ENABLE ||       \
@@ -47,4 +59,8 @@
 
 #if TEST_W5500_UDP_ENABLE && !FRAMEWORK_USE_WIZNET
     #error "TEST_W5500_UDP_ENABLE requires FRAMEWORK_USE_WIZNET=ON"
+#endif
+
+#if TEST_W5500_UDP_ENABLE && (TEST_W5500_SPI_IDX == 0xFFFFFFFFu || TEST_W5500_CS_GPIO_IDX == 0xFFFFFFFFu)
+    #error "W5500 UDP test requires TEST_W5500_SPI_IDX and TEST_W5500_CS_GPIO_IDX"
 #endif

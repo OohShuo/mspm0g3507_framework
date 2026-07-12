@@ -9,12 +9,10 @@
     #include "FreeRTOS.h"
     #include "board_config.h"
     #include "com_udp.h"
+    #include "protocol.h"
     #include "task.h"
     #include "w5500_hal.h"
 
-    #define W5500_TEST_SPI_IDX        SPI_LCD_IDX
-    #define W5500_TEST_CS_GPIO_IDX    GPIO_SPI_CS_IDX
-    #define W5500_TEST_RST_GPIO_IDX   GPIO_TFT_RST_IDX
     #define W5500_TEST_SOCKET         0u
     #define W5500_TEST_LOCAL_PORT     5000u
     #define W5500_TEST_RX_BUF_SIZE    512u
@@ -25,8 +23,9 @@ static Wiz5500* g_wiz = NULL;
 static Com_udp* g_udp = NULL;
 
 static void on_rx(Com_udp* obj, const uint8_t* data, uint32_t len, uint8_t flags, void* arg) {
-    (void)flags;
     (void)arg;
+
+    if (flags != (PROTOCOL_CHUNK_FIRST | PROTOCOL_CHUNK_LAST)) { return; }
 
     uint8_t src_ip[4];
     uint16_t src_port;
@@ -36,9 +35,9 @@ static void on_rx(Com_udp* obj, const uint8_t* data, uint32_t len, uint8_t flags
 
 static void w5500_udp_test_init(void) {
     const W5500_Config wiz_cfg = {
-        .spi_idx = W5500_TEST_SPI_IDX,
-        .cs_gpio_idx = W5500_TEST_CS_GPIO_IDX,
-        .rst_gpio_idx = W5500_TEST_RST_GPIO_IDX,
+        .spi_idx = TEST_W5500_SPI_IDX,
+        .cs_gpio_idx = TEST_W5500_CS_GPIO_IDX,
+        .rst_gpio_idx = TEST_W5500_RST_GPIO_IDX,
         .spi_mutex = NULL,
     };
     g_wiz = W5500_Create(&wiz_cfg);
