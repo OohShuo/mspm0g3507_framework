@@ -17,6 +17,7 @@
 #include "vib_motor_gpio/test_vib_motor_gpio.h"
 #include "vib_motor_pwm/test_vib_motor_pwm.h"
 #include "w25q32/test_w25q32.h"
+#include "w5500_udp/test_w5500_udp.h"
 
 void Test_Task_Def(void) {
 #if TEST_BUTTON_ENABLE
@@ -66,5 +67,8 @@ void Test_Task_Def(void) {
 #endif
 #if TEST_LFS_ENABLE
     Test_Lfs_Task_Def();
+#endif
+#if TEST_W5500_UDP_ENABLE
+    Test_W5500_Udp_Task_Def();
 #endif
 }
