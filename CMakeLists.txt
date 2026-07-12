@@ -6,6 +6,7 @@ set(_framework_use_keys
     FRAMEWORK_USE_LFS
     FRAMEWORK_USE_RTT
     FRAMEWORK_USE_UART
+    FRAMEWORK_USE_WIZNET
 )
 
 set(FRAMEWORK_RUNTIME_MODE "game" CACHE STRING "Firmware runtime mode: game, flash_mgr, or test")

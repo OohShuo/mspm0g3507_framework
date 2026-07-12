@@ -21,4 +21,10 @@ if(FRAMEWORK_USE_LFS)
     list(APPEND _framework_lib_deps littlefs)
 endif()
 
+if(FRAMEWORK_USE_WIZNET)
+    include("${CMAKE_SOURCE_DIR}/cmake/wiznet_config.cmake")
+    add_subdirectory(wiznet)
+    list(APPEND _framework_lib_deps wiznet)
+endif()
+
 target_link_libraries(lib INTERFACE ${_framework_lib_deps})
