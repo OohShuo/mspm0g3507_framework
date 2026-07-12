@@ -49,6 +49,7 @@ struct Com_udp_t {
 void Com_Udp_Init(void);
 Com_udp* Com_Udp_Create(const Com_udp_config* cfg);
 void Com_Udp_Poll(void);
+/** Returns the transmitted byte count on success, or a negative SOCKERR_* value on failure. */
 int32_t Com_Udp_Send(
     Com_udp* obj, const uint8_t* data, uint32_t len, const uint8_t* dest_ip, uint16_t dest_port);
 void Com_Udp_Get_Src(Com_udp* obj, uint8_t* out_ip, uint16_t* out_port);

@@ -21,6 +21,12 @@ static Vector* g_instances = NULL;
 
     #define COM_UDP_SOCKET_COUNT 8u
 
+static void force_socket_closed(uint8_t sn) {
+    setSn_CR(sn, Sn_CR_CLOSE);
+    while (getSn_CR(sn) != 0u) { ; }
+    setSn_IR(sn, 0xFFu);
+}
+
 /* ------------------------------------------------------------------ */
 /* Public API                                                           */
 /* ------------------------------------------------------------------ */
@@ -113,10 +119,20 @@ void Com_Udp_Poll(void) {
                 if (avail > obj->config.rx_buf_size) avail = obj->config.rx_buf_size;
 
                 int32_t rlen = recvfrom(sn, obj->rx_buf, avail, obj->last_src_ip, &obj->last_src_port);
-                if (rlen <= 0) break;
+                if (rlen <= 0) {
+                    if (rlen < 0) {
+                        force_socket_closed(sn);
+                        obj->rx_in_progress = 0;
+                    }
+                    break;
+                }
 
                 uint8_t pack_info = PACK_COMPLETED;
-                if (getsockopt(sn, SO_PACKINFO, &pack_info) != SOCK_OK) break;
+                if (getsockopt(sn, SO_PACKINFO, &pack_info) != SOCK_OK) {
+                    force_socket_closed(sn);
+                    obj->rx_in_progress = 0;
+                    break;
+                }
 
                 if (obj->config.on_rx) {
                     uint8_t flags = 0;
@@ -128,6 +144,7 @@ void Com_Udp_Poll(void) {
                 break;
             }
             case SOCK_CLOSED:
+                obj->rx_in_progress = 0;
                 socket(sn, Sn_MR_UDP, obj->config.local_port, 0);
                 break;
             default:
