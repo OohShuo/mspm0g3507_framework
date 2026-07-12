@@ -2,7 +2,7 @@
 
 ## 目标
 
-将旧 `feat-wiznet` 分支的 Wiznet 功能重建到当前 `main` 之上。最终分支相对 `main` 只增加完整 Wiznet ioLibrary、W5500 HAL、UDP 通信封装、对应测试和文档；配置体系、目录结构、BSP 以及所有其他功能均以 `main` 为准。
+将旧 `feat-wiznet` 分支的 Wiznet 功能重建到当前 `main` 之上。最终分支相对 `main` 只增加完整 Wiznet ioLibrary、W5500 HAL、UDP 通信封装和对应测试；配置体系、目录结构、BSP 以及所有其他功能均以 `main` 为准。
 
 ## 历史处理
 
@@ -17,9 +17,8 @@
 - `src/hal/w5500/`：连接当前 GPIO、硬件 SPI 和 FreeRTOS 临界区接口。
 - `src/hal/com_udp/`：封装 W5500 静态网络配置、UDP socket、轮询收发和回调。
 - `src/test/w5500_udp/`：按当前测试注册方式提供 W5500 UDP 测试入口。
-- `docs/wiznet_w5500.md`：说明接线、配置、API 和测试方法。
 
-不移植旧分支中的 BSP、SysConfig、RTT、LFS、UART、应用、脚本、资源及旧测试结构改动。
+不移植旧分支中的 `docs/wiznet_w5500.md`、BSP、SysConfig、RTT、LFS、UART、应用、脚本、资源及旧测试结构改动。
 
 ## 配置与构建
 
