@@ -32,12 +32,12 @@ static Buzzer* g_buzzer = NULL;
 #if FRAMEWORK_USE_LFS
 static lfs_file_t g_tune_file = {0};
 static uint8_t g_tune_file_open = 0;
-#endif
 
 static uint8_t g_tune_active = 0;
 static Buzzer_note g_tune_current;
 static uint32_t g_tune_note_start = 0;
 static uint8_t g_tune_note_silenced = 0;
+#endif
 
 #if FRAMEWORK_USE_LFS
 

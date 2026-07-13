@@ -27,7 +27,7 @@ foreach(item IN LISTS ETHERNET_ITEMS)
         get_subdirs_and_self("${CMAKE_CURRENT_SOURCE_DIR}/Ethernet/${item}" ETHERNET_${item}_INC)
         list(APPEND ETHERNET_INC ${ETHERNET_${item}_INC})
 
-            list(APPEND ETHERNET_ENABLED_ITEMS ${item})
+        list(APPEND ETHERNET_ENABLED_ITEMS ${item})
     endif()
 endforeach()
 
@@ -46,7 +46,11 @@ endforeach()
 add_library(wiznet STATIC ${APP_SRC} ${ETHERNET_SRC} ${INTERNET_SRC})
 
 target_include_directories(wiznet PUBLIC ${APP_INC} ${ETHERNET_INC} ${INTERNET_INC} ${CFG_DIR})
-target_compile_definitions(wiznet PUBLIC _WIZCHIP_=W5500)
+target_compile_options(wiznet PUBLIC 
+    "-Wno-unused-function"
+    "-Wno-unused-variable"
+    "-Wno-unused-but-set-variable"
+)
 
 if(INTERNET_ENABLED_ITEMS)
     print_item("WiZnet" "Internet modules enabled: ${ColorBold}${INTERNET_ENABLED_ITEMS}${ColorReset}")
