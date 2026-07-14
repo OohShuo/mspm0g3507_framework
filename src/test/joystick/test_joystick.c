@@ -1,6 +1,7 @@
 #include "test_joystick.h"
 
 #include "FreeRTOS.h"
+#include "app_config.h"
 #include "board_config.h"
 #include "joystick.h"
 #include "task.h"
